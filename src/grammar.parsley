@@ -1,1 +1,14 @@
-Here's the parser!
+# This file is included directly in the final binary
+
+Program : Hello WS? Nom ;
+
+Hello : "Hello" ;
+
+Nom : "Nom!" ;
+
+# WS is required whitespace. WS? is optional, and likely will be more commonly used.
+
+WS : (" " | "\t" | "\n" | "\r\n")+ ;
+
+
+

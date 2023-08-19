@@ -8,10 +8,11 @@ fn main() {
     let parser_definition = include_str!("grammar.parsley").to_string();  // Drops the string right into the binary.
 
     let mut buffer = String::new();
-
     std::io::stdin().read_to_string(&mut buffer).expect("Failed to read stdin");
 
-    println!("{}", buffer);
+    let parser = parsley::define_parser::<parsley::CharToken>(parser_definition).expect("Parser definition should be valid");
 
-    println!("{}", parser_definition);
+    let syntax_tree = parser.parse_string(buffer, "Program").expect("Parsing Failed");
+
+    println!("{}", syntax_tree);
 }

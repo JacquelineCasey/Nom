@@ -9,4 +9,3 @@ cool), but likely it will be interpretted because interpretted is easy. I should
 rule out some sort of compile to bytecode approach though - that could be a middle
 ground between learning about compilation and optimization techniques versus actually
 having to deal with putting together binaries.
-

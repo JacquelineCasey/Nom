@@ -24,9 +24,30 @@ MultiplicativeExpression
 
 PrimaryExpression 
     : Literal
-    | "(" WS? AdditiveExpression WS? ")"
+    | "(" WS? Expression WS? ")"
+    | BlockExpression
     ; 
 
+# Blocks are also expressions. They follow Rust rules, evaluating to the final expression,
+# or the unit type if the final expression has a semicolon (or is some other statement).
+
+BlockExpression
+    : "{" WS? (Statement WS? ";" WS?)* (Expression WS?)? "}"
+    ;
+
+
+
+# Statements - These constructs do not yield any value, not even unit. They can be
+# nested in an expression only by way of a BlockExpression.
+
+Statement
+    : AssignmentStatement
+    # : CompoundAssignmentStatement
+    ;
+
+AssignmentStatement
+    : Expression WS? "=" WS? Expression
+    ;
 
 
 # Literals - Currently just positive integers

@@ -15,6 +15,7 @@ and change.
   - Relational Operators (Boolean type)
   - Boolean Operators (I'm a fan of `and` and `or`, but I also maybe prefer `!` to `not`)
   - if, else, while. (Delay `for` loops, they should support ranges)
+  - Comments
   - Strings
   - Link against a standard library. Basic functions for IO.
     - Importing from standard library.
@@ -34,6 +35,8 @@ and change.
     - void / unit
     - unreachable / never / diverging
       - I'm fond of adding an explicit 'unreachable' keyword like Zig. Rust has something similar as a macro.
+      - However, its unclear if divergence should be a type or a statement or both. Maybe I need to reconsider
+        my stance on statements vs expressions.
     - any? I kinda hate `interface{}` or `anytype` or `void*`, but they can be useful in some places.
   - Convenience types:
     - e.g. tuples, slices, optionals and errors. Records? Newtype?

@@ -14,6 +14,12 @@ pub enum ExprAST {
     Multiply (Box<ExprAST>, Box<ExprAST>),
     Divide (Box<ExprAST>, Box<ExprAST>),
     Literal (i32),
+    Block (Vec<StatementAST>, Option<Box<ExprAST>>),
+}
+
+#[derive(Debug)]
+pub enum StatementAST {
+    NotYetImplemented
 }
 
 #[derive(Debug)]
@@ -37,8 +43,6 @@ pub fn build_ast(tree: SyntaxTree<CharToken>) -> Result<AST, ASTError> {
 }
 
 fn build_expr_ast(tree: SyntaxTree<CharToken>) -> Result<ExprAST, ASTError> {
-    // TODO - many of the branches are similar. Try to factor out the folding logic,
-    // may require a closure.
     match tree {
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "Expression" => {
             if subexpressions.len() != 1 {
@@ -74,8 +78,9 @@ fn build_expr_ast(tree: SyntaxTree<CharToken>) -> Result<ExprAST, ASTError> {
             }),
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {
             let subexpressions = drop_whitespace(subexpressions);
-            if subexpressions.len() == 1 {
-                Ok(ExprAST::Literal(build_literal(subexpressions.into_iter().next().expect("Known to exist"))?))
+            
+            if subexpressions.len() == 1 {  // Literal or Block
+                build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
             }
             else if subexpressions.len() == 3 {
                 if !matches_token(&subexpressions[0], "(") || !matches_token(&subexpressions[2], ")") {
@@ -89,6 +94,10 @@ fn build_expr_ast(tree: SyntaxTree<CharToken>) -> Result<ExprAST, ASTError> {
                 Err(ASTError("Wrong number of subtrees at PrimaryExpression".to_string()))
             }
         }
+        SyntaxTree::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "Literal" =>
+            build_literal_expr(tree),
+        SyntaxTree::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "BlockExpression" =>
+            build_block_expr(tree),
         SyntaxTree::RuleNode { rule_name, subexpressions: _ } => 
             Err(ASTError(format!("Expected expression, found {}", rule_name))),
         SyntaxTree::TokenNode (tok) => 
@@ -96,7 +105,8 @@ fn build_expr_ast(tree: SyntaxTree<CharToken>) -> Result<ExprAST, ASTError> {
     }
 }
 
-fn build_literal(tree: SyntaxTree<CharToken>) -> Result<i32, ASTError> {
+
+fn build_literal_expr(tree: SyntaxTree<CharToken>) -> Result<ExprAST, ASTError> {
     match tree {
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "Literal" => {
             let mut val: i32 = 0;
@@ -125,11 +135,59 @@ fn build_literal(tree: SyntaxTree<CharToken>) -> Result<i32, ASTError> {
                 else { return Err(ASTError("Expected Literal node".to_string())) }
             }
             
-            Ok(val)
+            Ok(ExprAST::Literal(val))
         }
         _ => Err(ASTError("Expected Literal node".to_string()))
     }
 }
+
+fn build_block_expr(tree: SyntaxTree<CharToken>) -> Result<ExprAST, ASTError> {
+    match tree {
+        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "BlockExpression" => {
+            if !matches_token(&subexpressions[0], "{") {
+                return Err(ASTError("Expected open bracket before block".to_string()));
+            }
+            if !matches_token(&subexpressions[subexpressions.len() - 1], "}") {
+                return Err(ASTError("Expected closed bracket before block".to_string()));
+            }
+
+            let mut subexpressions = subexpressions;
+            subexpressions.remove(subexpressions.len() - 1);
+            subexpressions.remove(0);
+
+            let subexpressions = drop_whitespace(subexpressions);
+
+            let mut subexpressions: Vec<_> = subexpressions.into_iter()
+                .filter(|subtree| !matches_token(subtree, ";"))
+                .collect();
+
+            if subexpressions.len() == 0 {
+                return Ok(ExprAST::Block(vec![], None));
+            }
+
+            let opt_expr = if let SyntaxTree::RuleNode { rule_name, subexpressions: _ } = &subexpressions[subexpressions.len() - 1] {
+                if rule_name == "Expression" {
+                    let last = subexpressions.remove(subexpressions.len() - 1);
+                    
+                    Some(Box::new(build_expr_ast(last)?))
+                }
+                else { None }
+            } else { None };
+
+            let statements = subexpressions.into_iter()
+                .map(|subtree| build_statement_ast(subtree))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            Ok(ExprAST::Block(statements, opt_expr))
+        }
+        _ => Err(ASTError("Expected Block node".to_string()))
+    }
+}
+
+fn build_statement_ast(_tree: SyntaxTree<CharToken>) -> Result<StatementAST, ASTError> {
+    Ok(StatementAST::NotYetImplemented)
+}
+
 
 fn combine_binary_ops<F>(subtrees: Vec<SyntaxTree<CharToken>>, left_to_right: bool, combine_fn: F) -> Result<ExprAST, ASTError>
     where F: Fn(ExprAST, SyntaxTree<CharToken>, ExprAST) -> Result<ExprAST, ASTError>
@@ -167,6 +225,7 @@ fn combine_binary_ops<F>(subtrees: Vec<SyntaxTree<CharToken>>, left_to_right: bo
         } 
     }
 }
+
 
 fn drop_whitespace(trees: Vec<SyntaxTree<CharToken>>) -> Vec<SyntaxTree<CharToken>> {
     trees.into_iter()

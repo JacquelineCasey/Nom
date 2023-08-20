@@ -48,60 +48,30 @@ fn build_expr_ast(tree: SyntaxTree<CharToken>) -> Result<ExprAST, ASTError> {
                 build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
             }
         }
-        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "AdditiveExpression" => {
-            let subexpressions = drop_whitespace(subexpressions);
-            if subexpressions.len() == 1 {
-                build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
-            }
-            else {
-                let mut iterator = subexpressions.into_iter().rev();  // Right to Left
-                
-                let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
-
-                while let Some(op) = iterator.next() {
-                    let left = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
-
-                    ast = match op {
-                        SyntaxTree::TokenNode(tok) if tok.token_type == "+"  => {
-                            ExprAST::Add(Box::new(left), Box::new(ast))
-                        }
-                        SyntaxTree::TokenNode(tok) if tok.token_type == "-"  => {
-                            ExprAST::Subtract(Box::new(left), Box::new(ast))
-                        },
-                        _ => Err(ASTError("Expected + or -".to_string()))?
-                    }
+        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "AdditiveExpression" => 
+            combine_binary_ops(subexpressions, true, |left, op, right| {
+                if matches_token(&op, "+") {
+                    Ok(ExprAST::Add(Box::new(left), Box::new(right)))
                 }
-                    
-                Ok(ast)
-            }
-        },
-        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "MultiplicativeExpression" => {
-            let subexpressions = drop_whitespace(subexpressions);
-            if subexpressions.len() == 1 {
-                build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
-            }
-            else {
-                let mut iterator = subexpressions.into_iter().rev();  // Right to Left
-                
-                let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
-
-                while let Some(op) = iterator.next() {
-                    let left = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
-
-                    ast = match op {
-                        SyntaxTree::TokenNode(tok) if tok.token_type == "*"  => {
-                            ExprAST::Multiply(Box::new(left), Box::new(ast))
-                        }
-                        SyntaxTree::TokenNode(tok) if tok.token_type == "/"  => {
-                            ExprAST::Divide(Box::new(left), Box::new(ast))
-                        },
-                        _ => Err(ASTError("Expected + or -".to_string()))?
-                    }
+                else if matches_token(&op, "-") {
+                    Ok(ExprAST::Subtract(Box::new(left), Box::new(right)))
                 }
-                    
-                Ok(ast)
-            }
-        },
+                else {
+                    Err(ASTError("Expected + or -".to_string()))
+                }
+            }),
+        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "MultiplicativeExpression" =>
+            combine_binary_ops(subexpressions, true, |left, op, right| {
+                if matches_token(&op, "*") {
+                    Ok(ExprAST::Multiply(Box::new(left), Box::new(right)))
+                }
+                else if matches_token(&op, "/") {
+                    Ok(ExprAST::Divide(Box::new(left), Box::new(right)))
+                }
+                else {
+                    Err(ASTError("Expected * or /".to_string()))
+                }
+            }),
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {
             let subexpressions = drop_whitespace(subexpressions);
             if subexpressions.len() == 1 {
@@ -158,6 +128,43 @@ fn build_literal(tree: SyntaxTree<CharToken>) -> Result<i32, ASTError> {
             Ok(val)
         }
         _ => Err(ASTError("Expected Literal node".to_string()))
+    }
+}
+
+fn combine_binary_ops<F>(subtrees: Vec<SyntaxTree<CharToken>>, left_to_right: bool, combine_fn: F) -> Result<ExprAST, ASTError>
+    where F: Fn(ExprAST, SyntaxTree<CharToken>, ExprAST) -> Result<ExprAST, ASTError>
+{
+    let subexpressions = drop_whitespace(subtrees);
+    if subexpressions.len() == 1 {
+        build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
+    }
+    else {
+        if left_to_right {
+            let mut iterator = subexpressions.into_iter();  // Matches left to right semantics
+   
+            let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
+    
+            while let Some(op) = iterator.next() {
+                let right = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
+    
+                ast = combine_fn(ast, op, right)?;
+            }
+
+            Ok(ast)
+        }
+        else {
+            let mut iterator = subexpressions.into_iter().rev();  // Matches right to left semantics
+   
+            let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
+    
+            while let Some(op) = iterator.next() {
+                let left = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
+    
+                ast = combine_fn(left, op, ast)?;
+            }
+
+            Ok(ast)
+        } 
     }
 }
 

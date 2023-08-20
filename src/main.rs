@@ -1,6 +1,9 @@
 /* Eventually, this binary will be a tool for compiling (?) or running possibly many
  * Nom files. */
  
+mod ast;
+mod interpret;
+
 use std::io::Read;
 
 
@@ -14,5 +17,9 @@ fn main() {
 
     let syntax_tree = parser.parse_string(buffer, "Program").expect("Parsing Failed");
 
-    println!("{}", syntax_tree);
+    let abstract_syntax_tree = ast::build_ast(syntax_tree).expect("Specialization to AST failed");
+
+    println!("{:?}", abstract_syntax_tree);
+
+    interpret::interpret_ast(abstract_syntax_tree).expect("Ran to completion");
 }

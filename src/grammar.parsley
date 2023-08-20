@@ -1,14 +1,50 @@
 # This file is included directly in the final binary
 
-Program : Hello WS? Nom ;
+# Start Rule
 
-Hello : "Hello" ;
+Program
+    : WS? Expression WS?
+    ;
 
-Nom : "Nom!" ;
+
+
+# Expressions - This section encodes operator precedence, but not associativity.
+
+Expression 
+    : AdditiveExpression
+    ;
+
+AdditiveExpression 
+    : MultiplicativeExpression (WS? ("+" | "-") WS? MultiplicativeExpression)*
+    ;
+
+MultiplicativeExpression 
+    : PrimaryExpression (WS? ("*" | "/") WS? PrimaryExpression)* 
+    ;
+
+PrimaryExpression 
+    : Literal
+    | "(" WS? AdditiveExpression WS? ")"
+    ; 
+
+
+
+# Literals - Currently just positive integers
+
+Literal
+    : Digit+
+    ;
+
+
+
+# Character Classes
 
 # WS is required whitespace. WS? is optional, and likely will be more commonly used.
+WS  
+    : (" " | "\t" | "\n" | "\r\n")+
+    ;
 
-WS : (" " | "\t" | "\n" | "\r\n")+ ;
-
-
+Digit
+    : "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
+    ;
 

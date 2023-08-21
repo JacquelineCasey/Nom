@@ -51,3 +51,11 @@ characters of the source file has the issue. We could also want to use tokens th
 aren't just characters - this could alleviate some issues involving keywords that
 look like identifiers (our parser lacks a greedy parsing feature, though that could
 be added - tell it to implicitely prefer the leftmost alternative).
+
+
+The more I think about, the more I realize I'm either gonna have to go full python
+(hashtables everywhere, every object is a hashtable or maybe a clever vector of
+boxes) or I'm gonna want to use an actual backend. I saw https://cranelift.dev/
+as an interesting, Rust friendly option. (LLVM might be better, but Rust support
+for LLVM might not be as good I'm not sure).
+- This seems helpful: https://github.com/bytecodealliance/cranelift-jit-demo/blob/main/src/jit.rs

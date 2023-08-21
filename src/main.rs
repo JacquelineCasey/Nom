@@ -1,6 +1,7 @@
 /* Eventually, this binary will be a tool for compiling (?) or running possibly many
  * Nom files. */
  
+mod token;
 mod ast;
 mod interpret;
 
@@ -13,10 +14,11 @@ fn main() {
     let mut buffer = String::new();
     std::io::stdin().read_to_string(&mut buffer).expect("Failed to read stdin");
 
+    println!("Showing tokens for debug...");
+    println!("{:?}", token::tokenize(&buffer).expect("Tokenization succeeds"));
+
     let parser = parsley::define_parser::<parsley::CharToken>(parser_definition).expect("Parser definition should be valid");
-
     let syntax_tree = parser.parse_string(buffer, "Program").expect("Parsing Failed");
-
     let abstract_syntax_tree = ast::build_ast(syntax_tree).expect("Specialization to AST failed");
 
     println!("{:?}", abstract_syntax_tree);

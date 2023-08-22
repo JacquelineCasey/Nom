@@ -30,6 +30,20 @@ pub enum Keyword {
     Val,
 }
 
+impl FromStr for Keyword {
+    type Err = TokenError;  // Likely ignored by algorithm.
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use Keyword::*;
+
+        Ok(match s {
+            "var" => Var,
+            "val" => Val,
+            _ => Err(TokenError("Not a keyword".to_string()))?
+        })
+    }
+}
+
 #[derive(Debug)]
 pub enum Operator {  // Operators currently accepted greedily
     Plus,
@@ -105,11 +119,10 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
             tokens.push(Token { body: token });
         }
         else if is_operator_char(*ch) {
-            todo!()
-            // Pull operator characters. 
-            // Check is its actually a comment
-            // If it is a comment, throw away characters until end of line.
-            // Otherwise, break up operators somehow.
+            let operators = take_operators(&mut iter)?;
+            for op in operators {
+                tokens.push(Token { body: TokenBody::Operator(op) })
+            }
         }
         else if ch.is_ascii_digit() {
             let token = take_numeric_literal(&mut iter)?;
@@ -124,7 +137,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
             tokens.push(Token { body: token });
         }
         else if ch.is_whitespace() {
-            /* Ignore */
+            iter.next().expect("Known");
         }
         else {
             return Err(TokenError(format!("Cannot start token with {}", *ch)))
@@ -136,27 +149,166 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
 
 
 fn take_string_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
-    todo!()
+    let first = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    if first != '\"' {
+        return Err(TokenError("Expected character '\"'.".to_string()));
+    }
+
+    let mut string = String::new();
+
+    while let Some(ch) = iter.next() {
+        // TODO: Allow [\"] to escape the double quote
+        
+        if ch == '\"' {
+            return Ok(TokenBody::StringLiteral(deliteralize(string)?));
+        }
+
+        string.push(ch);
+    }
+
+    return Err(TokenError("Expected character '\"'. String literal does not terminate.".to_string()));
 }
 
 fn take_char_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
-    todo!()
+    let first = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    if first != '\'' {
+        return Err(TokenError("Expected character '\''.".to_string()));
+    }
+
+    let mut string = String::new();
+
+    while let Some(ch) = iter.next() {
+        // TODO: Allow [\'] to escape the single quote
+        
+        if ch == '\'' {
+            return Ok(TokenBody::CharLiteral(literal_to_char(string)?));
+        }
+
+        string.push(ch);
+    }
+
+    Err(TokenError("Expected character '\''. Char literal does not terminate.".to_string()))
 }
 
 fn take_numeric_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
-    todo!()
+    if !matches!(iter.peek(), Some(ch) if ch.is_ascii_digit()) {
+        return Err(TokenError("Expected Digit.".to_string()))
+    }
+
+    let mut string = String::new();
+    while let Some(ch) = iter.peek() {
+        if is_numeric_literal_char(*ch) {
+            string.push(iter.next().expect("Known to exist"));
+        }
+        else {
+            break
+        }
+    }
+
+    Ok(TokenBody::NumericLiteral(string))
 }
 
 fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
-    todo!()
+    if !matches!(iter.peek(), Some(ch) if is_identifier_char(*ch)) {
+        return Err(TokenError("Expected Identifier character.".to_string()))
+    }
+
+    let mut string = String::new();
+    while let Some(ch) = iter.peek() {
+        if is_identifier_char(*ch) {
+            string.push(iter.next().expect("Known to exist"));
+        }
+        else {
+            break
+        }
+    }
+
+    match Keyword::from_str(&string) {
+        Ok(keyword) => Ok(TokenBody::Keyword(keyword)),
+        Err(_) => Ok(TokenBody::Identifier(string))
+    }
+}
+
+fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<Vec<Operator>, TokenError> {
+    if !matches!(iter.peek(), Some(ch) if is_operator_char(*ch)) {
+        return Err(TokenError("Expected operator character.".to_string()))
+    }
+
+    let mut string = String::new();
+    while let Some(ch) = iter.peek() {
+        if is_operator_char(*ch) {
+            string.push(iter.next().expect("Known to exist"));
+        }
+        else {
+            break
+        }
+    }
+
+    // Now we continually remove the largest operator that works. Yes, this is greedy,
+    // could improve later or just use sane operators with little overlap.
+
+    let mut operators = vec![];
+
+    let mut slice = &string[..];
+    while slice.len() > 0 {
+        if &slice[..1] == "+" {
+            operators.push(Operator::Plus);
+            slice = &slice[1..];
+        }
+        else if &slice[..1] == "-" {
+            operators.push(Operator::Minus);
+            slice = &slice[1..];
+        }
+        else if &slice[..1] == "*" {
+            operators.push(Operator::Times);
+            slice = &slice[1..];
+        }
+        else if &slice[..1] == "/" {
+            operators.push(Operator::Divide);
+            slice = &slice[1..];
+        }
+        else if &slice[..1] == "=" {
+            operators.push(Operator::Equal);
+            slice = &slice[1..];
+        }
+        else {
+            return Err(TokenError(format!("Could not split operators: {}", slice)));
+        }
+    }
+
+    Ok(operators)
 }
 
 
 fn is_operator_char(ch: char) -> bool {
-    todo!()
+    let operators = vec!['+', '-', '*', '/', '='];
+
+    operators.contains(&ch)
+}
+
+fn is_numeric_literal_char(ch: char) -> bool {
+    // TODO: Support for floats and numbers of different bases.
+
+    // See ch.is_digit for arbitrary base
+    ch.is_ascii_digit()
 }
 
 fn is_identifier_char(ch: char) -> bool {
     // Note that digits won't work at start due to algorithm design.
     ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
+}
+
+fn deliteralize(string: String) -> Result<String, TokenError> {
+    Ok(string)
+}
+
+fn literal_to_char(string: String) -> Result<char, TokenError> {
+    // TODO: Add supports for escaped characters. Preferably shared with deliteralize?
+    // Be aware of [\']
+    if string.len() == 1 {
+        Ok(string.chars().next().expect("Known to exist"))
+    }
+    else {
+        Err(TokenError("Bad character literal.".to_string()))
+    }
 }

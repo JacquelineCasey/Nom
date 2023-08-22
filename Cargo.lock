@@ -39,7 +39,7 @@ dependencies = [
 [[package]]
 name = "parsley"
 version = "0.1.0"
-source = "git+https://github.com/jackcasey067/Parsley.git#800d5c6843db260a907e831b21fd36035fc140c0"
+source = "git+https://github.com/jackcasey067/Parsley.git#c5d86ec743ef1bf7d70e56814dec6cb8d9a82a98"
 dependencies = [
  "hashable_rc",
  "indoc",

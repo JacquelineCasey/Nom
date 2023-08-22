@@ -3,7 +3,7 @@
 # Start Rule
 
 Program
-    : WS? Expression WS?
+    : Expression
     ;
 
 
@@ -15,16 +15,16 @@ Expression
     ;
 
 AdditiveExpression 
-    : MultiplicativeExpression (WS? ("+" | "-") WS? MultiplicativeExpression)*
+    : MultiplicativeExpression ((_Plus | _Minus) MultiplicativeExpression)*
     ;
 
 MultiplicativeExpression 
-    : PrimaryExpression (WS? ("*" | "/") WS? PrimaryExpression)* 
+    : PrimaryExpression ((_Times | _Divide) PrimaryExpression)* 
     ;
 
 PrimaryExpression 
     : Literal
-    | "(" WS? Expression WS? ")"
+    | _LeftParenthesis Expression _RightParenthesis
     | BlockExpression
     ; 
 
@@ -32,7 +32,7 @@ PrimaryExpression
 # or the unit type if the final expression has a semicolon (or is some other statement).
 
 BlockExpression
-    : "{" WS? (Statement WS? ";" WS?)* (Expression WS?)? "}"
+    : _LeftCurlyBrace (Statement _Semicolon)* (Expression)? _RightCurlyBrace
     ;
 
 
@@ -46,26 +46,12 @@ Statement
     ;
 
 AssignmentStatement
-    : Expression WS? "=" WS? Expression
+    : Expression _Equals Expression
     ;
 
 
 # Literals - Currently just positive integers
 
 Literal
-    : Digit+
+    : _NumericLiteral
     ;
-
-
-
-# Character Classes
-
-# WS is required whitespace. WS? is optional, and likely will be more commonly used.
-WS  
-    : (" " | "\t" | "\n" | "\r\n")+
-    ;
-
-Digit
-    : "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
-    ;
-

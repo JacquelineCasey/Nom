@@ -46,7 +46,7 @@ and change.
 At some point we've got to make the ergonomics better - I'd like to get Parsley
 to emit better error messages, anything beyound "Parse Failed". The simplest approach
 could be simply to return the first token that couldn't be parsed. Then we might
-update the tokens (here or there) to include span information - i.e. which line and
+update the tokens (here or in Parsley) to include span information - i.e. which line and
 characters of the source file has the issue. We could also want to use tokens that
 aren't just characters - this could alleviate some issues involving keywords that
 look like identifiers (our parser lacks a greedy parsing feature, though that could
@@ -59,3 +59,8 @@ boxes) or I'm gonna want to use an actual backend. I saw https://cranelift.dev/
 as an interesting, Rust friendly option. (LLVM might be better, but Rust support
 for LLVM might not be as good I'm not sure).
 - This seems helpful: https://github.com/bytecodealliance/cranelift-jit-demo/blob/main/src/jit.rs
+
+I am also starting to realize that cranelift might be really hard, and I can probably
+survive just writing an interpretter using some unsafe Rust. I won't have to go
+full python - I can use pointers, Rust just makes it tricky because it wants you
+to do something else in any normal code.

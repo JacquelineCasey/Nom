@@ -50,7 +50,7 @@ pub enum Operator {  // Operators currently accepted greedily
     Minus,
     Times, 
     Divide,
-    Equal
+    Equals
 }
 
 impl FromStr for Operator {
@@ -62,7 +62,7 @@ impl FromStr for Operator {
             "-" => Ok(Operator::Minus),
             "*" => Ok(Operator::Times),
             "/" => Ok(Operator::Divide),           
-            "=" => Ok(Operator::Equal),
+            "=" => Ok(Operator::Equals),
             _ => Err(())
         }
     }
@@ -268,7 +268,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
             slice = &slice[1..];
         }
         else if &slice[..1] == "=" {
-            operators.push(Operator::Equal);
+            operators.push(Operator::Equals);
             slice = &slice[1..];
         }
         else {
@@ -310,5 +310,42 @@ fn literal_to_char(string: String) -> Result<char, TokenError> {
     }
     else {
         Err(TokenError("Bad character literal.".to_string()))
+    }
+}
+
+
+/* Make Token work with Parsley */
+
+impl parsley::Token for Token {
+    fn matches(token_type: &str, token: &Self) -> Result<bool, parsley::ParseError> {
+        use Punctuation::*;
+        use Operator::*;
+
+        Ok(match token_type {
+            "Identifier" => matches!(token, Token { body: TokenBody::Identifier(_), .. }),
+            "NumericLiteral" => matches!(token, Token { body: TokenBody::NumericLiteral(_), .. }),
+            "LeftCurlyBrace" => matches!(token, Token { body: TokenBody::Punctuation(LeftCurlyBrace), .. }),
+            "RightCurlyBrace" => matches!(token, Token { body: TokenBody::Punctuation(RightCurlyBrace), .. }),
+            "LeftParenthesis" => matches!(token, Token { body: TokenBody::Punctuation(LeftParenthesis), .. }),
+            "RightParenthesis" => matches!(token, Token { body: TokenBody::Punctuation(RightParenthesis), .. }),
+            "LeftSquareBracket" => matches!(token, Token { body: TokenBody::Punctuation(LeftSquareBracket), .. }),
+            "RightSquareBracket" => matches!(token, Token { body: TokenBody::Punctuation(RightSquareBracket), .. }),
+            "Semicolon" => matches!(token, Token { body: TokenBody::Punctuation(Semicolon), .. }),
+            "Comma" => matches!(token, Token { body: TokenBody::Punctuation(Comma), .. }),
+            "Plus" => matches!(token, Token { body: TokenBody::Operator(Plus) }),
+            "Minus" => matches!(token, Token { body: TokenBody::Operator(Minus) }),
+            "Times" => matches!(token, Token { body: TokenBody::Operator(Times) }), 
+            "Divide" => matches!(token, Token { body: TokenBody::Operator(Divide) }),
+            "Equals" => matches!(token, Token { body: TokenBody::Operator(Equals) }),
+            _ => Err(parsley::ParseError("Bad token type".to_string()))?
+        })
+    }
+}
+
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        /* TODO: Actually fill this out */
+
+        f.write_str("{token}")
     }
 }

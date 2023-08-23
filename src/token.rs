@@ -28,6 +28,7 @@ pub enum TokenBody {
 pub enum Keyword {
     Var,
     Val,
+    Fn,
 }
 
 impl FromStr for Keyword {
@@ -39,6 +40,7 @@ impl FromStr for Keyword {
         Ok(match s {
             "var" => Var,
             "val" => Val,
+            "fn" => Fn,
             _ => Err(TokenError("Not a keyword".to_string()))?
         })
     }
@@ -337,7 +339,10 @@ impl parsley::Token for Token {
             "Times" => matches!(token, Token { body: TokenBody::Operator(Times) }), 
             "Divide" => matches!(token, Token { body: TokenBody::Operator(Divide) }),
             "Equals" => matches!(token, Token { body: TokenBody::Operator(Equals) }),
-            _ => Err(parsley::ParseError("Bad token type".to_string()))?
+            "Var" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Var) }),
+            "Val" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Val) }),
+            "Fn" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Fn) }),
+            _ => Err(parsley::ParseError(format!("Bad token type: \"{}\"", token_type)))?
         })
     }
 }

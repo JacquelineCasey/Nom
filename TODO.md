@@ -1,4 +1,18 @@
 
+== Immediate TODO ==
+
+- AST types need a redesign. Either we put the specialized part (Statement, Declaration,
+Expr) inside a Node class, or we accept that we are going to have multiple mutually
+recursive functions and put the common information inside of a data field in each
+variant. Both have their drawbacks, but I kinda like the type safety provided by
+the latter option, it gaurantees some things about the structure of the program:
+i.e. we won't find a statement where an expression goes.
+- We really want to associate a unique id to each node of the AST. This will be used
+  for dictionaries containing type information and storage location as that is resolved
+  by an analysis step. Unfortunately, unique id's are most cleanly defined using 
+  mutable globals, which Rust does allow but is also pretty fussy about (might have
+  to bite the bullet and use unsafe somewhere. Maybe add a utils file?)
+
 
 == Roadmap ==
 

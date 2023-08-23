@@ -5,6 +5,9 @@ mod token;
 mod ast;
 mod interpret;
 
+mod util;
+
+
 use std::io::Read;
 
 

@@ -3,9 +3,25 @@
 # Start Rule
 
 Program
-    : Expression
+    : Declaration+
     ;
 
+
+
+# Declarations - top level declarations in the program
+Declaration
+    : FunctionDeclaration 
+    ;
+
+# TODO: Add return type
+FunctionDeclaration
+    : _Fn _Identifier ParameterList BlockExpression
+    ;
+
+# TODO: Add parameters
+ParameterList
+    : _LeftParenthesis _RightParenthesis
+    ;
 
 
 # Expressions - This section encodes operator precedence, but not associativity.

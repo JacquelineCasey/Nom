@@ -42,6 +42,7 @@ PrimaryExpression
     : Literal
     | _LeftParenthesis Expression _RightParenthesis
     | BlockExpression
+    | _Identifier
     ; 
 
 # Blocks are also expressions. They follow Rust rules, evaluating to the final expression,

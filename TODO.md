@@ -1,17 +1,8 @@
 
 == Immediate TODO ==
 
-- AST types need a redesign. Either we put the specialized part (Statement, Declaration,
-Expr) inside a Node class, or we accept that we are going to have multiple mutually
-recursive functions and put the common information inside of a data field in each
-variant. Both have their drawbacks, but I kinda like the type safety provided by
-the latter option, it gaurantees some things about the structure of the program:
-i.e. we won't find a statement where an expression goes.
-- We really want to associate a unique id to each node of the AST. This will be used
-  for dictionaries containing type information and storage location as that is resolved
-  by an analysis step. Unfortunately, unique id's are most cleanly defined using 
-  mutable globals, which Rust does allow but is also pretty fussy about (might have
-  to bite the bullet and use unsafe somewhere. Maybe add a utils file?)
+
+
 
 
 == Roadmap ==
@@ -57,6 +48,8 @@ and change.
     - References / pointers / borrows / view / lens
 
 
+== Runtime ==
+
 At some point we've got to make the ergonomics better - I'd like to get Parsley
 to emit better error messages, anything beyound "Parse Failed". The simplest approach
 could be simply to return the first token that couldn't be parsed. Then we might
@@ -78,3 +71,28 @@ I am also starting to realize that cranelift might be really hard, and I can pro
 survive just writing an interpretter using some unsafe Rust. I won't have to go
 full python - I can use pointers, Rust just makes it tricky because it wants you
 to do something else in any normal code.
+
+Still not much closer to picking a style for the Runtime. I am actually becoming
+more fond of a stack based virtual machine, like Java's JVM or C#'s. Python kinda
+sorta does this too I think? The benefit of this as opposed to a model which just
+tries to simulate how x86 uses the stack is that I will rarely have to track the
+explicit locations of temporaries, and chaining together expressions stays relatively
+simple. Add becomes "run the left expression that leaves a temporary on the stack,
+run the right expression that leaves a temporary on the stack, and run add, which
+pops those and puts a new temporary on the stack".
+- The major problem is alignment. You can only store an f64 at locations divisible 
+  by 8. You can deduce the depth of any computation though, so maybe in the instructions
+  we generate we will add buffer to account for this (dynamically!).
+- Perhaps as we compile, we track a "conceptual stack" where we can easily see the
+  location of any value before or after manipulating the stack, allowing us to handle
+  alignment gracefully.
+- Alternatively, we can declare that all types, even the lowley u8 or bool, takes
+  64 bits of space. This might be acceptable during prototyping. 
+- Unlike Java, I want to be able to put arbitrarily large things on the stack, such
+  as an array of characters.
+- Java's approach feels rather intuitive to me here - put locals at a set place
+  at the bottom of the frame, and put temporaries on a stack. Operations should
+  be able to access locals (or copy them to the stack at least) without knowing
+  where in the stack they currently are.
+- Probably I will keep the operations simple - no peeking below the top element
+  of the stack, for instance.

@@ -24,5 +24,6 @@ fn main() {
 
     println!("{:?}", abstract_syntax_tree);
 
-    interpret::interpret_ast(abstract_syntax_tree).expect("Ran to completion");
+    let mut interpretter = interpret::Interpretter::new();
+    interpretter.run(abstract_syntax_tree).expect("Ran to completion");
 }

@@ -16,7 +16,6 @@ impl ASTNodeData {
     }
 }
 
-
 /* Currently our program AST is just a single expression */
 #[derive(Debug)]
 pub struct AST {
@@ -36,6 +35,7 @@ pub enum ExprAST {
     Multiply (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Divide (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Literal (i32, ASTNodeData),
+    Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
 }
 
@@ -134,7 +134,7 @@ fn build_expr_ast(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 }
             }),
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {            
-            if subexpressions.len() == 1 {  // Literal or Block
+            if subexpressions.len() == 1 {  // Literal, Variable, or Block
                 build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
             }
             else if subexpressions.len() == 3 {
@@ -157,6 +157,8 @@ fn build_expr_ast(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
             build_block_expr(tree),
         SyntaxTree::RuleNode { rule_name, subexpressions: _ } => 
             Err(ASTError(format!("Expected expression, found {}", rule_name))),
+        SyntaxTree::TokenNode (Token { body: TokenBody::Identifier(name) }) =>
+            Ok(ExprAST::Variable(name, ASTNodeData::new() )),
         SyntaxTree::TokenNode (tok) => 
             Err(ASTError(format!("Expected expression, found token {}", tok)))
     }

@@ -11,6 +11,7 @@ Program
 # Declarations - top level declarations in the program
 Declaration
     : FunctionDeclaration 
+    | VariableDeclaration
     ;
 
 # TODO: Add return type
@@ -22,6 +23,11 @@ FunctionDeclaration
 ParameterList
     : _LeftParenthesis _RightParenthesis
     ;
+
+VariableDeclaration
+    : (_Var | _Val) _Identifier _Equals Expression 
+    ;
+
 
 
 # Expressions - This section encodes operator precedence, but not associativity.
@@ -58,8 +64,10 @@ BlockExpression
 # nested in an expression only by way of a BlockExpression.
 
 Statement
-    : AssignmentStatement
-    # : CompoundAssignmentStatement
+    : Expression
+    | Declaration
+    | AssignmentStatement
+    # | CompoundAssignmentStatement
     ;
 
 AssignmentStatement

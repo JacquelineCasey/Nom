@@ -1,7 +1,7 @@
 
 == Immediate TODO ==
 
-
+- Comments
 
 
 
@@ -16,6 +16,8 @@ and change.
   naive interpretter for now, will likely replace interpretter with something more
   interesting later (considering an intermediate language like CIL).
   - Assignment
+    - Done, but still need to implement semantics of var and val. Maybe start an
+      analysis phase?
   - Functions, function calls
   - Relational Operators (Boolean type)
   - Boolean Operators (I'm a fan of `and` and `or`, but I also maybe prefer `!` to `not`)

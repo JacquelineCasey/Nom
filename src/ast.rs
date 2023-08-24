@@ -25,7 +25,8 @@ pub struct AST {
 
 #[derive(Debug)]
 pub enum DeclarationAST {
-    Function { name: String, block: ExprAST, node_data: ASTNodeData }
+    Function { name: String, block: ExprAST, node_data: ASTNodeData },
+    Variable { mutability: Mutability, name: String, expr: ExprAST, node_data: ASTNodeData }
 }
 
 #[derive(Debug)]
@@ -41,18 +42,27 @@ pub enum ExprAST {
 
 #[derive(Debug)]
 pub enum StatementAST {
-    NotYetImplemented
+    ExpressionStatement (ExprAST, ASTNodeData),  // A expression executed for its side effects
+    Assignment (ExprAST, ExprAST, ASTNodeData),  // There are restrictions on wbat goes on the left, but it is ultimately an expression too.
+    Declaration (DeclarationAST, ASTNodeData),  // Any declaration will be allowed, but for now only variable declarations work.
 }
+
+#[derive(Debug)]
+pub enum Mutability {
+    Var, 
+    Val
+}
+
 
 #[derive(Debug)]
 pub struct ASTError (String);
 
 
-pub fn build_ast(tree: SyntaxTree<Token>) -> Result<AST, ASTError> {
+pub fn build_ast(tree: &SyntaxTree<Token>) -> Result<AST, ASTError> {
     match tree {
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "Program" => {
             Ok(AST { 
-                declarations: subexpressions.into_iter()
+                declarations: subexpressions.iter()
                     .map(build_declaration_ast)
                     .collect::<Result<Vec<_>, _>>()?,
                 node_data: ASTNodeData::new() 
@@ -62,52 +72,72 @@ pub fn build_ast(tree: SyntaxTree<Token>) -> Result<AST, ASTError> {
     }
 }
 
-fn build_declaration_ast(tree: SyntaxTree<Token>) -> Result<DeclarationAST, ASTError> {
+fn build_declaration_ast(tree: &SyntaxTree<Token>) -> Result<DeclarationAST, ASTError> {
     match tree {
-        SyntaxTree::RuleNode { rule_name, mut subexpressions } if rule_name == "Declaration" => {
+        SyntaxTree::RuleNode { rule_name, ref subexpressions } if rule_name == "Declaration" => {
             if subexpressions.len() != 1 {
-                Err(ASTError("Expected single child of declaration node".to_string()))
+                return Err(ASTError("Expected single child of declaration node".to_string()))
             }
-            else {
-                match subexpressions.remove(0) {
-                    SyntaxTree::RuleNode { rule_name, mut subexpressions } if rule_name == "FunctionDeclaration" => {
-                        if subexpressions.len() != 4 {
-                            return Err(ASTError("Incorrect number of subnodes to function node".to_string()));
+                
+            match &subexpressions[0] {
+                SyntaxTree::RuleNode { rule_name, ref subexpressions } if rule_name == "FunctionDeclaration" => {
+                    if subexpressions.len() != 4 {
+                        return Err(ASTError("Incorrect number of subnodes to function node".to_string()));
+                    }
+                    
+                    if !matches!(subexpressions[0], SyntaxTree::TokenNode( Token { body: TokenBody::Keyword(Keyword::Fn) })) {
+                        return Err(ASTError("Expected `fn` in function declaration".to_string()));
+                    }
+
+                    let name = if let SyntaxTree::TokenNode( Token { body: TokenBody::Identifier(name) }) = &subexpressions[1] {
+                        name.clone()
+                    } 
+                    else { 
+                        return Err(ASTError("Expected function name".to_string()));
+                    };
+
+                    /* TODO: Parse the arguments */
+                    if !matches!(&subexpressions[2], SyntaxTree::RuleNode { rule_name, .. } if rule_name == "ParameterList") {
+                        return Err(ASTError("Expected parameter list in function declaration".to_string()));
+                    }
+
+                    let block = build_expr_ast(&subexpressions[3])?;
+
+                    Ok(DeclarationAST::Function { name, block, node_data: ASTNodeData::new() })
+                },
+                SyntaxTree::RuleNode { rule_name, ref subexpressions } if rule_name == "VariableDeclaration" => {
+                    match &subexpressions[..] {
+                        [ SyntaxTree::TokenNode(Token { body: TokenBody::Keyword(keyword @ (Keyword::Val | Keyword::Var))})
+                        , SyntaxTree::TokenNode(Token { body: TokenBody::Identifier(name)})
+                        , SyntaxTree::TokenNode(Token { body: TokenBody::Operator(Operator::Equals)})
+                        , expr_node @ SyntaxTree::RuleNode { rule_name: last_rule_name, ..}
+                        ] if last_rule_name == "Expression" => {
+                            Ok(DeclarationAST::Variable { 
+                                mutability: match keyword {
+                                    Keyword::Var => Mutability::Var,
+                                    Keyword::Val => Mutability::Val,
+                                    _ => panic!("Known unreachable")
+                                },
+                                name: name.clone(), 
+                                expr: build_expr_ast(expr_node)?,
+                                node_data: ASTNodeData::new()
+                            })
                         }
-                        
-                        if !matches!(subexpressions[0], SyntaxTree::TokenNode( Token { body: TokenBody::Keyword(Keyword::Fn) })) {
-                            return Err(ASTError("Expected `fn` in function declaration".to_string()));
-                        }
-
-                        let name = if let SyntaxTree::TokenNode( Token { body: TokenBody::Identifier(name) }) = &subexpressions[1] {
-                            name.clone()
-                        } 
-                        else { 
-                            return Err(ASTError("Expected function name".to_string()));
-                        };
-
-                        /* TODO: Parse the arguments */
-                        if !matches!(&subexpressions[2], SyntaxTree::RuleNode { rule_name, .. } if rule_name == "ParameterList") {
-                            return Err(ASTError("Expected parameter list in function declaration".to_string()));
-                        }
-
-                        let block = build_expr_ast(subexpressions.remove(3))?;
-
-                        Ok(DeclarationAST::Function { name, block, node_data: ASTNodeData::new() })
-                    },
-                    _ => Err(ASTError("Expected Function Declaration Node".to_string()))
-                }
+                        _ => Err(ASTError("Failed to parse variable declaration".to_string()))
+                    }
+                },
+                _ => Err(ASTError("Expected Function or Variable Declaration Node".to_string()))
             }
         },
         _ => Err(ASTError("Expected Declaration Node".to_string()))
     }
 }
 
-fn build_expr_ast(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
+fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     match tree {
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "Expression" => {
             if subexpressions.len() == 1 {
-                build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
+                build_expr_ast(subexpressions.iter().next().expect("Known to exist"))
             }
             else {
                 Err(ASTError("Expected exactly 1 subtree".to_string()))
@@ -135,7 +165,7 @@ fn build_expr_ast(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
             }),
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {            
             if subexpressions.len() == 1 {  // Literal, Variable, or Block
-                build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
+                build_expr_ast(subexpressions.iter().next().expect("Known to exist"))
             }
             else if subexpressions.len() == 3 {
                 if !matches!(&subexpressions[0], SyntaxTree::TokenNode(Token { body: TokenBody::Punctuation(Punctuation::LeftParenthesis)}))
@@ -144,7 +174,7 @@ fn build_expr_ast(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                     Err(ASTError("Expected parentheses".to_string()))
                 }
                 else {
-                    build_expr_ast(subexpressions.into_iter().nth(1).expect("Known to exist"))
+                    build_expr_ast(&subexpressions[1])
                 }
             }
             else {
@@ -158,14 +188,14 @@ fn build_expr_ast(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
         SyntaxTree::RuleNode { rule_name, subexpressions: _ } => 
             Err(ASTError(format!("Expected expression, found {rule_name}"))),
         SyntaxTree::TokenNode (Token { body: TokenBody::Identifier(name) }) =>
-            Ok(ExprAST::Variable(name, ASTNodeData::new() )),
+            Ok(ExprAST::Variable(name.clone(), ASTNodeData::new() )),
         SyntaxTree::TokenNode (tok) => 
             Err(ASTError(format!("Expected expression, found token {tok}")))
     }
 }
 
 
-fn build_literal_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
+fn build_literal_expr(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     match tree {
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "Literal" => {
             if subexpressions.len() != 1 {
@@ -185,7 +215,7 @@ fn build_literal_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     }
 }
 
-fn build_block_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
+fn build_block_expr(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     match tree {
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "BlockExpression" => {
             if !matches!(subexpressions[0], SyntaxTree::TokenNode(Token {body: TokenBody::Punctuation(Punctuation::LeftCurlyBrace)})) {
@@ -195,11 +225,9 @@ fn build_block_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 return Err(ASTError("Expected closed bracket before block".to_string()));
             }
 
-            let mut subexpressions = subexpressions;
-            subexpressions.remove(subexpressions.len() - 1);
-            subexpressions.remove(0);
+            let subexpressions = &subexpressions[1..subexpressions.len()-1];
 
-            let mut subexpressions: Vec<_> = subexpressions.into_iter()
+            let mut subexpressions: Vec<_> = subexpressions.iter()
                 .filter(|subtree| !matches!(subtree, SyntaxTree::TokenNode(Token {body: TokenBody::Punctuation(Punctuation::Semicolon)})))
                 .collect();
 
@@ -226,20 +254,50 @@ fn build_block_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     }
 }
 
-#[allow(clippy::unnecessary_wraps)]
-fn build_statement_ast(_tree: SyntaxTree<Token>) -> Result<StatementAST, ASTError> {
-    Ok(StatementAST::NotYetImplemented)
+fn build_statement_ast(tree: &SyntaxTree<Token>) -> Result<StatementAST, ASTError> {
+    match tree {
+        SyntaxTree::RuleNode { rule_name, ref subexpressions } if rule_name == "Statement" => {
+            match &subexpressions[..] {
+                [SyntaxTree::RuleNode { rule_name, subexpressions }] if rule_name == "Expression" => 
+                    Ok(StatementAST::ExpressionStatement(build_expr_ast(&subexpressions[0])?, ASTNodeData::new())),
+                [SyntaxTree::RuleNode { rule_name, subexpressions }] if rule_name == "AssignmentStatement" => {
+                    match &subexpressions[..] {
+                        [ SyntaxTree::RuleNode { rule_name: rule_1, subexpressions: ref sub_expr_1 }
+                        , SyntaxTree::TokenNode (Token { body: TokenBody::Operator(Operator::Equals) })
+                        , SyntaxTree::RuleNode { rule_name: rule_2, subexpressions: ref sub_expr_2 }
+                        ] if rule_1 == "Expression" 
+                        && rule_2 == "Expression" 
+                        && sub_expr_1.len() == 1 
+                        && sub_expr_2.len() == 1 => {
+                            let left = build_expr_ast(&sub_expr_1[0])?;
+                            let right = build_expr_ast(&sub_expr_2[0])?;
+
+                            // TODO: Validation?
+
+                            Ok(StatementAST::Assignment(left, right, ASTNodeData::new()))
+                        }
+                    _ => Err(ASTError("Failed to build AssignmentStatement".to_string()))
+                    }
+                },
+                [SyntaxTree::RuleNode { rule_name, .. }] if rule_name == "Declaration" => {
+                    Ok(StatementAST::Declaration(build_declaration_ast(&subexpressions[0])?, ASTNodeData::new()))
+                },
+                _ => Err(ASTError("Failed to build AssignmentStatement".to_string()))
+            }
+        },
+        _ => Err(ASTError("Expected statement node".to_string()))
+    }
 }
 
 
-fn combine_binary_ops<F>(subtrees: Vec<SyntaxTree<Token>>, left_to_right: bool, combine_fn: F) -> Result<ExprAST, ASTError>
-    where F: Fn(ExprAST, SyntaxTree<Token>, ExprAST) -> Result<ExprAST, ASTError>
+fn combine_binary_ops<F>(subtrees: &[SyntaxTree<Token>], left_to_right: bool, combine_fn: F) -> Result<ExprAST, ASTError>
+    where F: Fn(ExprAST, &SyntaxTree<Token>, ExprAST) -> Result<ExprAST, ASTError>
 {
     if subtrees.len() == 1 {
-        build_expr_ast(subtrees.into_iter().next().expect("Known to exist"))
+        build_expr_ast(subtrees.iter().next().expect("Known to exist"))
     }
     else if left_to_right {
-        let mut iterator = subtrees.into_iter();  // Matches left to right semantics
+        let mut iterator = subtrees.iter();  // Matches left to right semantics
 
         let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
 
@@ -252,7 +310,7 @@ fn combine_binary_ops<F>(subtrees: Vec<SyntaxTree<Token>>, left_to_right: bool, 
         Ok(ast)
     }
     else {
-        let mut iterator = subtrees.into_iter().rev();  // Matches right to left semantics
+        let mut iterator = subtrees.iter().rev();  // Matches right to left semantics
 
         let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
 

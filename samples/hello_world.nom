@@ -4,6 +4,6 @@ fn main() {
 }    
 
 fn another() {
-    2000 = 450; 
-    300
+    var a = 450 + 112; 
+    a
 }

@@ -85,11 +85,14 @@ impl Interpretter {
         for declaration in ast.declarations {
             match declaration {
                 crate::ast::DeclarationAST::Function { name, block, .. } if name == "main" =>{
-                    let value = self.evaluate_expr(block, Self::new_subscope(&self.global_scope))?;
+                    let value = self.evaluate_expr(block, &Self::new_subscope(&self.global_scope))?;
                     println!("Main evaluated to {value}");
                 }
                 crate::ast::DeclarationAST::Function { .. } => {
                     println!("NotYetImplemented: running code in functions other than main()");
+                }
+                _ => {
+                    todo!()
                 }
             }
         }
@@ -97,23 +100,22 @@ impl Interpretter {
         Ok(())
     }
 
-    fn evaluate_expr(&self, ast: ExprAST, scope: Rc<RefCell<Scope>>) -> Result<i32, InterpretError> {
+    fn evaluate_expr(&self, ast: ExprAST, scope: &Rc<RefCell<Scope>>) -> Result<i32, InterpretError> {
         match ast {
-            ExprAST::Add(left, right, ..) => Ok(self.evaluate_expr(*left, Rc::clone(&scope))? + self.evaluate_expr(*right, scope)?),
-            ExprAST::Subtract(left, right, ..) => Ok(self.evaluate_expr(*left, Rc::clone(&scope))? - self.evaluate_expr(*right, scope)?),
-            ExprAST::Multiply(left, right, ..) => Ok(self.evaluate_expr(*left, Rc::clone(&scope))? * self.evaluate_expr(*right, scope)?),
-            ExprAST::Divide(left, right, ..) => Ok(self.evaluate_expr(*left, Rc::clone(&scope))? / self.evaluate_expr(*right, scope)?),
+            ExprAST::Add(left, right, ..) => Ok(self.evaluate_expr(*left, scope)? + self.evaluate_expr(*right, scope)?),
+            ExprAST::Subtract(left, right, ..) => Ok(self.evaluate_expr(*left, scope)? - self.evaluate_expr(*right, scope)?),
+            ExprAST::Multiply(left, right, ..) => Ok(self.evaluate_expr(*left, scope)? * self.evaluate_expr(*right, scope)?),
+            ExprAST::Divide(left, right, ..) => Ok(self.evaluate_expr(*left, scope)? / self.evaluate_expr(*right, scope)?),
             ExprAST::Literal(i, ..) => Ok(i),
             ExprAST::Block(statements, opt_expr, ..) => {
-                let scope = Self::new_subscope(&scope);
+                let scope = Self::new_subscope(scope);
 
-                /* This needs some work */
-                if !statements.is_empty() {
-                    println!("NotYetImplemented: {} statement(s) parsed but not run.", statements.len());
+                for stmt in statements {
+                    self.evaluate_statement(stmt, &scope)?;
                 }
                 
                 if let Some(boxed_expr) = opt_expr {
-                    self.evaluate_expr(*boxed_expr, scope)
+                    self.evaluate_expr(*boxed_expr, &scope)
                 }
                 else {
                     Err(InterpretError("Not yet implemented: Block without final expression".to_string()))
@@ -121,6 +123,37 @@ impl Interpretter {
             }
             ExprAST::Variable(name, ..) => {
                 scope.borrow().lookup(&name)
+            }
+        }
+    }
+
+    fn evaluate_statement(&self, stmt: crate::ast::StatementAST, scope: &Rc<RefCell<Scope>>) -> Result<(), InterpretError> {
+        match stmt {
+            crate::ast::StatementAST::ExpressionStatement(expr, ..) => {
+                self.evaluate_expr(expr, scope)
+                    .map(|_| ())
+            }
+            crate::ast::StatementAST::Assignment(left, right, ..) => {
+                let val = self.evaluate_expr(right, scope)?;
+
+                // It needs to be an identifier
+                if let ExprAST::Variable(name, ..) = left {
+                    scope.borrow_mut().set(&name, val)
+                }
+                else {
+                    Err(InterpretError("Tried to assign to non variable expression".to_string()))
+                }
+            }
+            crate::ast::StatementAST::Declaration(decl, ..) => {
+                match decl {
+                    crate::ast::DeclarationAST::Function { .. } => 
+                        Err(InterpretError("Cannot process function declaration in function".to_string())),
+                    crate::ast::DeclarationAST::Variable { name, expr, .. } => {
+                        let val = self.evaluate_expr(expr, scope)?;
+
+                        scope.borrow_mut().add(&name, val)
+                    }
+                }
             }
         }
     }

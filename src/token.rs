@@ -123,7 +123,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
         else if is_operator_char(*ch) {
             let operators = take_operators(&mut iter)?;
             for op in operators {
-                tokens.push(Token { body: TokenBody::Operator(op) })
+                tokens.push(Token { body: TokenBody::Operator(op) });
             }
         }
         else if ch.is_ascii_digit() {
@@ -158,7 +158,7 @@ fn take_string_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> R
 
     let mut string = String::new();
 
-    while let Some(ch) = iter.next() {
+    for ch in iter {
         // TODO: Allow [\"] to escape the double quote
         
         if ch == '\"' {
@@ -168,7 +168,7 @@ fn take_string_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> R
         string.push(ch);
     }
 
-    return Err(TokenError("Expected character '\"'. String literal does not terminate.".to_string()));
+    Err(TokenError("Expected character '\"'. String literal does not terminate.".to_string()))
 }
 
 fn take_char_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
@@ -179,11 +179,11 @@ fn take_char_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Res
 
     let mut string = String::new();
 
-    while let Some(ch) = iter.next() {
+    for ch in iter {
         // TODO: Allow [\'] to escape the single quote
         
         if ch == '\'' {
-            return Ok(TokenBody::CharLiteral(literal_to_char(string)?));
+            return Ok(TokenBody::CharLiteral(literal_to_char(&string)?));
         }
 
         string.push(ch);
@@ -252,7 +252,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
     let mut operators = vec![];
 
     let mut slice = &string[..];
-    while slice.len() > 0 {
+    while !slice.is_empty() {
         if &slice[..1] == "+" {
             operators.push(Operator::Plus);
             slice = &slice[1..];
@@ -274,7 +274,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
             slice = &slice[1..];
         }
         else {
-            return Err(TokenError(format!("Could not split operators: {}", slice)));
+            return Err(TokenError(format!("Could not split operators: {slice}")));
         }
     }
 
@@ -300,11 +300,13 @@ fn is_identifier_char(ch: char) -> bool {
     ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn deliteralize(string: String) -> Result<String, TokenError> {
+    // TODO: Actually turn literal into represented string
     Ok(string)
 }
 
-fn literal_to_char(string: String) -> Result<char, TokenError> {
+fn literal_to_char(string: &str) -> Result<char, TokenError> {
     // TODO: Add supports for escaped characters. Preferably shared with deliteralize?
     // Be aware of [\']
     if string.len() == 1 {
@@ -342,7 +344,7 @@ impl parsley::Token for Token {
             "Var" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Var) }),
             "Val" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Val) }),
             "Fn" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Fn) }),
-            _ => Err(parsley::ParseError(format!("Bad token type: \"{}\"", token_type)))?
+            _ => Err(parsley::ParseError(format!("Bad token type: \"{token_type}\"")))?
         })
     }
 }

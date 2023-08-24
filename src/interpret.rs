@@ -21,15 +21,45 @@ impl Scope {
         Scope { parent: None, variables: HashMap::new() }
     }
 
+    /* Looks up a variable recursively. */
     fn lookup(&self, name: &str) -> Result<i32, InterpretError> {
         match self.variables.get(name) {
             Some(val) => Ok(*val),
             None => {
                 match &self.parent {
                     Some(parent) => parent.borrow().lookup(name), 
-                    None => Err(InterpretError(format!("Could not find variable: {}", name))),
+                    None => Err(InterpretError(format!("Could not find variable: {name}"))),
                 }
             } 
+        }
+    }
+    
+    /* Looks up a variable recursively, then sets it. Failure to find the variable
+     * yields an error - use add() instead. */
+    fn set(&mut self, name: &str, val: i32) -> Result<(), InterpretError> {
+        match self.variables.get(name) {
+            Some(_) => {
+                self.variables.insert(name.to_string(), val);
+                Ok(())
+            },
+            None => {
+                match &self.parent {
+                    Some(parent) => parent.borrow_mut().set(name, val), 
+                    None => Err(InterpretError(format!("Could not find variable: {name}"))),
+                }
+            } 
+        }
+    }
+
+    /* Adds and sets a variable in the local scope */
+    fn add(&mut self, name: &str, val: i32) -> Result<(), InterpretError> {
+        // No shadowing for now.
+        if self.variables.contains_key(name) {
+            Err(InterpretError(format!("Cannot shadow local variable {name}")))
+        }
+        else {
+            self.variables.insert(name.to_string(), val);
+            Ok(())
         }
     }
 }
@@ -44,9 +74,9 @@ impl Interpretter {
         Interpretter { global_scope: Rc::new(RefCell::new(Scope::new())) }
     }
 
-    fn new_subscope(scope: Rc<RefCell<Scope>>) -> Rc<RefCell<Scope>> {
+    fn new_subscope(scope: &Rc<RefCell<Scope>>) -> Rc<RefCell<Scope>> {
         let mut new_scope = Scope::new();
-        new_scope.parent = Some(Rc::clone(&scope));
+        new_scope.parent = Some(Rc::clone(scope));
 
         Rc::new(RefCell::new(new_scope))
     }
@@ -55,8 +85,8 @@ impl Interpretter {
         for declaration in ast.declarations {
             match declaration {
                 crate::ast::DeclarationAST::Function { name, block, .. } if name == "main" =>{
-                    let value = self.evaluate_expr(block, Self::new_subscope(Rc::clone(&self.global_scope)))?;
-                    println!("Main evaluated to {}", value);
+                    let value = self.evaluate_expr(block, Self::new_subscope(&self.global_scope))?;
+                    println!("Main evaluated to {value}");
                 }
                 crate::ast::DeclarationAST::Function { .. } => {
                     println!("NotYetImplemented: running code in functions other than main()");
@@ -75,11 +105,11 @@ impl Interpretter {
             ExprAST::Divide(left, right, ..) => Ok(self.evaluate_expr(*left, Rc::clone(&scope))? / self.evaluate_expr(*right, scope)?),
             ExprAST::Literal(i, ..) => Ok(i),
             ExprAST::Block(statements, opt_expr, ..) => {
-                let scope = Self::new_subscope(scope);
+                let scope = Self::new_subscope(&scope);
 
                 /* This needs some work */
-                if statements.len() > 0 {
-                    println!("NotYetImplemented: {} statement(s) parsed but not run.", statements.len())
+                if !statements.is_empty() {
+                    println!("NotYetImplemented: {} statement(s) parsed but not run.", statements.len());
                 }
                 
                 if let Some(boxed_expr) = opt_expr {

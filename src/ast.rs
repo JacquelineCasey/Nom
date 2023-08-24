@@ -53,7 +53,7 @@ pub fn build_ast(tree: SyntaxTree<Token>) -> Result<AST, ASTError> {
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "Program" => {
             Ok(AST { 
                 declarations: subexpressions.into_iter()
-                    .map(|subtree| build_declaration_ast(subtree))
+                    .map(build_declaration_ast)
                     .collect::<Result<Vec<_>, _>>()?,
                 node_data: ASTNodeData::new() 
             })
@@ -106,11 +106,11 @@ fn build_declaration_ast(tree: SyntaxTree<Token>) -> Result<DeclarationAST, ASTE
 fn build_expr_ast(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     match tree {
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "Expression" => {
-            if subexpressions.len() != 1 {
-                Err(ASTError("Expected exactly 1 subtree".to_string()))
+            if subexpressions.len() == 1 {
+                build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
             }
             else {
-                build_expr_ast(subexpressions.into_iter().next().expect("Known to exist"))
+                Err(ASTError("Expected exactly 1 subtree".to_string()))
             }
         }
         SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "AdditiveExpression" => 
@@ -156,11 +156,11 @@ fn build_expr_ast(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
         SyntaxTree::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "BlockExpression" =>
             build_block_expr(tree),
         SyntaxTree::RuleNode { rule_name, subexpressions: _ } => 
-            Err(ASTError(format!("Expected expression, found {}", rule_name))),
+            Err(ASTError(format!("Expected expression, found {rule_name}"))),
         SyntaxTree::TokenNode (Token { body: TokenBody::Identifier(name) }) =>
             Ok(ExprAST::Variable(name, ASTNodeData::new() )),
         SyntaxTree::TokenNode (tok) => 
-            Err(ASTError(format!("Expected expression, found token {}", tok)))
+            Err(ASTError(format!("Expected expression, found token {tok}")))
     }
 }
 
@@ -178,7 +178,7 @@ fn build_literal_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 SyntaxTree::RuleNode { .. } => Err(ASTError("Rule node under Literal node".to_string())),
                 SyntaxTree::TokenNode(Token { body: TokenBody::NumericLiteral(str) }) => 
                     Ok(ExprAST::Literal(str.parse().map_err(|_| ASTError("Integer parse failed".to_string()))?, ASTNodeData::new())),
-                _ => Err(ASTError("Non numeric literal under Literal node".to_string()))
+                SyntaxTree::TokenNode(_) => Err(ASTError("Non numeric literal under Literal node".to_string()))
             }
         }
         _ => Err(ASTError("Expected Literal node".to_string()))
@@ -203,7 +203,7 @@ fn build_block_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 .filter(|subtree| !matches!(subtree, SyntaxTree::TokenNode(Token {body: TokenBody::Punctuation(Punctuation::Semicolon)})))
                 .collect();
 
-            if subexpressions.len() == 0 {
+            if subexpressions.is_empty() {
                 return Ok(ExprAST::Block(vec![], None, ASTNodeData::new()));
             }
 
@@ -217,7 +217,7 @@ fn build_block_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
             } else { None };
 
             let statements = subexpressions.into_iter()
-                .map(|subtree| build_statement_ast(subtree))
+                .map(build_statement_ast)
                 .collect::<Result<Vec<_>, _>>()?;
 
             Ok(ExprAST::Block(statements, opt_expr, ASTNodeData::new()))
@@ -226,6 +226,7 @@ fn build_block_expr(tree: SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn build_statement_ast(_tree: SyntaxTree<Token>) -> Result<StatementAST, ASTError> {
     Ok(StatementAST::NotYetImplemented)
 }
@@ -237,32 +238,30 @@ fn combine_binary_ops<F>(subtrees: Vec<SyntaxTree<Token>>, left_to_right: bool, 
     if subtrees.len() == 1 {
         build_expr_ast(subtrees.into_iter().next().expect("Known to exist"))
     }
-    else {
-        if left_to_right {
-            let mut iterator = subtrees.into_iter();  // Matches left to right semantics
-   
-            let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
-    
-            while let Some(op) = iterator.next() {
-                let right = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
-    
-                ast = combine_fn(ast, op, right)?;
-            }
+    else if left_to_right {
+        let mut iterator = subtrees.into_iter();  // Matches left to right semantics
 
-            Ok(ast)
+        let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
+
+        while let Some(op) = iterator.next() {
+            let right = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
+
+            ast = combine_fn(ast, op, right)?;
         }
-        else {
-            let mut iterator = subtrees.into_iter().rev();  // Matches right to left semantics
-   
-            let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
-    
-            while let Some(op) = iterator.next() {
-                let left = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
-    
-                ast = combine_fn(left, op, ast)?;
-            }
 
-            Ok(ast)
-        } 
+        Ok(ast)
     }
+    else {
+        let mut iterator = subtrees.into_iter().rev();  // Matches right to left semantics
+
+        let mut ast = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
+
+        while let Some(op) = iterator.next() {
+            let left = build_expr_ast(iterator.next().ok_or(ASTError("Expected subtree".to_string()))?)?;
+
+            ast = combine_fn(left, op, ast)?;
+        }
+
+        Ok(ast)
+    } 
 }

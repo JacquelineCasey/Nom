@@ -1,6 +1,6 @@
 
 use nom::runtime::Runtime;
-use nom::instructions::{Instruction, Constant, IntegerBinaryOperation, IntSize};
+use nom::instructions::{Instruction, Instruction::*, Constant, IntegerBinaryOperation, IntSize};
 
 
 fn run_collecting_output(instructions: Vec<Instruction>) -> Vec<String> {
@@ -18,32 +18,31 @@ fn run_collecting_output(instructions: Vec<Instruction>) -> Vec<String> {
 #[test]
 fn minimal_test() {
     let lines = run_collecting_output(vec![
-        Instruction::PushConstant(Constant::FourByte(1234)),
-        Instruction::PushConstant(Constant::FourByte(1111)),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
-        Instruction::DebugPrintUnsigned(IntSize::FourByte),
-        Instruction::Exit,
+        PushConstant(Constant::FourByte(1234)),
+        PushConstant(Constant::FourByte(1111)),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
+        DebugPrintUnsigned(IntSize::FourByte),
+        Exit,
     ]);
 
     assert_eq!(lines, ["2345"]);
 }
 
-
 #[test]
 fn u8_math() {
-    // 40 - 2 + 3 * 8 / 2 = 26
+    // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
-        Instruction::PushConstant(Constant::OneByte(40)),
-        Instruction::PushConstant(Constant::OneByte(2)),
-        Instruction::PushConstant(Constant::OneByte(3)),
-        Instruction::PushConstant(Constant::OneByte(8)),
-        Instruction::PushConstant(Constant::OneByte(2)),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::OneByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::OneByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::OneByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::OneByte),
-        Instruction::DebugPrintUnsigned(IntSize::OneByte),
-        Instruction::Exit,
+        PushConstant(Constant::OneByte(40)),
+        PushConstant(Constant::OneByte(2)),
+        PushConstant(Constant::OneByte(3)),
+        PushConstant(Constant::OneByte(8)),
+        PushConstant(Constant::OneByte(2)),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::OneByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::OneByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::OneByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::OneByte),
+        DebugPrintUnsigned(IntSize::OneByte),
+        Exit,
     ]);
 
     assert_eq!(lines, ["26"]);
@@ -51,19 +50,19 @@ fn u8_math() {
 
 #[test]
 fn u16_math() {
-    // 40 - 2 + 3 * 8 / 2 = 26
+    // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
-        Instruction::PushConstant(Constant::TwoByte(40)),
-        Instruction::PushConstant(Constant::TwoByte(2)),
-        Instruction::PushConstant(Constant::TwoByte(3)),
-        Instruction::PushConstant(Constant::TwoByte(8)),
-        Instruction::PushConstant(Constant::TwoByte(2)),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::TwoByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::TwoByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::TwoByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::TwoByte),
-        Instruction::DebugPrintUnsigned(IntSize::TwoByte),
-        Instruction::Exit,
+        PushConstant(Constant::TwoByte(40)),
+        PushConstant(Constant::TwoByte(2)),
+        PushConstant(Constant::TwoByte(3)),
+        PushConstant(Constant::TwoByte(8)),
+        PushConstant(Constant::TwoByte(2)),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::TwoByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::TwoByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::TwoByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::TwoByte),
+        DebugPrintUnsigned(IntSize::TwoByte),
+        Exit,
     ]);
 
     assert_eq!(lines, ["26"]);
@@ -71,19 +70,19 @@ fn u16_math() {
 
 #[test]
 fn u32_math() {
-    // 40 - 2 + 3 * 8 / 2 = 26
+    // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
-        Instruction::PushConstant(Constant::FourByte(40)),
-        Instruction::PushConstant(Constant::FourByte(2)),
-        Instruction::PushConstant(Constant::FourByte(3)),
-        Instruction::PushConstant(Constant::FourByte(8)),
-        Instruction::PushConstant(Constant::FourByte(2)),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::FourByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::FourByte),
-        Instruction::DebugPrintUnsigned(IntSize::FourByte),
-        Instruction::Exit,
+        PushConstant(Constant::FourByte(40)),
+        PushConstant(Constant::FourByte(2)),
+        PushConstant(Constant::FourByte(3)),
+        PushConstant(Constant::FourByte(8)),
+        PushConstant(Constant::FourByte(2)),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::FourByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::FourByte),
+        DebugPrintUnsigned(IntSize::FourByte),
+        Exit,
     ]);
 
     assert_eq!(lines, ["26"]);
@@ -91,19 +90,19 @@ fn u32_math() {
 
 #[test]
 fn u64_math() {
-    // 40 - 2 + 3 * 8 / 2 = 26
+    // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
-        Instruction::PushConstant(Constant::EightByte(40)),
-        Instruction::PushConstant(Constant::EightByte(2)),
-        Instruction::PushConstant(Constant::EightByte(3)),
-        Instruction::PushConstant(Constant::EightByte(8)),
-        Instruction::PushConstant(Constant::EightByte(2)),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::EightByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::EightByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::EightByte),
-        Instruction::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::EightByte),
-        Instruction::DebugPrintUnsigned(IntSize::EightByte),
-        Instruction::Exit,
+        PushConstant(Constant::EightByte(40)),
+        PushConstant(Constant::EightByte(2)),
+        PushConstant(Constant::EightByte(3)),
+        PushConstant(Constant::EightByte(8)),
+        PushConstant(Constant::EightByte(2)),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::EightByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::EightByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::EightByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::EightByte),
+        DebugPrintUnsigned(IntSize::EightByte),
+        Exit,
     ]);
 
     assert_eq!(lines, ["26"]);

@@ -75,19 +75,19 @@ impl Runtime {
                     match size {
                         IntSize::OneByte => {
                             let val = u8::pop(self);
-                            writeln!(out, "{}", val).expect("prints");
+                            writeln!(out, "{val}").expect("prints");
                         }
                         IntSize::TwoByte => {
                             let val = u16::pop(self);
-                            writeln!(out, "{}", val).expect("prints");
+                            writeln!(out, "{val}").expect("prints");
                         }
                         IntSize::FourByte => {
                             let val = u32::pop(self);
-                            writeln!(out, "{}", val).expect("prints");
+                            writeln!(out, "{val}").expect("prints");
                         }
                         IntSize::EightByte => {
                             let val = u64::pop(self);
-                            writeln!(out, "{}", val).expect("prints");
+                            writeln!(out, "{val}").expect("prints");
                         }
                     }
                 }

@@ -1,10 +1,9 @@
 
-use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize};
+use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize, Constant};
 
 use std::alloc::{Layout, alloc, dealloc};
 
-
-const STACK_SIZE: usize = 1048576;  // In terms of u8 units. This exactly a megabyte.
+const STACK_SIZE: usize = 1_048_576;  // In terms of u8 units. This exactly a megabyte.
 
 
 pub struct Runtime {
@@ -32,22 +31,30 @@ impl Runtime {
             stack_bottom: stack, 
             frame_pointer: stack, 
             stack_layout, 
-            running: false 
+            running: false,
         }   
     }
+
+    pub fn run(&mut self) {
+        self.run_impl(None);
+    }
+
+    pub fn run_debug(&mut self, debug_out: &mut dyn std::io::Write) {
+        self.run_impl(Some(debug_out));
+    }
     
-    pub fn run(mut self) {
+    fn run_impl(&mut self, mut debug_out: Option<&mut dyn std::io::Write>) {
         self.running = true;
 
         while self.running {
             let instruction = self.instructions[self.instruction_pointer];
             self.instruction_pointer += 1;  // Might be overriden by running a jump
 
-            self.eval_instruction(instruction);
+            self.eval_instruction(instruction, &mut debug_out);
         } 
     }
 
-    fn eval_instruction(&mut self, instruction: Instruction) {
+    fn eval_instruction(&mut self, instruction: Instruction, debug_out: &mut Option<&mut dyn std::io::Write>) {
         match instruction {
             Instruction::IntegerBinaryOperation(op, size) => {
                 self.eval_binary_int_op(op, size);
@@ -62,19 +69,26 @@ impl Runtime {
                 self.stack_pointer = unsafe { self.stack_pointer.sub(amount) };
             },
             Instruction::DebugPrintUnsigned(size) => {
-                self.eval_instruction(Instruction::Duplicate(size));
-                match size {
-                    IntSize::OneByte => {
-                        println!("{}", u8::pop(self));
-                    }
-                    IntSize::TwoByte => {
-                        println!("{}", u16::pop(self));
-                    }
-                    IntSize::FourByte => {
-                        println!("{}", u32::pop(self));
-                    }
-                    IntSize::EightByte => {
-                        println!("{}", u64::pop(self));
+                if let Some(out) = debug_out {
+                    self.eval_instruction(Instruction::Duplicate(size), &mut None);
+
+                    match size {
+                        IntSize::OneByte => {
+                            let val = u8::pop(self);
+                            writeln!(out, "{}", val).expect("prints");
+                        }
+                        IntSize::TwoByte => {
+                            let val = u16::pop(self);
+                            writeln!(out, "{}", val).expect("prints");
+                        }
+                        IntSize::FourByte => {
+                            let val = u32::pop(self);
+                            writeln!(out, "{}", val).expect("prints");
+                        }
+                        IntSize::EightByte => {
+                            let val = u64::pop(self);
+                            writeln!(out, "{}", val).expect("prints");
+                        }
                     }
                 }
             }
@@ -84,6 +98,14 @@ impl Runtime {
                     IntSize::TwoByte => self.duplicate::<u16>(),
                     IntSize::FourByte => self.duplicate::<u32>(),
                     IntSize::EightByte => self.duplicate::<u64>(),
+                }
+            }
+            Instruction::PushConstant(constant) => {
+                match constant {
+                    Constant::OneByte(val) => u8::push(val, self),
+                    Constant::TwoByte(val) => u16::push(val, self),
+                    Constant::FourByte(val) => u32::push(val, self),
+                    Constant::EightByte(val) => u64::push(val, self),
                 }
             }
             Instruction::Exit => {
@@ -128,7 +150,7 @@ impl Runtime {
             IntegerBinaryOperation::UnsignedSubtraction => 
                 left - right,
             IntegerBinaryOperation::SignedSubtraction => 
-                reinterpret::<S, U>(reinterpret::<U, S>(left) + reinterpret::<U, S>(right)),
+                reinterpret::<S, U>(reinterpret::<U, S>(left) - reinterpret::<U, S>(right)),
             IntegerBinaryOperation::UnsignedMultiplication => 
                 left * right,
             IntegerBinaryOperation::SignedMultiplication => 
@@ -157,7 +179,7 @@ impl Runtime {
 
 impl Drop for Runtime {
     fn drop(&mut self) {
-        unsafe { dealloc(self.stack_bottom as *mut u8, self.stack_layout) }
+        unsafe { dealloc(self.stack_bottom.cast_mut(), self.stack_layout) }
     }
 }
 
@@ -174,14 +196,13 @@ trait Stackable: Number {
 /* We always think about items on the stack as unsized integers, even if in reality
  * they are floats, or booleans, or pointers etc. */
 impl Stackable for u8 {
+    #[allow(clippy::cast_ptr_alignment, clippy::int_plus_one)]
     fn push(val: Self, runtime: &mut Runtime) {
         // Remember to use pointer::offset() to actually get the next pointer.
         // pointer::offset is UB if it goes outside of the allocation though, hence
         // the checks above being done in usize.
 
-        if runtime.stack_pointer as usize + 1 > runtime.stack_bottom as usize + STACK_SIZE {
-            panic!("Out of stack memory");
-        }
+        assert!(runtime.stack_pointer as usize + 1 <= runtime.stack_bottom as usize + STACK_SIZE, "Out of stack memory");
 
         // Skip alignment check.
 
@@ -191,10 +212,9 @@ impl Stackable for u8 {
         }
     }
 
+    #[allow(clippy::int_plus_one)]
     fn pop(runtime: &mut Runtime) -> Self {
-        if runtime.stack_pointer as usize - 1 < runtime.stack_bottom as usize {
-            panic!("Consumed whole stack!");
-        }
+        assert!(runtime.stack_pointer as usize - 1 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
         // Skip alignment check
 
@@ -206,97 +226,79 @@ impl Stackable for u8 {
 }
 
 impl Stackable for u16 {
+    #[allow(clippy::cast_ptr_alignment)]
     fn push(val: Self, runtime: &mut Runtime) {
-        if runtime.stack_pointer as usize + 2 > runtime.stack_bottom as usize + STACK_SIZE {
-            panic!("Out of stack memory");
-        }
+        assert!(runtime.stack_pointer as usize + 2 <= runtime.stack_bottom as usize + STACK_SIZE, "Out of stack memory");
         
-        if runtime.stack_pointer as usize % 2 != 0 {
-            panic!("Stack pointer misaligned");
-        }
+        assert!(runtime.stack_pointer as usize % 2 == 0, "Stack pointer misaligned");
 
         unsafe { 
-            (runtime.stack_pointer as *mut u16).write(val); 
+            runtime.stack_pointer.cast::<u16>().write(val); 
             runtime.stack_pointer = runtime.stack_pointer.add(2);
         }
     }
 
+    #[allow(clippy::cast_ptr_alignment)]
     fn pop(runtime: &mut Runtime) -> Self {
-        if runtime.stack_pointer as usize - 2 < runtime.stack_bottom as usize {
-            panic!("Consumed whole stack!");
-        }
+        assert!(runtime.stack_pointer as usize - 2 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
-        if runtime.stack_pointer as usize % 2 != 0 {
-            panic!("Stack pointer misaligned");
-        }
+        assert!(runtime.stack_pointer as usize % 2 == 0, "Stack pointer misaligned");
 
         unsafe {
             runtime.stack_pointer = runtime.stack_pointer.sub(2);
-            (runtime.stack_pointer as *mut u16).read()
+            runtime.stack_pointer.cast::<u16>().read()
         }
     }
 }
 
 impl Stackable for u32 {
+    #[allow(clippy::cast_ptr_alignment)]
     fn push(val: Self, runtime: &mut Runtime) {
-        if runtime.stack_pointer as usize + 4 > runtime.stack_bottom as usize + STACK_SIZE {
-            panic!("Out of stack memory");
-        }
+        assert!(runtime.stack_pointer as usize + 4 <= runtime.stack_bottom as usize + STACK_SIZE, "Out of stack memory");
         
-        if runtime.stack_pointer as usize % 4 != 0 {
-            panic!("Stack pointer misaligned");
-        }
+        assert!(runtime.stack_pointer as usize % 4 == 0, "Stack pointer misaligned");
 
         unsafe { 
-            (runtime.stack_pointer as *mut u32).write(val); 
+            runtime.stack_pointer.cast::<u32>().write(val); 
             runtime.stack_pointer = runtime.stack_pointer.add(4);
         }
     }
 
+    #[allow(clippy::cast_ptr_alignment)]
     fn pop(runtime: &mut Runtime) -> Self {
-        if runtime.stack_pointer as usize - 4 < runtime.stack_bottom as usize {
-            panic!("Consumed whole stack!");
-        }
+        assert!(runtime.stack_pointer as usize - 4 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
-        if runtime.stack_pointer as usize % 4 != 0 {
-            panic!("Stack pointer misaligned");
-        }
+        assert!(runtime.stack_pointer as usize % 4 == 0, "Stack pointer misaligned");
 
         unsafe {
             runtime.stack_pointer = runtime.stack_pointer.sub(4);
-            (runtime.stack_pointer as *mut u32).read()
+            runtime.stack_pointer.cast::<u32>().read()
         }
     }
 }
 
 impl Stackable for u64 {
+    #[allow(clippy::cast_ptr_alignment)]
     fn push(val: Self, runtime: &mut Runtime) {
-        if runtime.stack_pointer as usize + 8 > runtime.stack_bottom as usize + STACK_SIZE {
-            panic!("Out of stack memory");
-        }
+        assert!(runtime.stack_pointer as usize + 8 <= runtime.stack_bottom as usize + STACK_SIZE, "Out of stack memory");
         
-        if runtime.stack_pointer as usize % 8 != 0 {
-            panic!("Stack pointer misaligned");
-        }
+        assert!(runtime.stack_pointer as usize % 8 == 0, "Stack pointer misaligned");
 
         unsafe { 
-            (runtime.stack_pointer as *mut u64).write(val); 
+            runtime.stack_pointer.cast::<u64>().write(val); 
             runtime.stack_pointer = runtime.stack_pointer.add(8);
         }
     }
 
+    #[allow(clippy::cast_ptr_alignment)]
     fn pop(runtime: &mut Runtime) -> Self {
-        if runtime.stack_pointer as usize - 8 < runtime.stack_bottom as usize {
-            panic!("Consumed whole stack!");
-        }
+        assert!(runtime.stack_pointer as usize - 8 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
-        if runtime.stack_pointer as usize % 8 != 0 {
-            panic!("Stack pointer misaligned");
-        }
+        assert!(runtime.stack_pointer as usize % 8 == 0, "Stack pointer misaligned");
 
         unsafe {
             runtime.stack_pointer = runtime.stack_pointer.sub(8);
-            (runtime.stack_pointer as *mut u64).read()
+            runtime.stack_pointer.cast::<u64>().read()
         }
     }
 }
@@ -328,6 +330,6 @@ impl Signed for i64 { }
 
 /* Refer to: https://users.rust-lang.org/t/transmuting-a-generic-array/45645/5 */
 fn reinterpret<In: Number, Out: Number>(i: In) -> Out {
-    let ptr = &i as *const In as *const Out;
+    let ptr = std::ptr::addr_of!(i).cast::<Out>();
     unsafe { *ptr }
 }

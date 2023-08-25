@@ -283,7 +283,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
 
 
 fn is_operator_char(ch: char) -> bool {
-    let operators = vec!['+', '-', '*', '/', '='];
+    let operators = ['+', '-', '*', '/', '='];
 
     operators.contains(&ch)
 }

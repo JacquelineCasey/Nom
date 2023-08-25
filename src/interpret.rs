@@ -158,3 +158,9 @@ impl Interpretter {
         }
     }
 }
+
+impl Default for Interpretter {
+    fn default() -> Self {
+        Self::new()
+    }
+}

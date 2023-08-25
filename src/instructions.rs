@@ -30,16 +30,16 @@ pub enum FloatSize {
     EightByte,
 }
 
-impl Into<u32> for IntSize {
-    fn into(self) -> u32 {
-        match self {
-            IntSize::OneByte => 1,
-            IntSize::TwoByte => 2,
-            IntSize::FourByte => 4,
-            IntSize::EightByte => 8,
-        }
-    }
-}
+// impl Into<u32> for IntSize {
+//     fn into(self) -> u32 {
+//         match self {
+//             IntSize::OneByte => 1,
+//             IntSize::TwoByte => 2,
+//             IntSize::FourByte => 4,
+//             IntSize::EightByte => 8,
+//         }
+//     }
+// }
 
 #[derive(Clone, Copy)]
 pub enum Instruction {
@@ -49,6 +49,7 @@ pub enum Instruction {
     RetractStackPtr (usize),  // Moves stack pointer down, for alignment purposes. Alternatively, used to ignore a value.
     DebugPrintUnsigned (IntSize),  // Likely to remove. Peaks the top value.
     Duplicate (IntSize),  // Duplicates the top item.
+    PushConstant (Constant),
     Exit,
 }
 
@@ -67,4 +68,12 @@ pub enum IntegerBinaryOperation {
 #[derive(Clone, Copy)]
 pub enum IntegerUnaryOperation {
     NegateSigned,
+}
+
+#[derive(Clone, Copy)]
+pub enum Constant {
+    OneByte (u8),
+    TwoByte (u16),
+    FourByte (u32),
+    EightByte (u64),
 }

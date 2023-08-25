@@ -7,6 +7,13 @@
 
 
 
+== Medium Term TODO ==
+
+- I'm using a lot of panic! and expect! in Runtime, maybe I should switch to Result<>
+- Runtime Overflow checks?
+
+
+
 == Roadmap ==
 
 Everything in this list is super tentative, and will likely undergo major changes.

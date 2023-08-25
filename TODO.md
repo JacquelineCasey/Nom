@@ -1,7 +1,9 @@
 
 == Immediate TODO ==
 
+- Write tests for the runtime component
 - Comments
+- Unary Negate
 
 
 

@@ -17,11 +17,14 @@
 )]
 
  
-mod token;
-mod ast;
-mod interpret;
+mod token;  // Tokenize, instruct parsley how tokens work
+mod ast;  // Generate AST from parsley's concrete syntax tree
+mod interpret;  // Interpret the AST. Soon to be deprecated in favor of a virtual machine model.
+mod instructions;  // Define the instruction set of the VM.
+mod generate;  // Traverses an AST and returns instructions and other data.
+mod runtime;  // Runs generated instructions
 
-mod util;
+mod util;  // Utility functions, etc.
 
 
 use std::io::Read;

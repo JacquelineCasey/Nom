@@ -11,8 +11,8 @@ pub struct Runtime {
     instructions: Vec<Instruction>,
     instruction_pointer: usize,  // Really just an index
     stack_pointer: *mut u8,  // Current location of the top of the stack, i.e. no value lives here.
-    frame_pointer: *mut u8,  // Current location of bottom of the frame. Locals are available, as well as return value and previous frame pointer.
-    stack_bottom: *mut u8,
+    frame_pointer: *const u8,  // Current location of bottom of the frame. Locals are available, as well as return value and previous frame pointer.
+    stack_bottom: *const u8,
     stack_layout: Layout,
     running: bool,
 }
@@ -52,8 +52,8 @@ impl Runtime {
             Instruction::IntegerBinaryOperation(op, size) => {
                 self.eval_binary_int_op(op, size);
             }
-            Instruction::UnaryOperation(_, _) => {
-                todo!();
+            Instruction::UnaryOperation(op, size) => {
+                self.eval_unary_int_op(op, size);
             },
             Instruction::AdvanceStackPtr(amount) => {
                 self.stack_pointer = unsafe { self.stack_pointer.add(amount) };
@@ -157,7 +157,7 @@ impl Runtime {
 
 impl Drop for Runtime {
     fn drop(&mut self) {
-        unsafe { dealloc(self.stack_bottom, self.stack_layout) }
+        unsafe { dealloc(self.stack_bottom as *mut u8, self.stack_layout) }
     }
 }
 

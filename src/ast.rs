@@ -40,6 +40,21 @@ pub enum ExprAST {
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
 }
 
+impl ExprAST {
+    pub fn get_node_data(&self) -> &ASTNodeData {
+        match self {
+            ExprAST::Add(_, _, data) 
+            | ExprAST::Subtract(_, _, data)
+            | ExprAST::Multiply(_, _, data)
+            | ExprAST::Divide(_, _, data)
+            | ExprAST::Literal(_, data)
+            | ExprAST::Variable(_, data)
+            | ExprAST::Block(_, _, data) 
+            => data
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum StatementAST {
     ExpressionStatement (ExprAST, ASTNodeData),  // A expression executed for its side effects

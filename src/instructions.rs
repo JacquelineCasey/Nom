@@ -23,6 +23,31 @@ pub enum IntSize {
     EightByte,
 }
 
+impl IntSize {
+    pub fn to_usize(self) -> usize {
+        match self {
+            IntSize::OneByte => 1,
+            IntSize::TwoByte => 2,
+            IntSize::FourByte => 4,
+            IntSize::EightByte => 8,
+        }
+    }
+}
+
+impl TryFrom<usize> for IntSize {
+    type Error = crate::generate::GenerateError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(IntSize::OneByte),
+            2 => Ok(IntSize::TwoByte),
+            4 => Ok(IntSize::FourByte),
+            8 => Ok(IntSize::EightByte),
+            _ => Err(crate::generate::GenerateError("abc".to_string()))
+        }
+    }
+}
+
 /* Specify the type of arguments to some floating point operation. */
 #[derive(Clone, Copy)]
 pub enum FloatSize {

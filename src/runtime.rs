@@ -56,6 +56,7 @@ impl Runtime {
         } 
     }
 
+    #[allow(clippy::too_many_lines)]
     fn eval_instruction(&mut self, instruction: Instruction, debug_out: &mut Option<&mut dyn std::io::Write>) {
         match instruction {
             Instruction::IntegerBinaryOperation(op, size) => {

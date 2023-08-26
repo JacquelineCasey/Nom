@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::ast::AST;
+use crate::{ast::{AST, ExprAST}, instructions::IntSize};
 
 pub struct AnalyzedAST {
     pub ast: AST,
@@ -18,6 +18,7 @@ pub struct FunctionTypeInfo {
 #[derive(PartialEq, Eq, Hash)]
 pub enum Type {
     BuiltIn (BuiltIn),
+    NotYetImplemented,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -31,6 +32,32 @@ pub enum BuiltIn {
     I32, 
     I64,
     Unit,
+}
+
+impl BuiltIn {
+    pub fn is_signed(&self) -> bool {
+        use BuiltIn::*;
+       
+        matches!(self, I8 | I16 | I32 | I64)
+    }
+
+    pub fn is_unsigned(&self) -> bool {
+        use BuiltIn::*;
+       
+        matches!(self, U8 | U16 | U32 | U64)
+    }
+
+    pub fn get_int_size(&self) -> Option<IntSize> {
+        use BuiltIn::*;
+
+        match self {
+            U8 | I8 => Some(IntSize::OneByte),
+            U16 | I16 => Some(IntSize::TwoByte),
+            U32 | I32 => Some(IntSize::FourByte),
+            U64 | I64 => Some(IntSize::EightByte),
+            _ => None
+        }
+    }
 }
 
 pub struct TypeInfo {
@@ -54,6 +81,10 @@ impl AnalyzedAST {
 
     fn analyze(&mut self) {
         todo!();
+    }
+
+    pub fn get_expr_type(&self, subtree: &ExprAST) -> Type {
+        todo!()
     }
 }
 

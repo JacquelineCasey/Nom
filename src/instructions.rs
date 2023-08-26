@@ -43,13 +43,60 @@ pub enum FloatSize {
 
 #[derive(Clone, Copy)]
 pub enum Instruction {
-    IntegerBinaryOperation (IntegerBinaryOperation, IntSize),  // Both operands must be the same type. Pops two operands, pushes one as the result.
-    UnaryOperation (IntegerUnaryOperation, IntSize),  // Pops one operand, pushes one as the result
-    AdvanceStackPtr (usize),  // Moves stack pointer up, for alignment purposes
-    RetractStackPtr (usize),  // Moves stack pointer down, for alignment purposes. Alternatively, used to ignore a value.
-    DebugPrintUnsigned (IntSize),  // Likely to remove. Peaks the top value.
-    Duplicate (IntSize),  // Duplicates the top item.
+    // Both operands must be the same type. Pops two operands, pushes one as the result.
+    IntegerBinaryOperation (IntegerBinaryOperation, IntSize),  
+
+    // Pops one operand, pushes one as the result
+    UnaryOperation (IntegerUnaryOperation, IntSize),  
+
+    // Moves stack pointer up, for alignment purposes
+    AdvanceStackPtr (usize),  
+
+    // Moves stack pointer down, for alignment purposes. Alternatively, used to ignore a value.
+    RetractStackPtr (usize),
+
+    // Moves the stack pointer down along with the item directly below the stack pointer.
+    // Useful after, for example, a function call places something at alignment 8
+    // when it actually has lower alignment, and it needs to be used with items lower
+    // on the stack.
+    RetractMoving (usize, IntSize),
+
+    // Likely to remove. Peaks the top value.
+    DebugPrintUnsigned (IntSize),  
+
+    // Duplicates the top item.
+    Duplicate (IntSize),  
+
+    // Constant is always expressed as an unsigned integer here. Of course, those
+    // same bits can represent a signed integer or a float, or some struct etc.
     PushConstant (Constant),
+
+    // isize is a possibly negative offset, in bytes. Result placed on the stack.
+    ReadBase (isize, IntSize),  
+
+    // As above, an offset and a arg size. Result is consumed from the stack.
+    WriteBase (isize, IntSize), 
+
+    // The instruction index. Precondition: The stack has, at an alignment of 8, 
+    // allocated space for the return value, and has evaluated and placed
+    // arguments on the top of the stack. The stack currently has an alignment of 8,
+    // Postcondition: The stack base pointer points one byte above the final
+    // argument (where the stack pointer is at in the precondition). The stack
+    // pointer has been advanced 16 bytes, and those 16 bytes hold the return
+    // address (an index) and the previous stack base pointer. The instruction
+    // pointer jumps to the instruction index.
+    Call (usize),  
+
+    // Precondition: The base pointer has not moved since a previous call instruction.
+    // The function return value has been placed below the function arguments (which
+    // are just below the current base pointer).
+    // Postcondition: The stack pointer takes the value of the current base pointer.
+    // The base pointer takes the saved base pointer. The instruction pointer takes the saved
+    // index. Note that the next instructions in the calling function need to lower 
+    // the stack pointer below the arguments, to just above the return value.
+    Return, 
+
+    // Exit the program
     Exit,
 }
 

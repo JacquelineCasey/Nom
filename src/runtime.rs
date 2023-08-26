@@ -1,16 +1,17 @@
 
-use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize, Constant};
-
 use std::alloc::{Layout, alloc, dealloc};
+
+use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize, Constant};
+use crate::util::reinterpret;
+
 
 const STACK_SIZE: usize = 1_048_576;  // In terms of u8 units. This exactly a megabyte.
 
-
 pub struct Runtime {
     instructions: Vec<Instruction>,
-    instruction_pointer: usize,  // Really just an index
+    instruction_index: usize,  // Really just an index
     stack_pointer: *mut u8,  // Current location of the top of the stack, i.e. no value lives here.
-    frame_pointer: *const u8,  // Current location of bottom of the frame. Locals are available, as well as return value and previous frame pointer.
+    base_pointer: *mut u8,  // Current location of bottom of the frame. Locals are available, as well as return value and previous frame pointer.
     stack_bottom: *const u8,
     stack_layout: Layout,
     running: bool,
@@ -26,10 +27,10 @@ impl Runtime {
 
         Runtime { 
             instructions, 
-            instruction_pointer: 0, 
+            instruction_index: 0, 
             stack_pointer: stack, 
             stack_bottom: stack, 
-            frame_pointer: stack, 
+            base_pointer: stack, 
             stack_layout, 
             running: false,
         }   
@@ -47,8 +48,9 @@ impl Runtime {
         self.running = true;
 
         while self.running {
-            let instruction = self.instructions[self.instruction_pointer];
-            self.instruction_pointer += 1;  // Might be overriden by running a jump
+            let instruction = self.instructions[self.instruction_index];
+
+            self.instruction_index += 1;  // Might be overriden by running a jump
 
             self.eval_instruction(instruction, &mut debug_out);
         } 
@@ -68,6 +70,30 @@ impl Runtime {
             Instruction::RetractStackPtr(amount) => {
                 self.stack_pointer = unsafe { self.stack_pointer.sub(amount) };
             },
+            Instruction::RetractMoving(amount, size) => {
+                match size {
+                    IntSize::OneByte => {
+                        let val = u8::pop(self);
+                        self.stack_pointer = unsafe { self.stack_pointer.sub(amount) };
+                        u8::push(val, self);
+                    },
+                    IntSize::TwoByte => {
+                        let val = u16::pop(self);
+                        self.stack_pointer = unsafe { self.stack_pointer.sub(amount) };
+                        u16::push(val, self);
+                    },
+                    IntSize::FourByte => {
+                        let val = u32::pop(self);
+                        self.stack_pointer = unsafe { self.stack_pointer.sub(amount) };
+                        u32::push(val, self);
+                    },
+                    IntSize::EightByte => {
+                        let val = u64::pop(self);
+                        self.stack_pointer = unsafe { self.stack_pointer.sub(amount) };
+                        u64::push(val, self);
+                    },
+                }
+            }
             Instruction::DebugPrintUnsigned(size) => {
                 if let Some(out) = debug_out {
                     self.eval_instruction(Instruction::Duplicate(size), &mut None);
@@ -111,6 +137,85 @@ impl Runtime {
             Instruction::Exit => {
                 self.running = false;
             }
+            Instruction::ReadBase(offset, size) => {
+                match size {
+                    IntSize::OneByte => {
+                        let val = self.read_base::<u8>(offset);
+                        u8::push(val, self);
+                    },
+                    IntSize::TwoByte => {
+                        let val = self.read_base::<u16>(offset);
+                        u16::push(val, self);
+                    },
+                    IntSize::FourByte => {
+                        let val = self.read_base::<u32>(offset);
+                        u32::push(val, self);
+                    },
+                    IntSize::EightByte => {
+                        let val = self.read_base::<u64>(offset);
+                        u64::push(val, self);
+                    },
+                }
+            }
+            Instruction::WriteBase(offset, size) => {
+                match size {
+                    IntSize::OneByte => {
+                        let val = u8::pop(self);
+                        self.write_base::<u8>(offset, val);
+                    },
+                    IntSize::TwoByte => {
+                        let val = u16::pop(self);
+                        self.write_base::<u16>(offset, val);
+                    },
+                    IntSize::FourByte => {
+                        let val = u32::pop(self);
+                        self.write_base::<u32>(offset, val);
+                    },
+                    IntSize::EightByte => {
+                        let val = u64::pop(self);
+                        self.write_base::<u64>(offset, val);
+                    },
+                }
+            }
+            Instruction::Call(index) => {
+                let prev_base = self.base_pointer;
+                self.base_pointer = self.stack_pointer;
+
+                // Alignment, bounds checked in these functions.
+                u64::push(self.instruction_index as u64, self);  // index is already 1 past the call instruction
+                u64::push(prev_base as u64, self);
+
+                self.instruction_index = index;
+            },
+            Instruction::Return => {
+                // The stack_pointer should maybe already be at this position.
+                self.stack_pointer = unsafe { self.base_pointer.offset(16) };
+                
+                self.base_pointer = u64::pop(self) as *mut u8;
+                self.instruction_index = u64::pop(self) as usize;
+            }
+        }
+    }
+
+    // Unlike the Instruction, this does nothing to the stack
+    fn read_base<S: Stackable>(&mut self, offset: isize) -> S {
+        unsafe {
+            let ptr = self.base_pointer.offset(offset);
+
+            // TODO: Alignment check, bounds check
+
+            ptr.cast::<S>().read()
+        }
+    }
+
+    // Unlike the Instruction, this does nothing to the stack
+    fn write_base<S: Stackable>(&mut self, offset: isize, val: S) {
+        unsafe {
+            let ptr = self.base_pointer.offset(offset);
+
+            // TODO: Alignment check, bounds check
+
+            ptr.cast::<S>().write(val);
         }
     }
 
@@ -309,6 +414,7 @@ trait Number :
     + std::ops::Mul<Output = Self> 
     + std::ops::Div<Output = Self> 
     + Copy
+    + std::fmt::Display
 { } 
 
 trait Signed : Number + std::ops::Neg<Output = Self> { }
@@ -326,10 +432,3 @@ impl Signed for i8 { }
 impl Signed for i16 { }
 impl Signed for i32 { }
 impl Signed for i64 { }
-
-
-/* Refer to: https://users.rust-lang.org/t/transmuting-a-generic-array/45645/5 */
-fn reinterpret<In: Number, Out: Number>(i: In) -> Out {
-    let ptr = std::ptr::addr_of!(i).cast::<Out>();
-    unsafe { *ptr }
-}

@@ -18,6 +18,7 @@
 pub mod token;  // Tokenize, instruct parsley how tokens work
 pub mod ast;  // Generate AST from parsley's concrete syntax tree
 pub mod interpret;  // Interpret the AST. Soon to be deprecated in favor of a virtual machine model.
+pub mod analysis;  // Analyze an AST, checking correctness and learning type info.
 pub mod instructions;  // Define the instruction set of the VM.
 pub mod generate;  // Traverses an AST and returns instructions and other data.
 pub mod runtime;  // Runs generated instructions

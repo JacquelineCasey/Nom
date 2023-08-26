@@ -2,7 +2,6 @@
 use nom::runtime::Runtime;
 use nom::instructions::{Instruction, Instruction::*, Constant, IntegerBinaryOperation, IntSize};
 
-
 fn run_collecting_output(instructions: Vec<Instruction>) -> Vec<String> {
     let mut runtime = Runtime::new(instructions);
 
@@ -13,6 +12,18 @@ fn run_collecting_output(instructions: Vec<Instruction>) -> Vec<String> {
 
     a.lines().map(|a| a.to_string()).collect::<Vec<String>>()
 }
+
+
+
+/* Refer to: https://users.rust-lang.org/t/transmuting-a-generic-array/45645/5
+ * Types must be same size, and this is not checked.
+ * 
+ * See (private) util.rs */
+fn reinterpret<In: Copy, Out: Copy>(i: In) -> Out {
+    let ptr = std::ptr::addr_of!(i).cast::<Out>();
+    unsafe { *ptr }
+}
+
 
 
 #[test]
@@ -106,4 +117,60 @@ fn u64_math() {
     ]);
 
     assert_eq!(lines, ["26"]);
+}
+
+#[test]
+fn function_call() {
+    // square(1 + 1) * 5, all in u32
+    let lines = run_collecting_output(vec![
+        AdvanceStackPtr(4), // Instruction 0: Space for Return Value
+        PushConstant(Constant::FourByte(1)),
+        PushConstant(Constant::FourByte(1)),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte), // This is the argument 
+        Call(10),
+        RetractStackPtr(4), // Retract past the argument, to byte after return value
+        PushConstant(Constant::FourByte(5)),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
+        DebugPrintUnsigned(IntSize::FourByte), // Should be 20
+        Exit, // Done!
+        ReadBase(-4, IntSize::FourByte), // instruction 10: Start of square(a: u32). Grab first argument.
+        Duplicate(IntSize::FourByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
+        WriteBase(-8, IntSize::FourByte), // Return sets return value.
+        Return,
+    ]);
+    
+    assert_eq!(lines, ["20"]);
+    
+    // A more advanced example. Indentation shows what instructions might be emitted
+    // At each node of the AST.
+
+    // square(square(-3)), all in i32
+    let lines = run_collecting_output(vec![
+        // square(square(-3))
+        AdvanceStackPtr(4), // Space for return value
+            // square(-3)
+            AdvanceStackPtr(4), // Alignment to 8
+            AdvanceStackPtr(4), // Space for return value
+                // -3
+                PushConstant(Constant::FourByte(reinterpret::<i32, u32>(-3))),
+            Call(11),
+            RetractStackPtr(4), // Skip through argument
+            RetractMoving(4, IntSize::FourByte), // Undo alignment
+        Call(11),
+        RetractStackPtr(4), // Skip through argument
+
+        // Debug print
+        DebugPrintUnsigned(IntSize::FourByte), // Should be 81
+        Exit, // Done!
+
+        // instruction 11: Start of square(a: u32).
+        ReadBase(-4, IntSize::FourByte), 
+        Duplicate(IntSize::FourByte),
+        IntegerBinaryOperation(IntegerBinaryOperation::SignedMultiplication, IntSize::FourByte),
+        WriteBase(-8, IntSize::FourByte), // Return sets return value.
+        Return,
+    ]);
+
+    assert_eq!(lines, ["81"]);
 }

@@ -14,6 +14,12 @@
 
 
 
+== Long Term TODO ==
+
+- Optimize layout of local variables on stack.
+
+
+
 == Roadmap ==
 
 Everything in this list is super tentative, and will likely undergo major changes.

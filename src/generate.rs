@@ -42,7 +42,7 @@ impl CodeGenerator {
 
         // Preprocess step: Determine the local variable storage locations
         for (fn_name, _) in &function_list {
-            self.functions.insert(fn_name.to_string(), FunctionInfo::new(analyzed_ast, fn_name)?);
+            self.functions.insert((*fn_name).to_string(), FunctionInfo::new(analyzed_ast, fn_name)?);
         }
 
         // Process functions and generate code
@@ -97,14 +97,14 @@ impl CodeGenerator {
 
         instructions.append(&mut self.generate_expression(analyzed_ast, subtree, function_info, 0)?);
 
-        instructions.append(&mut self.generate_return(function_info)?);
+        instructions.append(&mut Self::generate_return(function_info)?);
 
         Ok(instructions)
     }
     
     // Precondition: stack pointer is byte above return value.
     // Postcondition: return value moved to final destination. Function returns.
-    fn generate_return(&self, function_info: &FunctionInfo) -> Result<Vec<PseudoInstruction>, GenerateError> {
+    fn generate_return(function_info: &FunctionInfo) -> Result<Vec<PseudoInstruction>, GenerateError> {
         let mut instructions = vec![];
 
         // If we ever add special move semantics beyond shallow copy...
@@ -339,7 +339,7 @@ impl FunctionInfo {
         info.align_variables(8);
 
         // Bump everything added so far below the base pointer
-        for (_, (offset, _)) in &mut info.variables {
+        for (offset, _) in info.variables.values_mut() {
             *offset -= info.top as isize;
         }
 

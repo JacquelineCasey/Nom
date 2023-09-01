@@ -4,7 +4,7 @@
  
 use nom::{token, ast, analysis, generate, runtime};
 
-use std::io::{Read, Write};
+use std::io::Read;
 
 
 fn main() {

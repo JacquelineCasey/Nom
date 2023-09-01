@@ -32,7 +32,7 @@ fn minimal_test() {
         PushConstant(Constant::FourByte(1234)),
         PushConstant(Constant::FourByte(1111)),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
-        DebugPrintUnsigned(IntSize::FourByte),
+        DebugPrintSigned(IntSize::FourByte),
         Exit,
     ]);
 
@@ -52,7 +52,7 @@ fn u8_math() {
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::OneByte),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::OneByte),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::OneByte),
-        DebugPrintUnsigned(IntSize::OneByte),
+        DebugPrintSigned(IntSize::OneByte),
         Exit,
     ]);
 
@@ -72,7 +72,7 @@ fn u16_math() {
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::TwoByte),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::TwoByte),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::TwoByte),
-        DebugPrintUnsigned(IntSize::TwoByte),
+        DebugPrintSigned(IntSize::TwoByte),
         Exit,
     ]);
 
@@ -92,7 +92,7 @@ fn u32_math() {
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::FourByte),
-        DebugPrintUnsigned(IntSize::FourByte),
+        DebugPrintSigned(IntSize::FourByte),
         Exit,
     ]);
 
@@ -112,7 +112,7 @@ fn u64_math() {
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::EightByte),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::EightByte),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::EightByte),
-        DebugPrintUnsigned(IntSize::EightByte),
+        DebugPrintSigned(IntSize::EightByte),
         Exit,
     ]);
 
@@ -131,7 +131,7 @@ fn function_call() {
         RetractStackPtr(4), // Retract past the argument, to byte after return value
         PushConstant(Constant::FourByte(5)),
         IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
-        DebugPrintUnsigned(IntSize::FourByte), // Should be 20
+        DebugPrintSigned(IntSize::FourByte), // Should be 20
         Exit, // Done!
         ReadBase(-4, IntSize::FourByte), // instruction 10: Start of square(a: u32). Grab first argument.
         Duplicate(IntSize::FourByte),
@@ -161,7 +161,7 @@ fn function_call() {
         RetractStackPtr(4), // Skip through argument
 
         // Debug print
-        DebugPrintUnsigned(IntSize::FourByte), // Should be 81
+        DebugPrintSigned(IntSize::FourByte), // Should be 81
         Exit, // Done!
 
         // instruction 11: Start of square(a: u32).

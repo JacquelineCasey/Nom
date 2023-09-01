@@ -66,7 +66,7 @@ impl CodeGenerator {
         instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(8)));  // Space for return value. Alignment for main()
         instructions.push(PseudoInstruction::Temp(TempInstruction::Call("main".to_string())));
         instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(4)));  // Move to return value
-        instructions.push(PseudoInstruction::Actual(Instruction::DebugPrintUnsigned(IntSize::FourByte)));
+        instructions.push(PseudoInstruction::Actual(Instruction::DebugPrintSigned(IntSize::FourByte)));
         instructions.push(PseudoInstruction::Actual(Instruction::Exit));
 
 
@@ -377,7 +377,7 @@ impl FunctionInfo {
             *offset -= info.top as isize;
         }
 
-        info.top = 0;
+        info.top = 16;  // Room for two u64 saved registers
 
         for (name, local) in &analysis_info.local_types {
             let local_type_info = analyzed_ast.types.get(local)

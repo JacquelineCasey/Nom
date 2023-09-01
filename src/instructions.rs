@@ -87,7 +87,7 @@ pub enum Instruction {
     RetractMoving (usize, IntSize),
 
     // Likely to remove. Peaks the top value.
-    DebugPrintUnsigned (IntSize),  
+    DebugPrintSigned (IntSize),  
 
     // Duplicates the top item.
     Duplicate (IntSize),  

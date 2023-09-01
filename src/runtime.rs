@@ -48,7 +48,7 @@ impl Runtime {
         self.running = true;
 
         while self.running {
-            println!("{}", self.instruction_index);
+            // println!("{}", self.instruction_index);
             let instruction = self.instructions[self.instruction_index];
 
             self.instruction_index += 1;  // Might be overriden by running a jump
@@ -96,25 +96,25 @@ impl Runtime {
                     },
                 }
             }
-            Instruction::DebugPrintUnsigned(size) => {
+            Instruction::DebugPrintSigned(size) => {
                 if let Some(out) = debug_out {
                     self.eval_instruction(Instruction::Duplicate(size), &mut None);
 
                     match size {
                         IntSize::OneByte => {
-                            let val = u8::pop(self);
+                            let val = reinterpret::<u8, i8>(u8::pop(self));
                             writeln!(out, "{val}").expect("prints");
                         }
                         IntSize::TwoByte => {
-                            let val = u16::pop(self);
+                            let val = reinterpret::<u16, i16>(u16::pop(self));
                             writeln!(out, "{val}").expect("prints");
                         }
                         IntSize::FourByte => {
-                            let val = u32::pop(self);
+                            let val = reinterpret::<u32, i32>(u32::pop(self));
                             writeln!(out, "{val}").expect("prints");
                         }
                         IntSize::EightByte => {
-                            let val = u64::pop(self);
+                            let val = reinterpret::<u64, i64>(u64::pop(self));
                             writeln!(out, "{val}").expect("prints");
                         }
                     }

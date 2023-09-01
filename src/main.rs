@@ -2,9 +2,9 @@
  * Nom files. */
 
  
-use nom::{token, ast, interpret};
+use nom::{token, ast, analysis, generate, runtime};
 
-use std::io::Read;
+use std::io::{Read, Write};
 
 
 fn main() {
@@ -20,6 +20,15 @@ fn main() {
 
     // println!("{abstract_syntax_tree:?}");
 
-    let mut interpretter = interpret::Interpretter::new();
-    interpretter.run(abstract_syntax_tree).expect("Ran to completion");
+    // let mut interpretter = interpret::Interpretter::new();
+    // interpretter.run(abstract_syntax_tree).expect("Ran to completion");
+
+    let analyzed_ast = analysis::AnalyzedAST::new(abstract_syntax_tree).expect("Analysis succeeded");
+    let generator = generate::CodeGenerator::new();
+    let code = generator.generate(&analyzed_ast).expect("Code should generate successfully");
+
+    println!("{code:?}");
+
+    let mut runtime = runtime::Runtime::new(code);
+    runtime.run_debug(&mut std::io::stdout());
 }

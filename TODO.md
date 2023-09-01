@@ -4,6 +4,10 @@
 - Write tests for the runtime component
 - Comments
 - Unary Negate
+- Should code_gen know the depth from the base of the operation stack, or from
+  the base of the frame (likely the latter). Should it make use of the fact that
+  locals might leave an alignment less than 8, which can be handy if we wish to
+  fit small items in the operation stack.
 
 
 

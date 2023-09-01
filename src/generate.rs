@@ -28,6 +28,10 @@ enum TempInstruction {
 
 
 impl CodeGenerator {
+    pub fn new() -> CodeGenerator {
+        CodeGenerator { functions: HashMap::new() }
+    }
+
     pub fn generate(mut self, analyzed_ast: &AnalyzedAST) -> Result<Vec<Instruction>, GenerateError> {
         let function_list = analyzed_ast.ast.declarations.iter()
             .map(|decl| match decl {
@@ -85,7 +89,21 @@ impl CodeGenerator {
             instructions.push(instr.clone());
         }
 
+        // Let's print the final value and exit, for now.
+        let last = instructions.len() - 1;
+        instructions[last] = PseudoInstruction::Actual(Instruction::DebugPrintUnsigned(IntSize::FourByte));
+        instructions.push(PseudoInstruction::Actual(Instruction::Exit));
+
         Ok(())
+    }
+
+    fn get_alignment_shift(depth: usize, alignment: usize) -> usize {
+        if depth % alignment != 0 {
+            alignment - (depth % alignment)
+        }
+        else {
+            0
+        }
     }
 
     fn generate_function(&self, analyzed_ast: &AnalyzedAST, subtree: &ExprAST, name: &str) -> Result<Vec<PseudoInstruction>, GenerateError> {
@@ -93,9 +111,17 @@ impl CodeGenerator {
 
         let mut instructions = vec![];
 
-        instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(function_info.top)));
+        // TODO: Better alignment functions.
+        let expr_type = analyzed_ast.get_expr_type(subtree);
+        let expr_type_info = analyzed_ast.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
-        instructions.append(&mut self.generate_expression(analyzed_ast, subtree, function_info, 0)?);
+        let mut depth = function_info.top;
+        let alignment = get_align_shift(depth, expr_type_info.alignment);
+        depth += alignment;
+
+        instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(depth)));
+
+        instructions.append(&mut self.generate_expression(analyzed_ast, subtree, function_info, depth)?);  // TODO: Should this be zero or function_info.top. Can we call it depth?
 
         instructions.append(&mut Self::generate_return(function_info)?);
 
@@ -277,7 +303,8 @@ impl CodeGenerator {
 
         let (offset, size) = function_info.variable_info_by_name(var_name)
             .ok_or(GenerateError("Could not find local variable".to_string()))?;
-
+        
+        println!("{size}");
         // Store generated expression
         instructions.push(PseudoInstruction::Actual(
             Instruction::WriteBase(offset, size.try_into()?)
@@ -364,9 +391,7 @@ impl FunctionInfo {
     }
 
     fn align_variables(&mut self, alignment: usize) {
-        if self.top % alignment != 0 {
-            self.top += alignment - (self.top % alignment);
-        }
+        self.top += get_align_shift(self.top, alignment);
     }
 
     // Checks arguments and locals

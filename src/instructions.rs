@@ -15,7 +15,7 @@
 
 
 /* Specify the type of arguments to some operation. */
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum IntSize {
     OneByte,
     TwoByte,
@@ -43,7 +43,7 @@ impl TryFrom<usize> for IntSize {
             2 => Ok(IntSize::TwoByte),
             4 => Ok(IntSize::FourByte),
             8 => Ok(IntSize::EightByte),
-            _ => Err(crate::generate::GenerateError("abc".to_string()))
+            _ => Err(crate::generate::GenerateError(format!("Bad usize to IntSize conversion: {value}")))
         }
     }
 }
@@ -66,7 +66,7 @@ pub enum FloatSize {
 //     }
 // }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Instruction {
     // Both operands must be the same type. Pops two operands, pushes one as the result.
     IntegerBinaryOperation (IntegerBinaryOperation, IntSize),  
@@ -125,7 +125,7 @@ pub enum Instruction {
     Exit,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum IntegerBinaryOperation {
     UnsignedAddition,
     SignedAddition,
@@ -137,12 +137,12 @@ pub enum IntegerBinaryOperation {
     SignedDivision,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum IntegerUnaryOperation {
     NegateSigned,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Constant {
     OneByte (u8),
     TwoByte (u16),

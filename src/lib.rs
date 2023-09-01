@@ -16,7 +16,6 @@
 
 mod token;  // Tokenize, instruct parsley how tokens work
 mod ast;  // Generate AST from parsley's concrete syntax tree
-mod interpret;  // Interpret the AST. Soon to be deprecated in favor of a virtual machine model.
 mod analysis;  // Analyze an AST, checking correctness and learning type info.
 mod instructions;  // Define the instruction set of the VM.
 mod generate;  // Traverses an AST and returns instructions and other data.

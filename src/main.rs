@@ -2,30 +2,17 @@
  * Nom files. */
 
  
-use nom::{token, ast, analysis, generate, runtime};
+use nom::compile;
+use nom::runtime::Runtime;
 
 use std::io::Read;
 
 
 fn main() {
-    let parser_definition = include_str!("grammar.parsley");  // Drops the string right into the binary.
-    let parser = parsley::define_parser::<token::Token>(parser_definition).expect("Parser definition should be valid");
-
     let mut buffer = String::new();
     std::io::stdin().read_to_string(&mut buffer).expect("Reading stdin should succeed");
-    let tokens = token::tokenize(&buffer).expect("Tokenization should succeed");
 
-    let syntax_tree = parser.parse_tokens(tokens, "Program").expect("Parsing should not fail");
-    let abstract_syntax_tree = ast::build_ast(&syntax_tree).expect("Specialization to AST should not fail");
-
-    // println!("{abstract_syntax_tree:?}");
-
-    // let mut interpretter = interpret::Interpretter::new();
-    // interpretter.run(abstract_syntax_tree).expect("Ran to completion");
-
-    let analyzed_ast = analysis::AnalyzedAST::new(abstract_syntax_tree).expect("Analysis succeeded");
-    let generator = generate::CodeGenerator::new();
-    let code = generator.generate(&analyzed_ast).expect("Code should generate successfully");
+    let code = compile(&buffer);
 
     for (i, instr) in code.iter().enumerate() {
         println!("{i: <5}: {instr:?}");
@@ -33,6 +20,6 @@ fn main() {
 
     println!("\n-*-*-*-*- Running VM -*-*-*-*-\n");
 
-    let mut runtime = runtime::Runtime::new(code);
+    let mut runtime = Runtime::new(code);
     runtime.run_debug(&mut std::io::stdout());
 }

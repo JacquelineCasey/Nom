@@ -1,4 +1,7 @@
 
+mod optimize_instructions;  // Makes optimizations at the instruction level.
+
+
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -6,6 +9,8 @@ use crate::ast::{DeclarationAST, ExprAST, StatementAST};
 use crate::analysis::{AnalyzedAST, Type};
 use crate::instructions::{Instruction, IntSize, IntegerBinaryOperation, Constant};
 use crate::util::reinterpret;
+
+use optimize_instructions::optimize;
 
 
 #[derive(Debug)]
@@ -132,7 +137,7 @@ impl CodeGenerator {
 
         instructions.append(&mut Self::generate_return(function_info)?);
 
-        Ok(instructions)
+        Ok(optimize(instructions))
     }
     
     // Precondition: stack pointer is byte above return value.

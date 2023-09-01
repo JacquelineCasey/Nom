@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 parsley = { git = "https://github.com/jackcasey067/Parsley.git" }
+test-generator = "0.3.1"

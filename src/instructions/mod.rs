@@ -5,10 +5,9 @@
  * The virtual machine uses a stack model for computation. Local variables are 
  * allocated in advance, but most of the actual computation happens with temporaries
  * stored an operation stack. These frames are themselves organized in a call stack,
- * which can be one contigous memory region but can also be seperate objects (i.e.
- * I haven't decided yet).
+ * which is stored in one continuous memory region.
  * 
- * "The Stack" is virtual, it is actually likely to live on the heap. 
+ * Nom's "stack memory" actually lives in Rust's heap.
  * 
  * Right now, I am optimizing for instruction simplicity (which hopefully equals
  * easily generated code). This will occur at the cost of runtime speed. */

@@ -8,9 +8,6 @@
   the base of the frame (likely the latter). Should it make use of the fact that
   locals might leave an alignment less than 8, which can be handy if we wish to
   fit small items in the operation stack.
-- Simple optimizations for byte code - i.e. combine advance and retract instructions,
-  and skip them if a return is about to happen, etc.
-  - In reality I want most optimization to happen at the AST level.
 
 
 

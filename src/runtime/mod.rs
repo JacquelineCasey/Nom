@@ -1,4 +1,8 @@
 
+#[cfg(test)]
+mod tests;
+
+
 use std::alloc::{Layout, alloc, dealloc};
 
 use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize, Constant};

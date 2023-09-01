@@ -1,6 +1,9 @@
 
-use nom::runtime::Runtime;
-use nom::instructions::{Instruction, Instruction::*, Constant, IntegerBinaryOperation, IntSize};
+use super::Runtime;
+
+use crate::instructions::{Instruction, Instruction::*, Constant, IntegerBinaryOperation, IntSize};
+use crate::util::reinterpret;
+
 
 fn run_collecting_output(instructions: Vec<Instruction>) -> Vec<String> {
     let mut runtime = Runtime::new(instructions);
@@ -12,18 +15,6 @@ fn run_collecting_output(instructions: Vec<Instruction>) -> Vec<String> {
 
     a.lines().map(|a| a.to_string()).collect::<Vec<String>>()
 }
-
-
-
-/* Refer to: https://users.rust-lang.org/t/transmuting-a-generic-array/45645/5
- * Types must be same size, and this is not checked.
- * 
- * See (private) util.rs */
-fn reinterpret<In: Copy, Out: Copy>(i: In) -> Out {
-    let ptr = std::ptr::addr_of!(i).cast::<Out>();
-    unsafe { *ptr }
-}
-
 
 
 #[test]

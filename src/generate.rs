@@ -61,9 +61,18 @@ impl CodeGenerator {
         }
         
         let mut instructions = vec![];
+
+        // Driver - calls the main.
+        instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(8)));  // Space for return value. Alignment for main()
+        instructions.push(PseudoInstruction::Temp(TempInstruction::Call("main".to_string())));
+        instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(4)));  // Move to return value
+        instructions.push(PseudoInstruction::Actual(Instruction::DebugPrintUnsigned(IntSize::FourByte)));
+        instructions.push(PseudoInstruction::Actual(Instruction::Exit));
+
+
         let mut function_locations: HashMap<String, usize> = HashMap::new();
 
-        function_locations.insert("main".to_string(), 0);
+        function_locations.insert("main".to_string(), instructions.len());
         self.layout_function("main", &mut instructions)?;
 
         for (fn_name, _) in function_list {
@@ -76,7 +85,10 @@ impl CodeGenerator {
         instructions.into_iter()
             .map(|instr| match instr {
                 PseudoInstruction::Actual(instr) => Ok(instr),
-                PseudoInstruction::Temp(_) => Err(GenerateError("Some temp instructions were not removed".to_string()))
+                PseudoInstruction::Temp(TempInstruction::Call(name)) => {
+                    let location = function_locations.get(&name).ok_or(GenerateError(format!("Could not find function named {name}")))?;
+                    Ok(Instruction::Call(*location))
+                }
             })
             .collect::<Result<_, _>>()
     }
@@ -88,11 +100,6 @@ impl CodeGenerator {
         for instr in &a.initial_code {
             instructions.push(instr.clone());
         }
-
-        // Let's print the final value and exit, for now.
-        let last = instructions.len() - 1;
-        instructions[last] = PseudoInstruction::Actual(Instruction::DebugPrintUnsigned(IntSize::FourByte));
-        instructions.push(PseudoInstruction::Actual(Instruction::Exit));
 
         Ok(())
     }
@@ -160,7 +167,7 @@ impl CodeGenerator {
     // Expressions are being evaluated as rvalues, not as lvalues. In particular, pass a variable here is you want to put its
     // value on the stack, but see generate_statement if you want to store something into that variable.
     fn generate_expression(&self, analyzed_ast: &AnalyzedAST, subtree: &ExprAST, 
-        function_info: &FunctionInfo, pointer_pos: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
+        function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
         let mut instructions = vec![];
 
@@ -180,8 +187,8 @@ impl CodeGenerator {
                 if let Type::BuiltIn(curr_type) = subtree_type {
                     let arg_size = curr_type.get_int_size().ok_or(GenerateError("Expected builtin int type".to_string()))?;
 
-                    instructions.append(&mut self.generate_expression(analyzed_ast, left, function_info, pointer_pos)?);
-                    instructions.append(&mut self.generate_expression(analyzed_ast, right, function_info, pointer_pos + arg_size.to_usize())?);
+                    instructions.append(&mut self.generate_expression(analyzed_ast, left, function_info, depth)?);
+                    instructions.append(&mut self.generate_expression(analyzed_ast, right, function_info, depth + arg_size.to_usize())?);
 
                     instructions.push(PseudoInstruction::Actual(Instruction::IntegerBinaryOperation(
                         match subtree {
@@ -221,11 +228,11 @@ impl CodeGenerator {
             }
             ExprAST::Block(statements, expr, ..) => {
                 for statement in statements {
-                    instructions.append(&mut self.generate_statement(analyzed_ast, statement, function_info, pointer_pos)?);
+                    instructions.append(&mut self.generate_statement(analyzed_ast, statement, function_info, depth)?);
                 }
 
                 if let Some(expr) = expr {
-                    instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, pointer_pos)?);
+                    instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, depth)?);
                 }
             }
         }
@@ -234,7 +241,7 @@ impl CodeGenerator {
     }
 
     fn generate_statement(&self, analyzed_ast: &AnalyzedAST, statement: &StatementAST, 
-        function_info: &FunctionInfo, pointer_pos: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
+        function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
         let mut instructions = vec![];
 
@@ -243,14 +250,14 @@ impl CodeGenerator {
                 let expr_type = analyzed_ast.get_expr_type(expr);
                 let expr_type_info = analyzed_ast.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
                 
-                let align_shift = get_align_shift(pointer_pos, expr_type_info.alignment);
+                let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
                 // Align
                 instructions.push(PseudoInstruction::Actual(
                     Instruction::AdvanceStackPtr(align_shift)
                 ));
     
-                instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, pointer_pos + align_shift)?);
+                instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, depth + align_shift)?);
 
                 // Ignore generated expression
                 instructions.push(PseudoInstruction::Actual(
@@ -264,7 +271,7 @@ impl CodeGenerator {
             },
             StatementAST::Assignment(left, right, ..) => {
                 if let ExprAST::Variable(name, ..) = left {
-                    instructions.append(&mut self.generate_assignment(analyzed_ast, name, right, function_info, pointer_pos)?);
+                    instructions.append(&mut self.generate_assignment(analyzed_ast, name, right, function_info, depth)?);
                 }
                 else {
                     return Err(GenerateError("Could not find variable".to_string()));
@@ -275,7 +282,7 @@ impl CodeGenerator {
                     DeclarationAST::Function { .. } => 
                         return Err(GenerateError("Tried to build function in function".to_string())),  // Lambdas?
                     DeclarationAST::Variable { name, expr, .. } => {
-                        instructions.append(&mut self.generate_assignment(analyzed_ast, name, expr, function_info, pointer_pos)?);
+                        instructions.append(&mut self.generate_assignment(analyzed_ast, name, expr, function_info, depth)?);
                     }
                 }
             }
@@ -285,26 +292,25 @@ impl CodeGenerator {
     }
 
     fn generate_assignment(&self, analyzed_ast: &AnalyzedAST, var_name: &str, expr: &ExprAST,
-        function_info: &FunctionInfo, pointer_pos: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
+        function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
         let mut instructions = vec![];
         
         let expr_type = analyzed_ast.get_expr_type(expr);
         let expr_type_info = analyzed_ast.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
         
-        let align_shift = get_align_shift(pointer_pos, expr_type_info.alignment);
+        let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
         // Align
         instructions.push(PseudoInstruction::Actual(
             Instruction::AdvanceStackPtr(align_shift)
         ));
 
-        instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, pointer_pos + align_shift)?);
+        instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, depth + align_shift)?);
 
         let (offset, size) = function_info.variable_info_by_name(var_name)
             .ok_or(GenerateError("Could not find local variable".to_string()))?;
         
-        println!("{size}");
         // Store generated expression
         instructions.push(PseudoInstruction::Actual(
             Instruction::WriteBase(offset, size.try_into()?)
@@ -353,6 +359,7 @@ impl FunctionInfo {
                   
         let return_type_info = analyzed_ast.types.get(&analysis_info.return_type)
             .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
+
     
         info.add_variable(Variable::Return, return_type_info.size, return_type_info.alignment);
 
@@ -386,7 +393,7 @@ impl FunctionInfo {
     fn add_variable(&mut self, variable: Variable, size: usize, alignment: usize) {
         self.align_variables(alignment);
 
-        self.variables.insert(variable, (size as isize, self.top));
+        self.variables.insert(variable, (self.top as isize, size));
         self.top += size;
     }
 

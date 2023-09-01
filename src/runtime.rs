@@ -48,6 +48,7 @@ impl Runtime {
         self.running = true;
 
         while self.running {
+            println!("{}", self.instruction_index);
             let instruction = self.instructions[self.instruction_index];
 
             self.instruction_index += 1;  // Might be overriden by running a jump

@@ -64,6 +64,7 @@ impl BuiltIn {
     }
 }
 
+#[derive(Debug)]
 pub struct TypeInfo {
     pub size: usize,  // Number of bytes the types takes on the stack.
     pub alignment: usize,  // In bytes

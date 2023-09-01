@@ -27,7 +27,11 @@ fn main() {
     let generator = generate::CodeGenerator::new();
     let code = generator.generate(&analyzed_ast).expect("Code should generate successfully");
 
-    println!("{code:?}");
+    for (i, instr) in code.iter().enumerate() {
+        println!("{i: <5}: {instr:?}");
+    }
+
+    println!("\n-*-*-*-*- Running VM -*-*-*-*-\n");
 
     let mut runtime = runtime::Runtime::new(code);
     runtime.run_debug(&mut std::io::stdout());

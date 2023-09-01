@@ -14,6 +14,7 @@
 
 
 /* Specify the type of arguments to some operation. */
+#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug)]
 pub enum IntSize {
     OneByte,
@@ -141,6 +142,7 @@ pub enum IntegerUnaryOperation {
     NegateSigned,
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug)]
 pub enum Constant {
     OneByte (u8),

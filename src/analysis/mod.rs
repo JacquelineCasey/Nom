@@ -22,6 +22,8 @@ pub struct FunctionTypeInfo {
 #[derive(PartialEq, Eq, Hash)]
 pub enum Type {
     BuiltIn (BuiltIn),
+    
+    #[allow(dead_code)]
     NotYetImplemented,
 }
 
@@ -40,25 +42,26 @@ pub enum BuiltIn {
 
 impl BuiltIn {
     pub fn is_signed(&self) -> bool {
-        use BuiltIn::*;
+        use BuiltIn as B;
        
-        matches!(self, I8 | I16 | I32 | I64)
+        matches!(self, B::I8 | B::I16 | B::I32 | B::I64)
     }
 
     pub fn is_unsigned(&self) -> bool {
-        use BuiltIn::*;
+        use BuiltIn as B;
        
-        matches!(self, U8 | U16 | U32 | U64)
+        matches!(self, B::U8 | B::U16 | B::U32 | B::U64)
     }
 
     pub fn get_int_size(&self) -> Option<IntSize> {
-        use BuiltIn::*;
+        use BuiltIn as B;
+        use IntSize as IS;
 
         match self {
-            U8 | I8 => Some(IntSize::OneByte),
-            U16 | I16 => Some(IntSize::TwoByte),
-            U32 | I32 => Some(IntSize::FourByte),
-            U64 | I64 => Some(IntSize::EightByte),
+            B::U8 | B::I8 => Some(IS::OneByte),
+            B::U16 | B::I16 => Some(IS::TwoByte),
+            B::U32 | B::I32 => Some(IS::FourByte),
+            B::U64 | B::I64 => Some(IS::EightByte),
             _ => None
         }
     }
@@ -160,6 +163,7 @@ impl AnalyzedAST {
         Ok(())
     }
 
+    #[allow(clippy::unused_self)]
     pub fn get_expr_type(&self, subtree: &ExprAST) -> Type {
         // Very very preliminary and naive
 

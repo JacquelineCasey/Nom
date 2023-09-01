@@ -38,6 +38,9 @@ impl CodeGenerator {
     }
 
     pub fn generate(mut self, analyzed_ast: &AnalyzedAST) -> Result<Vec<Instruction>, GenerateError> {
+        use PseudoInstruction as PI;
+        use Instruction as I;
+
         let function_list = analyzed_ast.ast.declarations.iter()
             .map(|decl| match decl {
                 DeclarationAST::Function { name, block, .. } => {
@@ -64,15 +67,15 @@ impl CodeGenerator {
 
             fn_info.initial_code = instructions;
         }
-        
-        let mut instructions = vec![];
 
         // Driver - calls the main.
-        instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(8)));  // Space for return value. Alignment for main()
-        instructions.push(PseudoInstruction::Temp(TempInstruction::Call("main".to_string())));
-        instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(4)));  // Move to return value
-        instructions.push(PseudoInstruction::Actual(Instruction::DebugPrintSigned(IntSize::FourByte)));
-        instructions.push(PseudoInstruction::Actual(Instruction::Exit));
+        let mut instructions = vec![
+            PI::Actual(I::AdvanceStackPtr(8)),  // Space for return value. Alignment for main()
+            PI::Temp(TempInstruction::Call("main".to_string())),
+            PI::Actual(I::RetractStackPtr(4)),  // Move to return value
+            PI::Actual(I::DebugPrintSigned(IntSize::FourByte)),
+            PI::Actual(I::Exit)
+        ];
 
 
         let mut function_locations: HashMap<String, usize> = HashMap::new();
@@ -107,15 +110,6 @@ impl CodeGenerator {
         }
 
         Ok(())
-    }
-
-    fn get_alignment_shift(depth: usize, alignment: usize) -> usize {
-        if depth % alignment != 0 {
-            alignment - (depth % alignment)
-        }
-        else {
-            0
-        }
     }
 
     fn generate_function(&self, analyzed_ast: &AnalyzedAST, subtree: &ExprAST, name: &str) -> Result<Vec<PseudoInstruction>, GenerateError> {
@@ -330,9 +324,9 @@ impl CodeGenerator {
     }
 }
 
-fn get_align_shift(pointer_pos: usize, alignment: usize) -> usize {
-    if pointer_pos % alignment != 0 {
-        alignment - pointer_pos % alignment
+fn get_align_shift(depth: usize, alignment: usize) -> usize {
+    if depth % alignment != 0 {
+        alignment - depth % alignment
     }
     else {
         0

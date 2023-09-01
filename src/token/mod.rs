@@ -35,12 +35,12 @@ impl FromStr for Keyword {
     type Err = TokenError;  // Likely ignored by algorithm.
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use Keyword::*;
+        use Keyword as K;
 
         Ok(match s {
-            "var" => Var,
-            "val" => Val,
-            "fn" => Fn,
+            "var" => K::Var,
+            "val" => K::Val,
+            "fn" => K::Fn,
             _ => Err(TokenError("Not a keyword".to_string()))?
         })
     }
@@ -59,12 +59,14 @@ impl FromStr for Operator {
     type Err = ();  // Likely ignored by algorithm.
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use Operator as O;
+
         match s {
-            "+" => Ok(Operator::Plus),
-            "-" => Ok(Operator::Minus),
-            "*" => Ok(Operator::Times),
-            "/" => Ok(Operator::Divide),           
-            "=" => Ok(Operator::Equals),
+            "+" => Ok(O::Plus),
+            "-" => Ok(O::Minus),
+            "*" => Ok(O::Times),
+            "/" => Ok(O::Divide),           
+            "=" => Ok(O::Equals),
             _ => Err(())
         }
     }
@@ -87,15 +89,17 @@ impl TryFrom<char> for Punctuation {
     type Error = ();  // Likely ignored by algorithm.;
 
     fn try_from(value: char) -> Result<Self, Self::Error> {
+        use Punctuation as P;
+
         match value {
-            ';' => Ok(Punctuation::Semicolon),
-            ',' => Ok(Punctuation::Comma),
-            '{' => Ok(Punctuation::LeftCurlyBrace),
-            '}' => Ok(Punctuation::RightCurlyBrace),
-            '(' => Ok(Punctuation::LeftParenthesis),           
-            ')' => Ok(Punctuation::RightParenthesis),
-            '[' => Ok(Punctuation::LeftSquareBracket),
-            ']' => Ok(Punctuation::RightSquareBracket),
+            ';' => Ok(P::Semicolon),
+            ',' => Ok(P::Comma),
+            '{' => Ok(P::LeftCurlyBrace),
+            '}' => Ok(P::RightCurlyBrace),
+            '(' => Ok(P::LeftParenthesis),           
+            ')' => Ok(P::RightParenthesis),
+            '[' => Ok(P::LeftSquareBracket),
+            ']' => Ok(P::RightSquareBracket),
             _ => Err(())
         }
     }
@@ -322,28 +326,35 @@ fn literal_to_char(string: &str) -> Result<char, TokenError> {
 
 impl parsley::Token for Token {
     fn matches(token_type: &str, token: &Self) -> Result<bool, parsley::ParseError> {
-        use Punctuation::*;
-        use Operator::*;
+        use Token as T;
+        use TokenBody as TB;
+        use Punctuation as P;
+        use Operator as O;
+        use Keyword as K;
 
         Ok(match token_type {
-            "Identifier" => matches!(token, Token { body: TokenBody::Identifier(_), .. }),
-            "NumericLiteral" => matches!(token, Token { body: TokenBody::NumericLiteral(_), .. }),
-            "LeftCurlyBrace" => matches!(token, Token { body: TokenBody::Punctuation(LeftCurlyBrace), .. }),
-            "RightCurlyBrace" => matches!(token, Token { body: TokenBody::Punctuation(RightCurlyBrace), .. }),
-            "LeftParenthesis" => matches!(token, Token { body: TokenBody::Punctuation(LeftParenthesis), .. }),
-            "RightParenthesis" => matches!(token, Token { body: TokenBody::Punctuation(RightParenthesis), .. }),
-            "LeftSquareBracket" => matches!(token, Token { body: TokenBody::Punctuation(LeftSquareBracket), .. }),
-            "RightSquareBracket" => matches!(token, Token { body: TokenBody::Punctuation(RightSquareBracket), .. }),
-            "Semicolon" => matches!(token, Token { body: TokenBody::Punctuation(Semicolon), .. }),
-            "Comma" => matches!(token, Token { body: TokenBody::Punctuation(Comma), .. }),
-            "Plus" => matches!(token, Token { body: TokenBody::Operator(Plus) }),
-            "Minus" => matches!(token, Token { body: TokenBody::Operator(Minus) }),
-            "Times" => matches!(token, Token { body: TokenBody::Operator(Times) }), 
-            "Divide" => matches!(token, Token { body: TokenBody::Operator(Divide) }),
-            "Equals" => matches!(token, Token { body: TokenBody::Operator(Equals) }),
-            "Var" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Var) }),
-            "Val" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Val) }),
-            "Fn" => matches!(token, Token { body: TokenBody::Keyword(Keyword::Fn) }),
+            "Identifier"     => matches!(token, T { body: TB::Identifier(_), .. }),
+            "NumericLiteral" => matches!(token, T { body: TB::NumericLiteral(_), .. }),
+
+            "LeftCurlyBrace"     => matches!(token, T { body: TB::Punctuation(P::LeftCurlyBrace), .. }),
+            "RightCurlyBrace"    => matches!(token, T { body: TB::Punctuation(P::RightCurlyBrace), .. }),
+            "LeftParenthesis"    => matches!(token, T { body: TB::Punctuation(P::LeftParenthesis), .. }),
+            "RightParenthesis"   => matches!(token, T { body: TB::Punctuation(P::RightParenthesis), .. }),
+            "LeftSquareBracket"  => matches!(token, T { body: TB::Punctuation(P::LeftSquareBracket), .. }),
+            "RightSquareBracket" => matches!(token, T { body: TB::Punctuation(P::RightSquareBracket), .. }),
+            "Semicolon"          => matches!(token, T { body: TB::Punctuation(P::Semicolon), .. }),
+            "Comma"              => matches!(token, T { body: TB::Punctuation(P::Comma), .. }),
+
+            "Plus"   => matches!(token, T { body: TB::Operator(O::Plus) }),
+            "Minus"  => matches!(token, T { body: TB::Operator(O::Minus) }),
+            "Times"  => matches!(token, T { body: TB::Operator(O::Times) }), 
+            "Divide" => matches!(token, T { body: TB::Operator(O::Divide) }),
+            "Equals" => matches!(token, T { body: TB::Operator(O::Equals) }),
+
+            "Var" => matches!(token, T { body: TB::Keyword(K::Var) }),
+            "Val" => matches!(token, T { body: TB::Keyword(K::Val) }),
+            "Fn"  => matches!(token, T { body: TB::Keyword(K::Fn) }),
+
             _ => Err(parsley::ParseError(format!("Bad token type: \"{token_type}\"")))?
         })
     }

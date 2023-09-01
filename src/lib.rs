@@ -11,6 +11,7 @@
     clippy::if_not_else,  // Actually I like this, its the gaurd pattern
     clippy::upper_case_acronyms,  // Deal with it
     clippy::match_wildcard_for_single_variants,  // I do this on purpose
+    clippy::comparison_chain,  // I think this is silly.
 )]
 
 

@@ -7,12 +7,12 @@ use crate::instructions::Instruction;
 
 /* Optimizes the code of a single function */
 pub(super) fn optimize(instructions: Vec<PseudoInstruction>) -> Vec<PseudoInstruction> {
+    use PseudoInstruction as PI;
+    use Instruction as I;
+
     // Combine nearby stack_ptr moves
     let mut final_instructions = vec![];
     let mut next_move: isize = 0;
-
-    use PseudoInstruction as PI;
-    use Instruction as I;
 
     for instr in instructions {
         match instr {

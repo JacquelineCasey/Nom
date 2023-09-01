@@ -1,9 +1,11 @@
 
 use super::Runtime;
 
-use crate::instructions::{Instruction, Instruction::*, Constant, IntegerBinaryOperation, IntSize};
+use crate::instructions::{Instruction, Constant, IntegerBinaryOperation, IntSize};
 use crate::util::reinterpret;
 
+
+use Instruction as I;
 
 fn run_collecting_output(instructions: Vec<Instruction>) -> Vec<String> {
     let mut runtime = Runtime::new(instructions);
@@ -20,11 +22,11 @@ fn run_collecting_output(instructions: Vec<Instruction>) -> Vec<String> {
 #[test]
 fn minimal_test() {
     let lines = run_collecting_output(vec![
-        PushConstant(Constant::FourByte(1234)),
-        PushConstant(Constant::FourByte(1111)),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
-        DebugPrintSigned(IntSize::FourByte),
-        Exit,
+        I::PushConstant(Constant::FourByte(1234)),
+        I::PushConstant(Constant::FourByte(1111)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
+        I::DebugPrintSigned(IntSize::FourByte),
+        I::Exit,
     ]);
 
     assert_eq!(lines, ["2345"]);
@@ -34,17 +36,17 @@ fn minimal_test() {
 fn u8_math() {
     // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
-        PushConstant(Constant::OneByte(40)),
-        PushConstant(Constant::OneByte(2)),
-        PushConstant(Constant::OneByte(3)),
-        PushConstant(Constant::OneByte(8)),
-        PushConstant(Constant::OneByte(2)),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::OneByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::OneByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::OneByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::OneByte),
-        DebugPrintSigned(IntSize::OneByte),
-        Exit,
+        I::PushConstant(Constant::OneByte(40)),
+        I::PushConstant(Constant::OneByte(2)),
+        I::PushConstant(Constant::OneByte(3)),
+        I::PushConstant(Constant::OneByte(8)),
+        I::PushConstant(Constant::OneByte(2)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::OneByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::OneByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::OneByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::OneByte),
+        I::DebugPrintSigned(IntSize::OneByte),
+        I::Exit,
     ]);
 
     assert_eq!(lines, ["26"]);
@@ -54,17 +56,17 @@ fn u8_math() {
 fn u16_math() {
     // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
-        PushConstant(Constant::TwoByte(40)),
-        PushConstant(Constant::TwoByte(2)),
-        PushConstant(Constant::TwoByte(3)),
-        PushConstant(Constant::TwoByte(8)),
-        PushConstant(Constant::TwoByte(2)),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::TwoByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::TwoByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::TwoByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::TwoByte),
-        DebugPrintSigned(IntSize::TwoByte),
-        Exit,
+        I::PushConstant(Constant::TwoByte(40)),
+        I::PushConstant(Constant::TwoByte(2)),
+        I::PushConstant(Constant::TwoByte(3)),
+        I::PushConstant(Constant::TwoByte(8)),
+        I::PushConstant(Constant::TwoByte(2)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::TwoByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::TwoByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::TwoByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::TwoByte),
+        I::DebugPrintSigned(IntSize::TwoByte),
+        I::Exit,
     ]);
 
     assert_eq!(lines, ["26"]);
@@ -74,17 +76,17 @@ fn u16_math() {
 fn u32_math() {
     // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
-        PushConstant(Constant::FourByte(40)),
-        PushConstant(Constant::FourByte(2)),
-        PushConstant(Constant::FourByte(3)),
-        PushConstant(Constant::FourByte(8)),
-        PushConstant(Constant::FourByte(2)),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::FourByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::FourByte),
-        DebugPrintSigned(IntSize::FourByte),
-        Exit,
+        I::PushConstant(Constant::FourByte(40)),
+        I::PushConstant(Constant::FourByte(2)),
+        I::PushConstant(Constant::FourByte(3)),
+        I::PushConstant(Constant::FourByte(8)),
+        I::PushConstant(Constant::FourByte(2)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::FourByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::FourByte),
+        I::DebugPrintSigned(IntSize::FourByte),
+        I::Exit,
     ]);
 
     assert_eq!(lines, ["26"]);
@@ -94,17 +96,17 @@ fn u32_math() {
 fn u64_math() {
     // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
-        PushConstant(Constant::EightByte(40)),
-        PushConstant(Constant::EightByte(2)),
-        PushConstant(Constant::EightByte(3)),
-        PushConstant(Constant::EightByte(8)),
-        PushConstant(Constant::EightByte(2)),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::EightByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::EightByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::EightByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::EightByte),
-        DebugPrintSigned(IntSize::EightByte),
-        Exit,
+        I::PushConstant(Constant::EightByte(40)),
+        I::PushConstant(Constant::EightByte(2)),
+        I::PushConstant(Constant::EightByte(3)),
+        I::PushConstant(Constant::EightByte(8)),
+        I::PushConstant(Constant::EightByte(2)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::EightByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::EightByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::EightByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::EightByte),
+        I::DebugPrintSigned(IntSize::EightByte),
+        I::Exit,
     ]);
 
     assert_eq!(lines, ["26"]);
@@ -114,21 +116,21 @@ fn u64_math() {
 fn function_call() {
     // square(1 + 1) * 5, all in u32
     let lines = run_collecting_output(vec![
-        AdvanceStackPtr(4), // Instruction 0: Space for Return Value
-        PushConstant(Constant::FourByte(1)),
-        PushConstant(Constant::FourByte(1)),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte), // This is the argument 
-        Call(10),
-        RetractStackPtr(4), // Retract past the argument, to byte after return value
-        PushConstant(Constant::FourByte(5)),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
-        DebugPrintSigned(IntSize::FourByte), // Should be 20
-        Exit, // Done!
-        ReadBase(-4, IntSize::FourByte), // instruction 10: Start of square(a: u32). Grab first argument.
-        Duplicate(IntSize::FourByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
-        WriteBase(-8, IntSize::FourByte), // Return sets return value.
-        Return,
+        I::AdvanceStackPtr(4), // Instruction 0: Space for Return Value
+        I::PushConstant(Constant::FourByte(1)),
+        I::PushConstant(Constant::FourByte(1)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte), // This is the argument 
+        I::Call(10),
+        I::RetractStackPtr(4), // Retract past the argument, to byte after return value
+        I::PushConstant(Constant::FourByte(5)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
+        I::DebugPrintSigned(IntSize::FourByte), // Should be 20
+        I::Exit, // Done!
+        I::ReadBase(-4, IntSize::FourByte), // instruction 10: Start of square(a: u32). Grab first argument.
+        I::Duplicate(IntSize::FourByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
+        I::WriteBase(-8, IntSize::FourByte), // Return sets return value.
+        I::Return,
     ]);
     
     assert_eq!(lines, ["20"]);
@@ -139,28 +141,28 @@ fn function_call() {
     // square(square(-3)), all in i32
     let lines = run_collecting_output(vec![
         // square(square(-3))
-        AdvanceStackPtr(4), // Space for return value
+        I::AdvanceStackPtr(4), // Space for return value
             // square(-3)
-            AdvanceStackPtr(4), // Alignment to 8
-            AdvanceStackPtr(4), // Space for return value
+            I::AdvanceStackPtr(4), // Alignment to 8
+            I::AdvanceStackPtr(4), // Space for return value
                 // -3
-                PushConstant(Constant::FourByte(reinterpret::<i32, u32>(-3))),
-            Call(11),
-            RetractStackPtr(4), // Skip through argument
-            RetractMoving(4, IntSize::FourByte), // Undo alignment
-        Call(11),
-        RetractStackPtr(4), // Skip through argument
+                I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(-3))),
+                I::Call(11),
+                I::RetractStackPtr(4), // Skip through argument
+                I::RetractMoving(4, IntSize::FourByte), // Undo alignment
+                I::Call(11),
+                I::RetractStackPtr(4), // Skip through argument
 
         // Debug print
-        DebugPrintSigned(IntSize::FourByte), // Should be 81
-        Exit, // Done!
+        I::DebugPrintSigned(IntSize::FourByte), // Should be 81
+        I::Exit, // Done!
 
         // instruction 11: Start of square(a: u32).
-        ReadBase(-4, IntSize::FourByte), 
-        Duplicate(IntSize::FourByte),
-        IntegerBinaryOperation(IntegerBinaryOperation::SignedMultiplication, IntSize::FourByte),
-        WriteBase(-8, IntSize::FourByte), // Return sets return value.
-        Return,
+        I::ReadBase(-4, IntSize::FourByte), 
+        I::Duplicate(IntSize::FourByte),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::SignedMultiplication, IntSize::FourByte),
+        I::WriteBase(-8, IntSize::FourByte), // Return sets return value.
+        I::Return,
     ]);
 
     assert_eq!(lines, ["81"]);

@@ -235,6 +235,8 @@ fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<std::str::Chars<'_>
     }
 }
 
+// A / looks like an operator, but if it is followed by another slash then we discard the whole
+// line.
 fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<Vec<Operator>, TokenError> {
     if !matches!(iter.peek(), Some(ch) if is_operator_char(*ch)) {
         return Err(TokenError("Expected operator character.".to_string()))
@@ -257,23 +259,33 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
 
     let mut slice = &string[..];
     while !slice.is_empty() {
-        if &slice[..1] == "+" {
+        if slice.starts_with("//") {
+            // Discard comment
+            while let Some(ch) = iter.next() {
+                if ch == '\n' {
+                    break;
+                }
+            }
+
+            return Ok(operators)
+        }
+        else if slice.starts_with("+") {
             operators.push(Operator::Plus);
             slice = &slice[1..];
         }
-        else if &slice[..1] == "-" {
+        else if slice.starts_with("-") {
             operators.push(Operator::Minus);
             slice = &slice[1..];
         }
-        else if &slice[..1] == "*" {
+        else if slice.starts_with("*") {
             operators.push(Operator::Times);
             slice = &slice[1..];
         }
-        else if &slice[..1] == "/" {
+        else if slice.starts_with("/") {
             operators.push(Operator::Divide);
             slice = &slice[1..];
         }
-        else if &slice[..1] == "=" {
+        else if slice.starts_with("=") {
             operators.push(Operator::Equals);
             slice = &slice[1..];
         }

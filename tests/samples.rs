@@ -13,10 +13,35 @@ fn run_sample(resource: &str) {
     let mut input = String::new();
     file.read_to_string(&mut input).expect("Read successful");
 
+    let mut expected_output = input.lines()
+        .filter_map(|line| if line.starts_with("//! ") {
+            Some(Ok(&line[4..]))
+        }
+        else if line.starts_with("//!") {
+            Some(Err("Likely a typo: Put a space after \"//!\""))
+        }
+        else {
+            None
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .expect("No issue with special comments")
+        .join("\n");
+        
+    expected_output.push('\n');
+    
     let code = compile(&input);
 
     let mut runtime = Runtime::new(code);
-    runtime.run();
+
+    let mut buf = std::io::BufWriter::new(vec![]);
+    runtime.run_debug(&mut buf);
+
+    let output = String::from_utf8(buf.into_inner().expect("No IO Error")).expect("Good Conversion");
+
+    assert_eq!(expected_output, output);
+        
+
+
 
     // TODO: Verify expected output
 }

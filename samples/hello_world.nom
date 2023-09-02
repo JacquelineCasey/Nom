@@ -1,3 +1,9 @@
+//! 295000
+
+// Behold! A comment!
+// The special //! ... comment above is NOT a part of the language. However, the
+// tests in tests/samples.rs look at it as expected output for running this code.
+// They can go anywhere at the start of a line.
 
 fn main() {
     1000 * ( 234 + 123 / (4 - 2)   )    

@@ -234,6 +234,9 @@ impl CodeGenerator {
                     instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, depth)?);
                 }
             }
+            ExprAST::FunctionCall(name, subexprs, ..) => {
+                todo!()
+            }
         }
 
         Ok(instructions)

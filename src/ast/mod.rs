@@ -25,7 +25,7 @@ pub struct AST {
 
 #[derive(Debug)]
 pub enum DeclarationAST {
-    Function { name: String, block: ExprAST, node_data: ASTNodeData },
+    Function { name: String, params: Vec<String>, block: ExprAST, node_data: ASTNodeData },
     Variable { mutability: Mutability, name: String, expr: ExprAST, node_data: ASTNodeData }
 }
 
@@ -38,6 +38,7 @@ pub enum ExprAST {
     Literal (i32, ASTNodeData),
     Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
+    FunctionCall (String, Vec<ExprAST>, ASTNodeData),  // The vec contains arguments
 }
 
 impl ExprAST {
@@ -50,6 +51,7 @@ impl ExprAST {
             | ExprAST::Literal(_, data)
             | ExprAST::Variable(_, data)
             | ExprAST::Block(_, _, data) 
+            | ExprAST::FunctionCall(_, _, data)
             => data
         }
     }
@@ -111,14 +113,10 @@ fn build_declaration_ast(tree: &SyntaxTree<Token>) -> Result<DeclarationAST, AST
                         return Err(ASTError("Expected function name".to_string()));
                     };
 
-                    /* TODO: Parse the arguments */
-                    if !matches!(&subexpressions[2], SyntaxTree::RuleNode { rule_name, .. } if rule_name == "ParameterList") {
-                        return Err(ASTError("Expected parameter list in function declaration".to_string()));
-                    }
-
+                    let params = build_parameter_list(&subexpressions[2])?;
                     let block = build_expr_ast(&subexpressions[3])?;
 
-                    Ok(DeclarationAST::Function { name, block, node_data: ASTNodeData::new() })
+                    Ok(DeclarationAST::Function { name, params, block, node_data: ASTNodeData::new() })
                 },
                 SyntaxTree::RuleNode { rule_name, ref subexpressions } if rule_name == "VariableDeclaration" => {
                     match &subexpressions[..] {
@@ -148,9 +146,51 @@ fn build_declaration_ast(tree: &SyntaxTree<Token>) -> Result<DeclarationAST, AST
     }
 }
 
+fn build_parameter_list(node: &SyntaxTree<Token>) -> Result<Vec<String>, ASTError> {
+    use SyntaxTree as ST;
+    use Token as T;
+    use TokenBody as TB;
+
+    match node {
+        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "ParameterList" => {
+            if !matches!(&subexpressions[0], ST::TokenNode (T {body: TB::Punctuation(Punctuation::LeftParenthesis)})) {
+                return Err(ASTError("Expected left parenthesis".to_string()));
+            }
+            if !matches!(&subexpressions[subexpressions.len() - 1], ST::TokenNode (T {body: TB::Punctuation(Punctuation::RightParenthesis)})) {
+                return Err(ASTError("Expected right parenthesis".to_string()));
+            }
+
+            let list = &subexpressions[1..subexpressions.len() - 1];
+            let mut iter = list.iter();
+            
+            let mut param_names = vec![];
+            while let Some(node) = iter.next() {
+                let ST::TokenNode(T {body: TB::Identifier(name)}) = node
+                    else { return Err(ASTError("Expected name".to_string()))};
+                
+                param_names.push(name.clone());
+
+                match iter.next() {
+                    Some(ST::TokenNode (T {body: TB::Punctuation(Punctuation::Comma)})) => (),
+                    Some(_) => return Err(ASTError("Expected comma".to_string())),
+                    None => break,  // In case the iterator restarts?
+                }
+            }
+
+            Ok(param_names)
+        }
+        _ => Err(ASTError("Expected parameter list in function declaration".to_string()))
+    }
+}
+
 fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
+    use SyntaxTree as ST;
+
+    use Token as T;
+    use TokenBody as TB;
+    
     match tree {
-        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "Expression" => {
+        ST::RuleNode { rule_name, subexpressions } if rule_name == "Expression" => {
             if subexpressions.len() == 1 {
                 build_expr_ast(subexpressions.iter().next().expect("Known to exist"))
             }
@@ -158,7 +198,7 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 Err(ASTError("Expected exactly 1 subtree".to_string()))
             }
         }
-        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "AdditiveExpression" => 
+        ST::RuleNode { rule_name, subexpressions } if rule_name == "AdditiveExpression" => 
             combine_binary_ops(subexpressions, true, |left, op, right| {
                 match op {
                     SyntaxTree::TokenNode(Token { body: TokenBody::Operator(Operator::Plus) }) 
@@ -168,7 +208,7 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                     _ => Err(ASTError("Expected + or -".to_string()))
                 }
             }),
-        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "MultiplicativeExpression" =>
+        ST::RuleNode { rule_name, subexpressions } if rule_name == "MultiplicativeExpression" =>
             combine_binary_ops(subexpressions, true, |left, op, right| {
                 match op {
                     SyntaxTree::TokenNode(Token { body: TokenBody::Operator(Operator::Times) }) 
@@ -178,7 +218,7 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                     _ => Err(ASTError("Expected * or /".to_string()))
                 }
             }),
-        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {            
+        ST::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {            
             if subexpressions.len() == 1 {  // Literal, Variable, or Block
                 build_expr_ast(subexpressions.iter().next().expect("Known to exist"))
             }
@@ -196,15 +236,42 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 Err(ASTError("Wrong number of subtrees at PrimaryExpression".to_string()))
             }
         }
-        SyntaxTree::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "Literal" =>
+        ST::RuleNode { ref rule_name, subexpressions } if rule_name == "FunctionCall" => {
+            let SyntaxTree::TokenNode (T {body: TB::Identifier(name)}) = &subexpressions[0]
+                else { return Err(ASTError("Could not find identifier in FunctionCall".to_string())) };
+
+            if !matches!(&subexpressions[1], ST::TokenNode (T {body: TB::Punctuation(Punctuation::LeftParenthesis)})) {
+                return Err(ASTError("Expected left parenthesis".to_string()));
+            }
+            if !matches!(&subexpressions[subexpressions.len() - 1], ST::TokenNode (T {body: TB::Punctuation(Punctuation::RightParenthesis)})) {
+                return Err(ASTError("Expected right parenthesis".to_string()));
+            }
+
+            let arg_list = &subexpressions[2..subexpressions.len() - 1];
+            let mut iter = arg_list.iter();
+            
+            let mut expressions = vec![];
+            while let Some(node) = iter.next() {
+                expressions.push(build_expr_ast(node)?);
+
+                match iter.next() {
+                    Some(ST::TokenNode (T {body: TB::Punctuation(Punctuation::Comma)})) => (),
+                    Some(_) => return Err(ASTError("Expected comma".to_string())),
+                    None => break,  // In case the iterator restarts?
+                }
+            }
+
+            Ok(ExprAST::FunctionCall(name.clone(), expressions, ASTNodeData::new()))
+        }
+        ST::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "Literal" =>
             build_literal_expr(tree),
-        SyntaxTree::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "BlockExpression" =>
+        ST::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "BlockExpression" =>
             build_block_expr(tree),
-        SyntaxTree::RuleNode { rule_name, subexpressions: _ } => 
+        ST::RuleNode { rule_name, subexpressions: _ } => 
             Err(ASTError(format!("Expected expression, found {rule_name}"))),
-        SyntaxTree::TokenNode (Token { body: TokenBody::Identifier(name) }) =>
+        ST::TokenNode (T { body: TB::Identifier(name) }) =>
             Ok(ExprAST::Variable(name.clone(), ASTNodeData::new() )),
-        SyntaxTree::TokenNode (tok) => 
+        ST::TokenNode (tok) => 
             Err(ASTError(format!("Expected expression, found token {tok}")))
     }
 }

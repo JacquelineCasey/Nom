@@ -156,8 +156,10 @@ impl AnalyzedAST {
                 if let Some(expr) = final_expr {
                     Self::analyze_expression(local_types, expr)?;
                 }
-            }
-            _ => (),
+            },
+            ExprAST::FunctionCall(name, subexprs, ..) => todo!(),
+            ExprAST::Literal(..) => (),
+            ExprAST::Variable(..) => (),            
         }
 
         Ok(())

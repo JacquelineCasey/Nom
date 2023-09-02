@@ -1,0 +1,12 @@
+//! 10
+
+fn f(x) {
+    val y = x * x * x * x;
+}
+
+
+fn main() {
+    val a = 10;
+    f(a);
+    a
+}

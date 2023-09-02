@@ -1,12 +1,10 @@
 
 == Immediate TODO ==
 
-- Function Calls
-
-
 
 == Medium Term TODO ==
 
+- Builtin types beyond unit and i32
 - I'm using a lot of panic! and expect! in Runtime, maybe I should switch to Result<>
 - Runtime Overflow checks?
 - Scope

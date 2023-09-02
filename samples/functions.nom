@@ -9,5 +9,5 @@ fn square(a) {  // Reuse letter a
 fn main() {
     val a = 2;
     val b = square(a);
-    a + square(b + 1)  // ensure a is not affected by the squaring
+    a + square(b + 1) // ensure a is not affected by the squaring
 }

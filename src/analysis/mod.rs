@@ -89,8 +89,27 @@ impl AnalyzedAST {
     fn analyze(&mut self) -> Result<(), AnalysisError> {
         for decl in &self.ast.declarations {
             match decl {
+                DeclarationAST::Function { name, .. } => {
+                    self.functions.insert(name.clone(), Self::determine_function_info(decl)?);
+                }
+                DeclarationAST::Variable { .. } => {
+                    return Err("Top level variable not yet supported.".into());
+                }
+            }
+        }
+
+        for decl in &self.ast.declarations {
+            match decl {
                 DeclarationAST::Function { name, block, .. } => {
-                    self.functions.insert(name.clone(), Self::determine_function_info(block)?);
+                    let mut local_types = HashMap::new();
+
+                    Self::analyze_expression(
+                        &self.functions,
+                        &mut local_types, 
+                        block
+                    )?;
+                    
+                    self.functions.get_mut(name).expect("Known exists").local_types = local_types;
                 }
                 DeclarationAST::Variable { .. } => {
                     return Err("Top level variable not yet supported.".into());
@@ -101,41 +120,47 @@ impl AnalyzedAST {
         Ok(())
     }
 
-    fn determine_function_info(block_expr: &ExprAST) -> Result<FunctionTypeInfo, AnalysisError> {
-        let mut local_types = HashMap::new();
-        
-        match block_expr {
-            ExprAST::Block(_, final_expr, _ ) => {
-                Self::analyze_expression(&mut local_types, block_expr)?;
+    // Deterines parameter types and return type, but does not yet resolve local
+    // types.
+    fn determine_function_info(decl: &DeclarationAST) -> Result<FunctionTypeInfo, AnalysisError> {
+        match decl {
+            DeclarationAST::Function { params, block: ExprAST::Block(_, final_expr, _ ), .. } => {
                 Ok(FunctionTypeInfo { 
                     return_type: match final_expr {
                         Some(_expr) => Type::BuiltIn(BuiltIn::I32),  // TODO: Get type of expression
                         None => Type::BuiltIn(BuiltIn::Unit)
                     },
-                    parameter_types: vec![],
-                    local_types
+                    parameter_types: params.iter()
+                        .map(|param| (param.clone(), Type::BuiltIn(BuiltIn::I32)))  // TODO: Get type of parameter.
+                        .collect(),
+                    local_types: HashMap::new()
                 })
-            },
-            _ => Err("Expected Block".into())
-        }
+            }
+            DeclarationAST::Function { .. } => {
+                Err("Function did not have block".into())
+            }
+            DeclarationAST::Variable { .. } => {
+                Err("Expected function".into())
+            }
+        }        
     }
 
-    fn analyze_expression(local_types: &mut HashMap<String, Type>, expr: &ExprAST) -> Result<(), AnalysisError> {
+    fn analyze_expression(functions: &HashMap<String, FunctionTypeInfo>, local_types: &mut HashMap<String, Type>, expr: &ExprAST) -> Result<(), AnalysisError> {
         match expr {
             ExprAST::Add(left, right, _) 
             | ExprAST::Subtract(left, right, _)
             | ExprAST::Multiply(left, right, _)
             | ExprAST::Divide(left, right, _) => {
-                Self::analyze_expression(local_types, left)?;
-                Self::analyze_expression(local_types, right)?;
+                Self::analyze_expression(functions, local_types, left)?;
+                Self::analyze_expression(functions, local_types, right)?;
             }
             ExprAST::Block(statements, final_expr, _) => {
                 for statement in statements {
                     match statement {
-                        crate::ast::StatementAST::ExpressionStatement(expr, _) => Self::analyze_expression(local_types, expr)?,
+                        crate::ast::StatementAST::ExpressionStatement(expr, _) => Self::analyze_expression(functions, local_types, expr)?,
                         crate::ast::StatementAST::Assignment(left, right, _) => {
-                            Self::analyze_expression(local_types, left)?;
-                            Self::analyze_expression(local_types, right)?;
+                            Self::analyze_expression(functions, local_types, left)?;
+                            Self::analyze_expression(functions, local_types, right)?;
                         }
                         crate::ast::StatementAST::Declaration(decl, _) => {
                             match decl {
@@ -145,7 +170,7 @@ impl AnalyzedAST {
                                 DeclarationAST::Variable { name, expr, .. } => {
                                     local_types.insert(name.clone(), Type::BuiltIn(BuiltIn::I32));
 
-                                    Self::analyze_expression(local_types, expr)?;
+                                    Self::analyze_expression(functions, local_types, expr)?;
                                 }
                             }
                         }
@@ -153,10 +178,18 @@ impl AnalyzedAST {
                 }
 
                 if let Some(expr) = final_expr {
-                    Self::analyze_expression(local_types, expr)?;
+                    Self::analyze_expression(functions, local_types, expr)?;
                 }
             },
-            ExprAST::FunctionCall(name, subexprs, ..) => todo!(),
+            ExprAST::FunctionCall(name, subexprs, ..) => {
+                if !functions.contains_key(name) {
+                    return Err("Could not find function".into());
+                }
+                
+                for subexpr in subexprs {
+                    Self::analyze_expression(functions, local_types, subexpr)?;
+                }
+            }
             ExprAST::Literal(..) => (),
             ExprAST::Variable(..) => (),            
         }

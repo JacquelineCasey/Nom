@@ -119,8 +119,8 @@ impl CodeGenerator {
         let expr_type = analyzed_ast.get_expr_type(subtree);
         let expr_type_info = analyzed_ast.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
-        let mut depth = function_info.top;
-        let alignment = get_align_shift(depth, expr_type_info.alignment);
+        let mut depth = function_info.top - 16;  // Skipping the saved registers is done by Call
+        let alignment = get_align_shift(depth, expr_type_info.alignment);  
         depth += alignment;
 
         instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(depth)));
@@ -166,13 +166,17 @@ impl CodeGenerator {
     fn generate_expression(&self, analyzed_ast: &AnalyzedAST, subtree: &ExprAST, 
         function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
+        use ExprAST as E;
+        use PseudoInstruction as PI;
+        use Instruction as I;
+
         let mut instructions = vec![];
 
         match subtree {
-            ExprAST::Add(left, right, ..)
-            | ExprAST::Subtract(left, right, ..)
-            | ExprAST::Multiply(left, right, ..)
-            | ExprAST::Divide(left, right, ..) => {
+            E::Add(left, right, ..)
+            | E::Subtract(left, right, ..)
+            | E::Multiply(left, right, ..)
+            | E::Divide(left, right, ..) => {
                 let subtree_type = analyzed_ast.get_expr_type(subtree);
                 let left_type = analyzed_ast.get_expr_type(left);
                 let right_type = analyzed_ast.get_expr_type(right);
@@ -187,16 +191,16 @@ impl CodeGenerator {
                     instructions.append(&mut self.generate_expression(analyzed_ast, left, function_info, depth)?);
                     instructions.append(&mut self.generate_expression(analyzed_ast, right, function_info, depth + arg_size.to_usize())?);
 
-                    instructions.push(PseudoInstruction::Actual(Instruction::IntegerBinaryOperation(
+                    instructions.push(PI::Actual(I::IntegerBinaryOperation(
                         match subtree {
-                            ExprAST::Add(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedAddition,
-                            ExprAST::Add(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedAddition,
-                            ExprAST::Subtract(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedSubtraction,
-                            ExprAST::Subtract(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedSubtraction,
-                            ExprAST::Multiply(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedMultiplication,
-                            ExprAST::Multiply(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedMultiplication,
-                            ExprAST::Divide(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedDivision,
-                            ExprAST::Divide(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedDivision,
+                            E::Add(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedAddition,
+                            E::Add(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedAddition,
+                            E::Subtract(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedSubtraction,
+                            E::Subtract(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedSubtraction,
+                            E::Multiply(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedMultiplication,
+                            E::Multiply(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedMultiplication,
+                            E::Divide(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedDivision,
+                            E::Divide(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedDivision,
                             _ => panic!("Known unreachable")
                         }, 
                         arg_size)));
@@ -205,25 +209,21 @@ impl CodeGenerator {
                     return Err("Cannot run binary operator on non builtin type".into());
                 }
             }
-            ExprAST::Literal(num, ..) => {
+            E::Literal(num, ..) => {
                 // TODO: Support types beyond i32
 
-                instructions.push(PseudoInstruction::Actual(
-                    Instruction::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(*num)))
-                ));
+                instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(*num)))));
             }
-            ExprAST::Variable(name, ..) => {
+            E::Variable(name, ..) => {
                 // This is placing a variable's value on the stack. See statement for storing
                 // a variable.
 
                 // TODO: Shadowing...
                 if let Some((offset, size)) = function_info.variable_info_by_name(name) {
-                    instructions.push(PseudoInstruction::Actual(
-                        Instruction::ReadBase(offset, IntSize::try_from(size)?)
-                    ));
+                    instructions.push(PI::Actual(I::ReadBase(offset, IntSize::try_from(size)?)));
                 }
             }
-            ExprAST::Block(statements, expr, ..) => {
+            E::Block(statements, expr, ..) => {
                 for statement in statements {
                     instructions.append(&mut self.generate_statement(analyzed_ast, statement, function_info, depth)?);
                 }
@@ -232,8 +232,56 @@ impl CodeGenerator {
                     instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, depth)?);
                 }
             }
-            ExprAST::FunctionCall(name, subexprs, ..) => {
-                todo!()
+            E::FunctionCall(name, subexprs, ..) => {
+                // We assume that the depth is already such that a value from the function
+                // Can be aligned. If the alignment is not 8 though, we shift, run the function,
+                // and then pull the value back.
+
+                let info = self.functions.get(name)
+                    .ok_or(GenerateError("Function not found".to_string()))?;
+
+                let align_shift = get_align_shift(depth, 8);
+
+                instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
+                
+                let (relative_return_loc, return_size) = info.variables.get(&Variable::Return).expect("Known exists");
+                // So relative position is how far below the function we currently are.
+                
+                // Skip past the 
+                instructions.push(PI::Actual(I::AdvanceStackPtr(*return_size)));
+                let mut relative_position = relative_return_loc + *return_size as isize;
+
+                if subexprs.len() != info.parameters.len() {
+                    return Err(
+                        format!("Function has wrong number of arguments. {} arguments vs {} parameters", subexprs.len(), info.parameters.len())
+                        .into()
+                    );
+                }
+
+                for (expr, param) in subexprs.iter().zip(&info.parameters) {
+                    let (param_loc, size) = info.variables.get(param).expect("Known exists");
+
+                    instructions.push(PI::Actual(I::AdvanceStackPtr((param_loc - relative_position) as usize)));
+                    relative_position = *param_loc;
+                    
+                    instructions.append(&mut self.generate_expression(
+                        analyzed_ast, 
+                        expr, 
+                        function_info, 
+                        depth + align_shift + (relative_position - relative_return_loc) as usize
+                    )?);
+                    relative_position += *size as isize;
+                }
+
+                // Finally align to function call.
+                instructions.push(PI::Actual(I::AdvanceStackPtr((-relative_position) as usize)));
+
+                instructions.push(PI::Temp(TempInstruction::Call(name.clone())));
+                
+                instructions.push(PI::Actual(I::RetractStackPtr((-relative_return_loc) as usize - return_size)));
+
+                // Retract moving to original expression location
+                instructions.push(PI::Actual(I::RetractMoving(align_shift, (*return_size).try_into()?)))
             }
         }
 
@@ -340,6 +388,7 @@ struct FunctionInfo {
     variables: HashMap<Variable, (isize, usize)>, // maps parameters, locals, and the return value to their position and sizes in memory.  
     top: usize,  // Points to byte one past the topmost local variable
     initial_code: Vec<PseudoInstruction>, // Not optimized, and not linked
+    parameters: Vec<Variable>,
 }
 
 impl FunctionInfo {
@@ -348,6 +397,7 @@ impl FunctionInfo {
             variables: HashMap::new(),
             top: 0,
             initial_code: vec![],  // To be determined later
+            parameters: vec![],
         };
 
         let analysis_info = analyzed_ast.functions.get(name)
@@ -368,6 +418,7 @@ impl FunctionInfo {
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(Variable::Parameter(name.clone()), param_type_info.size, param_type_info.alignment);
+            info.parameters.push(Variable::Parameter(name.clone()));
         }
 
         info.align_variables(8);

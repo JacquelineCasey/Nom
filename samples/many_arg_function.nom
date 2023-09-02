@@ -1,0 +1,11 @@
+//! 39
+
+fn f(a, b, c, d) {
+    a + 2 * b + 3 * c + 4 * d
+}
+
+fn main() {
+    var a = 1;
+    val b = 10;
+    f(a, a + 1, b, a)
+}

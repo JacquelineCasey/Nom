@@ -23,6 +23,7 @@ mod generate;  // Traverses an AST and returns instructions and other data.
 pub mod runtime;  // Runs generated instructions
 
 mod util;  // Utility functions, etc.
+mod error;  // Error types
 
 
 pub fn compile(input: &str) -> Vec<instructions::Instruction> {

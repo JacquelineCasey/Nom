@@ -1,11 +1,10 @@
 
 use std::collections::HashMap;
 
-use crate::{ast::{AST, ExprAST, DeclarationAST}, instructions::IntSize};
+use crate::ast::{AST, ExprAST, DeclarationAST} ;
+use crate::instructions::IntSize;
+use crate::error::AnalysisError;
 
-
-#[derive(Debug)]
-pub struct AnalysisError (pub String);
 
 pub struct AnalyzedAST {
     pub ast: AST,
@@ -94,7 +93,7 @@ impl AnalyzedAST {
                     self.functions.insert(name.clone(), Self::determine_function_info(block)?);
                 }
                 DeclarationAST::Variable { .. } => {
-                    return Err(AnalysisError("Top level variable not yet supported.".to_string()));
+                    return Err("Top level variable not yet supported.".into());
                 }
             }
         }
@@ -117,7 +116,7 @@ impl AnalyzedAST {
                     local_types
                 })
             },
-            _ => Err(AnalysisError("Expected Block".to_string()))
+            _ => Err("Expected Block".into())
         }
     }
 
@@ -141,7 +140,7 @@ impl AnalyzedAST {
                         crate::ast::StatementAST::Declaration(decl, _) => {
                             match decl {
                                 DeclarationAST::Function { .. } => {
-                                    return Err(AnalysisError("Did not expect function".to_string()));
+                                    return Err("Did not expect function".into());
                                 }
                                 DeclarationAST::Variable { name, expr, .. } => {
                                     local_types.insert(name.clone(), Type::BuiltIn(BuiltIn::I32));

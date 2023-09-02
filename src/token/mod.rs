@@ -1,6 +1,7 @@
 
 use std::str::FromStr;
 
+use crate::error::TokenError;
 
 /* Token Definitions */
 
@@ -105,10 +106,6 @@ impl TryFrom<char> for Punctuation {
     }
 }
 
-#[derive(Debug)]
-pub struct TokenError (String);
-
-
 /* Tokenization Algorithm */
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
@@ -146,7 +143,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
             iter.next().expect("Known");
         }
         else {
-            return Err(TokenError(format!("Cannot start token with {}", *ch)))
+            return Err(format!("Cannot start token with {}", *ch).into())
         }
     }
 
@@ -157,7 +154,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
 fn take_string_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
     let first = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
     if first != '\"' {
-        return Err(TokenError("Expected character '\"'.".to_string()));
+        return Err("Expected character '\"'.".into());
     }
 
     let mut string = String::new();
@@ -172,13 +169,13 @@ fn take_string_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> R
         string.push(ch);
     }
 
-    Err(TokenError("Expected character '\"'. String literal does not terminate.".to_string()))
+    Err("Expected character '\"'. String literal does not terminate.".into())
 }
 
 fn take_char_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
     let first = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
     if first != '\'' {
-        return Err(TokenError("Expected character '\''.".to_string()));
+        return Err("Expected character '\''.".into());
     }
 
     let mut string = String::new();
@@ -193,12 +190,12 @@ fn take_char_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Res
         string.push(ch);
     }
 
-    Err(TokenError("Expected character '\''. Char literal does not terminate.".to_string()))
+    Err("Expected character '\''. Char literal does not terminate.".into())
 }
 
 fn take_numeric_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
     if !matches!(iter.peek(), Some(ch) if ch.is_ascii_digit()) {
-        return Err(TokenError("Expected Digit.".to_string()))
+        return Err("Expected Digit.".into())
     }
 
     let mut string = String::new();
@@ -216,7 +213,7 @@ fn take_numeric_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> 
 
 fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
     if !matches!(iter.peek(), Some(ch) if is_identifier_char(*ch)) {
-        return Err(TokenError("Expected Identifier character.".to_string()))
+        return Err("Expected Identifier character.".into())
     }
 
     let mut string = String::new();
@@ -239,7 +236,7 @@ fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<std::str::Chars<'_>
 // line.
 fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<Vec<Operator>, TokenError> {
     if !matches!(iter.peek(), Some(ch) if is_operator_char(*ch)) {
-        return Err(TokenError("Expected operator character.".to_string()))
+        return Err("Expected operator character.".into())
     }
 
     let mut string = String::new();
@@ -290,7 +287,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
             slice = &slice[1..];
         }
         else {
-            return Err(TokenError(format!("Could not split operators: {slice}")));
+            return Err(format!("Could not split operators: {slice}").into());
         }
     }
 
@@ -329,7 +326,7 @@ fn literal_to_char(string: &str) -> Result<char, TokenError> {
         Ok(string.chars().next().expect("Known to exist"))
     }
     else {
-        Err(TokenError("Bad character literal.".to_string()))
+        Err("Bad character literal.".into())
     }
 }
 

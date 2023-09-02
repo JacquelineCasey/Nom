@@ -35,7 +35,7 @@ impl IntSize {
 }
 
 impl TryFrom<usize> for IntSize {
-    type Error = crate::generate::GenerateError;
+    type Error = crate::error::GenerateError;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         match value {
@@ -43,7 +43,7 @@ impl TryFrom<usize> for IntSize {
             2 => Ok(IntSize::TwoByte),
             4 => Ok(IntSize::FourByte),
             8 => Ok(IntSize::EightByte),
-            _ => Err(crate::generate::GenerateError(format!("Bad usize to IntSize conversion: {value}")))
+            _ => Err(format!("Bad usize to IntSize conversion: {value}").into())
         }
     }
 }
@@ -54,17 +54,6 @@ pub enum FloatSize {
     FourByte,
     EightByte,
 }
-
-// impl Into<u32> for IntSize {
-//     fn into(self) -> u32 {
-//         match self {
-//             IntSize::OneByte => 1,
-//             IntSize::TwoByte => 2,
-//             IntSize::FourByte => 4,
-//             IntSize::EightByte => 8,
-//         }
-//     }
-// }
 
 #[derive(Clone, Copy, Debug)]
 pub enum Instruction {

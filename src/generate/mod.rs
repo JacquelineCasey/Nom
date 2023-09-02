@@ -9,12 +9,10 @@ use crate::ast::{DeclarationAST, ExprAST, StatementAST};
 use crate::analysis::{AnalyzedAST, Type};
 use crate::instructions::{Instruction, IntSize, IntegerBinaryOperation, Constant};
 use crate::util::reinterpret;
+use crate::error::GenerateError;
 
 use optimize_instructions::optimize;
 
-
-#[derive(Debug)]
-pub struct GenerateError (pub String);
 
 pub struct CodeGenerator {
     functions: HashMap<String, FunctionInfo>,
@@ -152,7 +150,7 @@ impl CodeGenerator {
                 instructions.push(PseudoInstruction::Actual(Instruction::WriteBase(*return_location, int_size)));
             } 
             _ => {
-                return Err(GenerateError("Not yet implemented: Moving types with weird sizes".to_string()));
+                return Err("Not yet implemented: Moving types with weird sizes".into());
             }
         }
 
@@ -180,7 +178,7 @@ impl CodeGenerator {
                 let right_type = analyzed_ast.get_expr_type(right);
 
                 if subtree_type != left_type || left_type != right_type {
-                    return Err(GenerateError("Cannot handle binary operator applied to different types".to_string()));
+                    return Err("Cannot handle binary operator applied to different types".into());
                 }
 
                 if let Type::BuiltIn(curr_type) = subtree_type {
@@ -204,7 +202,7 @@ impl CodeGenerator {
                         arg_size)));
                 }
                 else {
-                    return Err(GenerateError("Cannot run binary operator on non builtin type".to_string()));
+                    return Err("Cannot run binary operator on non builtin type".into());
                 }
             }
             ExprAST::Literal(num, ..) => {
@@ -276,13 +274,13 @@ impl CodeGenerator {
                     instructions.append(&mut self.generate_assignment(analyzed_ast, name, right, function_info, depth)?);
                 }
                 else {
-                    return Err(GenerateError("Could not find variable".to_string()));
+                    return Err("Could not find variable".into());
                 }
             },
             StatementAST::Declaration(decl, ..) => {
                 match decl {
                     DeclarationAST::Function { .. } => 
-                        return Err(GenerateError("Tried to build function in function".to_string())),  // Lambdas?
+                        return Err("Tried to build function in function".into()),  // Lambdas?
                     DeclarationAST::Variable { name, expr, .. } => {
                         instructions.append(&mut self.generate_assignment(analyzed_ast, name, expr, function_info, depth)?);
                     }

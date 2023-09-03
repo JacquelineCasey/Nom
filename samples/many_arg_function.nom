@@ -1,7 +1,14 @@
 //! 39
 
+fn g(a, b) {
+    a + b
+}
+
 fn f(a, b, c, d) {
-    a + 2 * b + 3 * c + 4 * d
+    val x = g(a, 2 * b);
+    val y = g(3 * c, 4 * d);
+
+    x + y
 }
 
 fn main() {

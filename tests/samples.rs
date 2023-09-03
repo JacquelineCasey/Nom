@@ -39,9 +39,4 @@ fn run_sample(resource: &str) {
     let output = String::from_utf8(buf.into_inner().expect("No IO Error")).expect("Good Conversion");
 
     assert_eq!(expected_output, output);
-        
-
-
-
-    // TODO: Verify expected output
 }

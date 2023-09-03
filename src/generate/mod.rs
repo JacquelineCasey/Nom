@@ -18,13 +18,13 @@ pub struct CodeGenerator {
     functions: HashMap<String, FunctionInfo>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum PseudoInstruction {
     Actual (Instruction),
     Temp (TempInstruction)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum TempInstruction {
     Call (String),  // Call a function by name (we don't yet know its index).
 }
@@ -281,7 +281,10 @@ impl CodeGenerator {
                 instructions.push(PI::Actual(I::RetractStackPtr((-relative_return_loc) as usize - return_size)));
 
                 // Retract moving to original expression location
-                instructions.push(PI::Actual(I::RetractMoving(align_shift, (*return_size).try_into()?)))
+                match return_size {
+                    0 => instructions.push(PI::Actual(I::RetractStackPtr(align_shift))),
+                    _ => instructions.push(PI::Actual(I::RetractMoving(align_shift, (*return_size).try_into()?))),
+                }
             }
         }
 

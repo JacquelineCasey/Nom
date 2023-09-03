@@ -1,13 +1,20 @@
 
 == Immediate TODO ==
-
+- Builtin types beyond unit and i32
+  - Likely we will want 
+  - Requires an actual type analysis. I'd like to have one that associates a type
+    to every expression using the identity in NodeData.
+  - Requires a conversion AST node, ergo requires the ability to modify the AST.
+  - We need to generate code for this AST node, which cares mostly about alignment.
+  - We might need some support from the VM to handle narrowing conversions gracefully.
+    - Or maybe all conversions gracefully. Byte order is a nuissance.
 
 == Medium Term TODO ==
 
-- Builtin types beyond unit and i32
 - I'm using a lot of panic! and expect! in Runtime, maybe I should switch to Result<>
 - Runtime Overflow checks?
 - Scope
+- Actual analysis of var and val (const checking).
 - Unary Negate
 
 

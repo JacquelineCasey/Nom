@@ -1,0 +1,18 @@
+//! 10
+
+fn unit(x) {
+    val y = x * x * x * x;
+}
+
+fn f(x, y, z) {
+    unit(x);
+    unit(y);
+    10
+}
+
+
+fn main() {
+    val a = 10;
+    var z = f(a, 20, 30);
+    a
+}

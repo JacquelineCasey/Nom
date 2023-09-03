@@ -18,7 +18,7 @@ pub struct FunctionTypeInfo {
     pub local_types: HashMap<String, Type>,  // Local order *kinda* doesn't matter, so we 
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum Type {
     BuiltIn (BuiltIn),
     
@@ -26,7 +26,7 @@ pub enum Type {
     NotYetImplemented,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum BuiltIn {
     U8,
     U16,
@@ -202,6 +202,7 @@ impl AnalyzedAST {
         // Very very preliminary and naive
 
         match subtree {
+            ExprAST::FunctionCall(name, ..) => self.functions.get(name).expect("Name found").return_type.clone(),
             ExprAST::Block(_, None, _) => Type::BuiltIn(BuiltIn::Unit),
             _ => Type::BuiltIn(BuiltIn::I32)
         }

@@ -56,15 +56,13 @@ impl CompilationEnvironment {
     }
 
     fn process_goals(&mut self) -> Result<(), CompileError> {
-        println!("START");
         while !self.queue.is_empty() {
             let goal = self.queue.next_goal().expect("known exists");
-            println!("{:?}", goal);
 
             match &goal {
-                CompilationGoal::ImportFile { file, define_all } => self.import_file(&file, *define_all)?,
-                CompilationGoal::ScopeCheck(function_name) => self.scope_check(&function_name)?,
-                CompilationGoal::TypeCheck(function_name) => self.type_check(&function_name)?,
+                CompilationGoal::ImportFile { file, define_all } => self.import_file(file, *define_all)?,
+                CompilationGoal::ScopeCheck(function_name) => self.scope_check(function_name)?,
+                CompilationGoal::TypeCheck(function_name) => self.type_check(function_name)?,
             }
             
             self.queue.finalize_goal(goal);
@@ -78,7 +76,7 @@ impl CompilationEnvironment {
     // but definitions may or may not be created depending on if they are needed.
     // If define_all is true, goals will be added to define every declaration.
     fn import_file(&mut self, file: &FileOrString, define_all: bool) -> Result<(), CompileError> {
-        let (path, input) = match file {
+        let (_path, input) = match file {
             FileOrString::File(path) => 
                 (path, std::fs::read_to_string(path).map_err(|_| "Could not open file")?),
             FileOrString::String(path, data) => 
@@ -97,7 +95,7 @@ impl CompilationEnvironment {
                         return Err("Double declaration".into());
                     }
 
-                    self.functions.insert(name.clone(), analysis::determine_function_info(params, block)?);
+                    self.functions.insert(name.clone(), analysis::determine_function_info(&params, block)?);
 
                     if define_all {
                         self.queue.add_goal(CompilationGoal::ScopeCheck(name));

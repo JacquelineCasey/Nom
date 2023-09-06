@@ -258,7 +258,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
     while !slice.is_empty() {
         if slice.starts_with("//") {
             // Discard comment
-            while let Some(ch) = iter.next() {
+            for ch in iter.by_ref() {
                 if ch == '\n' {
                     break;
                 }
@@ -266,23 +266,23 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
 
             return Ok(operators)
         }
-        else if slice.starts_with("+") {
+        else if slice.starts_with('+') {
             operators.push(Operator::Plus);
             slice = &slice[1..];
         }
-        else if slice.starts_with("-") {
+        else if slice.starts_with('-') {
             operators.push(Operator::Minus);
             slice = &slice[1..];
         }
-        else if slice.starts_with("*") {
+        else if slice.starts_with('*') {
             operators.push(Operator::Times);
             slice = &slice[1..];
         }
-        else if slice.starts_with("/") {
+        else if slice.starts_with('/') {
             operators.push(Operator::Divide);
             slice = &slice[1..];
         }
-        else if slice.starts_with("=") {
+        else if slice.starts_with('=') {
             operators.push(Operator::Equals);
             slice = &slice[1..];
         }

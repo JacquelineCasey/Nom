@@ -134,8 +134,8 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                 scope_check_expression(functions, local_types, subexpr)?;
             }
         }
-        ExprAST::Literal(..) => (),
-        ExprAST::Variable(..) => (),       
+        ExprAST::Literal(..)
+        | ExprAST::Variable(..) => (),       
         ExprAST::Moved => panic!("ExprAST was moved"),     
     }
 
@@ -169,12 +169,13 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &ExprAST) -> Re
         ExprAST::Block(statements, final_expr, _) => {
             for stmt in statements {
                 match stmt {
-                    StatementAST::ExpressionStatement(expr, _) => type_check_expression(env, expr)?,
                     StatementAST::Assignment(left, right, _) => {
                         type_check_expression(env, left)?;
                         type_check_expression(env, right)?;
                     },
-                    StatementAST::Declaration(DeclarationAST::Variable { expr, .. }, _) => type_check_expression(env, expr)?,
+                    StatementAST::ExpressionStatement(expr, _)
+                    | StatementAST::Declaration(DeclarationAST::Variable { expr, .. }, _) => 
+                        type_check_expression(env, expr)?,
                     StatementAST::Declaration(DeclarationAST::Function { .. }, _) => 
                         return Err("Can not process function definition here".into()),
                 }
@@ -207,7 +208,7 @@ fn get_expr_type(env: &CompilationEnvironment, subtree: &ExprAST) -> Type {
 
 // Deterines parameter types and return type, but does not yet resolve local
 // types.
-pub fn determine_function_info(params: Vec<String>, block: ExprAST) -> Result<Function, AnalysisError> {
+pub fn determine_function_info(params: &[String], block: ExprAST) -> Result<Function, AnalysisError> {
     match &block {
         ExprAST::Block(_, final_expr, _ ) => {
             Ok(Function { 

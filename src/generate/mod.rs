@@ -113,7 +113,7 @@ impl CodeGenerator {
 
         // TODO: Better alignment functions.
         let expr_type = &env.type_index[&subtree.get_node_data().id];
-        let expr_type_info = env.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+        let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
         let mut depth = function_info.top - 16;  // Skipping the saved registers is done by Call
         let alignment = get_align_shift(depth, expr_type_info.alignment);  
@@ -296,7 +296,7 @@ impl CodeGenerator {
         match statement {
             StatementAST::ExpressionStatement(expr, _) => {
                 let expr_type = &env.type_index[&expr.get_node_data().id];
-                let expr_type_info = env.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+                let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
                 
                 let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
@@ -345,7 +345,7 @@ impl CodeGenerator {
         let mut instructions = vec![];
         
         let expr_type = &env.type_index[&expr.get_node_data().id];
-        let expr_type_info = env.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+        let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
         
         let align_shift = get_align_shift(depth, expr_type_info.alignment);
 

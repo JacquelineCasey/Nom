@@ -30,7 +30,7 @@ pub enum DeclarationAST {
     Variable { mutability: Mutability, name: String, expr: ExprAST, node_data: ASTNodeData }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum ExprAST {
     Add (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Subtract (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
@@ -40,14 +40,10 @@ pub enum ExprAST {
     Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     FunctionCall (String, Vec<ExprAST>, ASTNodeData),  // The vec contains arguments
+
+    #[default]
     Moved,  // This is a hack that allows us to remove an AST, operate on it, and put it back.
             // Blame the borrow checker?
-}
-
-impl Default for ExprAST {
-    fn default() -> Self {
-        ExprAST::Moved
-    }
 }
 
 impl ExprAST {

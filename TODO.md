@@ -86,6 +86,7 @@ keeping the current tests. Write dummy functions that are no-ops.
 
 
 == Immediate TODO ==
+- Update or eliminate the `get_expr_type` function.
 - Builtin types beyond unit and i32
   - Likely we will want 
   - Requires an actual type analysis. I'd like to have one that associates a type

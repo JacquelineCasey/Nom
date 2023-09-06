@@ -40,6 +40,14 @@ pub enum ExprAST {
     Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     FunctionCall (String, Vec<ExprAST>, ASTNodeData),  // The vec contains arguments
+    Moved,  // This is a hack that allows us to remove an AST, operate on it, and put it back.
+            // Blame the borrow checker?
+}
+
+impl Default for ExprAST {
+    fn default() -> Self {
+        ExprAST::Moved
+    }
 }
 
 impl ExprAST {
@@ -55,7 +63,8 @@ impl ExprAST {
             | E::Variable(_, data)
             | E::Block(_, _, data) 
             | E::FunctionCall(_, _, data)
-            => data
+            => data,
+            E::Moved => panic!("ExprAST was moved"),
         }
     }
 }

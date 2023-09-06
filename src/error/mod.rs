@@ -8,13 +8,13 @@ pub struct ASTError (pub String);
 
 impl From<&str> for ASTError {
     fn from(value: &str) -> Self {
-        return ASTError(value.to_string())
+        ASTError(value.to_string())
     }
 }
 
 impl From<String> for ASTError {
     fn from(value: String) -> Self {
-        return ASTError(value)
+        ASTError(value)
     }
 }
 
@@ -24,13 +24,13 @@ pub struct GenerateError (pub String);
 
 impl From<&str> for GenerateError {
     fn from(value: &str) -> Self {
-        return GenerateError(value.to_string())
+        GenerateError(value.to_string())
     }
 }
 
 impl From<String> for GenerateError {
     fn from(value: String) -> Self {
-        return GenerateError(value)
+        GenerateError(value)
     }
 }
 
@@ -40,13 +40,13 @@ pub struct AnalysisError (pub String);
 
 impl From<&str> for AnalysisError {
     fn from(value: &str) -> Self {
-        return AnalysisError(value.to_string())
+        AnalysisError(value.to_string())
     }
 }
 
 impl From<String> for AnalysisError {
     fn from(value: String) -> Self {
-        return AnalysisError(value)
+        AnalysisError(value)
     }
 }
 
@@ -56,12 +56,57 @@ pub struct TokenError (pub String);
 
 impl From<&str> for TokenError {
     fn from(value: &str) -> Self {
-        return TokenError(value.to_string())
+        TokenError(value.to_string())
     }
 }
 
 impl From<String> for TokenError {
     fn from(value: String) -> Self {
-        return TokenError(value)
+        TokenError(value)
+    }
+}
+
+#[derive(Debug)]
+pub enum CompileError {
+    Direct (String),
+    TokenError (TokenError),
+    ParseError (parsley::ParseError),
+    ASTError (ASTError),
+    AnalysisError (AnalysisError),
+}
+
+impl From<&str> for CompileError {
+    fn from(value: &str) -> Self {
+        CompileError::Direct(value.to_string())
+    }
+}
+
+impl From<String> for CompileError {
+    fn from(value: String) -> Self {
+        CompileError::Direct(value)
+    }
+}
+
+impl From<TokenError> for CompileError {
+    fn from(value: TokenError) -> Self {
+        CompileError::TokenError(value)
+    }
+}
+
+impl From<parsley::ParseError> for CompileError {
+    fn from(value: parsley::ParseError) -> Self {
+        CompileError::ParseError(value)
+    }
+}
+
+impl From<ASTError> for CompileError {
+    fn from(value: ASTError) -> Self {
+        CompileError::ASTError(value)
+    }
+}
+
+impl From<AnalysisError> for CompileError {
+    fn from(value: AnalysisError) -> Self {
+        CompileError::AnalysisError(value)
     }
 }

@@ -1,21 +1,18 @@
 
 use std::collections::HashMap;
 
-use crate::ast::{AST, ExprAST, DeclarationAST} ;
+use crate::CompilationEnvironment;
+use crate::ast::{ExprAST, DeclarationAST, StatementAST} ;
 use crate::instructions::IntSize;
 use crate::error::AnalysisError;
 
 
-pub struct AnalyzedAST {
-    pub ast: AST,
-    pub functions: HashMap<String, FunctionTypeInfo>,
-    pub types: HashMap<Type, TypeInfo>,
-}
-
-pub struct FunctionTypeInfo {
+pub struct Function {
+    pub ast: ExprAST,
     pub return_type: Type,
     pub parameter_types: Vec<(String, Type)>,  // Argument order is important, so a Vector is used.
-    pub local_types: HashMap<String, Type>,  // Local order *kinda* doesn't matter, so we 
+    pub local_types: HashMap<String, Type>,  // Local order *kinda* doesn't matter, so we have a hash map
+    pub scope: HashMap<String, bool>,  // Temporary - the bool being true means mutable (aka `var`).
 }
 
 #[derive(PartialEq, Eq, Hash, Clone)]
@@ -72,144 +69,165 @@ pub struct TypeInfo {
     pub alignment: usize,  // In bytes
 }
 
+pub(super) fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
+    let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
+    let block = std::mem::take(&mut function.ast);
+    
+    let mut local_types = HashMap::new();
 
-impl AnalyzedAST {
-    pub fn new(ast: AST) -> Result<AnalyzedAST, AnalysisError>  {
-        let mut analyzed_ast = AnalyzedAST { 
-            ast, 
-            functions: HashMap::new(),  // Not yet analyzed
-            types: get_default_types(),
-        };
+    scope_check_expression(
+        &env.functions,
+        &mut local_types, 
+        &block
+    )?;
+    
+    // We need the old lifetime to die.
+    let function = env.functions.get_mut(name).expect("known exists");
+    function.ast = block;
+    function.local_types = local_types;
 
-        analyzed_ast.analyze()?;
+    Ok(())
+}
 
-        Ok(analyzed_ast)
-    }
-
-    fn analyze(&mut self) -> Result<(), AnalysisError> {
-        for decl in &self.ast.declarations {
-            match decl {
-                DeclarationAST::Function { name, .. } => {
-                    self.functions.insert(name.clone(), Self::determine_function_info(decl)?);
-                }
-                DeclarationAST::Variable { .. } => {
-                    return Err("Top level variable not yet supported.".into());
-                }
-            }
+fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &mut HashMap<String, Type>, expr: &ExprAST) -> Result<(), AnalysisError> {
+    match expr {
+        ExprAST::Add(left, right, _) 
+        | ExprAST::Subtract(left, right, _)
+        | ExprAST::Multiply(left, right, _)
+        | ExprAST::Divide(left, right, _) => {
+            scope_check_expression(functions, local_types, left)?;
+            scope_check_expression(functions, local_types, right)?;
         }
+        ExprAST::Block(statements, final_expr, _) => {
+            for statement in statements {
+                match statement {
+                    crate::ast::StatementAST::ExpressionStatement(expr, _) => scope_check_expression(functions, local_types, expr)?,
+                    crate::ast::StatementAST::Assignment(left, right, _) => {
+                        scope_check_expression(functions, local_types, left)?;
+                        scope_check_expression(functions, local_types, right)?;
+                    }
+                    crate::ast::StatementAST::Declaration(decl, _) => {
+                        match decl {
+                            DeclarationAST::Function { .. } => {
+                                return Err("Did not expect function".into());
+                            }
+                            DeclarationAST::Variable { name, expr, .. } => {
+                                local_types.insert(name.clone(), Type::BuiltIn(BuiltIn::I32));
 
-        for decl in &self.ast.declarations {
-            match decl {
-                DeclarationAST::Function { name, block, .. } => {
-                    let mut local_types = HashMap::new();
-
-                    Self::analyze_expression(
-                        &self.functions,
-                        &mut local_types, 
-                        block
-                    )?;
-                    
-                    self.functions.get_mut(name).expect("Known exists").local_types = local_types;
-                }
-                DeclarationAST::Variable { .. } => {
-                    return Err("Top level variable not yet supported.".into());
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    // Deterines parameter types and return type, but does not yet resolve local
-    // types.
-    fn determine_function_info(decl: &DeclarationAST) -> Result<FunctionTypeInfo, AnalysisError> {
-        match decl {
-            DeclarationAST::Function { params, block: ExprAST::Block(_, final_expr, _ ), .. } => {
-                Ok(FunctionTypeInfo { 
-                    return_type: match final_expr {
-                        Some(_expr) => Type::BuiltIn(BuiltIn::I32),  // TODO: Get type of expression
-                        None => Type::BuiltIn(BuiltIn::Unit)
-                    },
-                    parameter_types: params.iter()
-                        .map(|param| (param.clone(), Type::BuiltIn(BuiltIn::I32)))  // TODO: Get type of parameter.
-                        .collect(),
-                    local_types: HashMap::new()
-                })
-            }
-            DeclarationAST::Function { .. } => {
-                Err("Function did not have block".into())
-            }
-            DeclarationAST::Variable { .. } => {
-                Err("Expected function".into())
-            }
-        }        
-    }
-
-    fn analyze_expression(functions: &HashMap<String, FunctionTypeInfo>, local_types: &mut HashMap<String, Type>, expr: &ExprAST) -> Result<(), AnalysisError> {
-        match expr {
-            ExprAST::Add(left, right, _) 
-            | ExprAST::Subtract(left, right, _)
-            | ExprAST::Multiply(left, right, _)
-            | ExprAST::Divide(left, right, _) => {
-                Self::analyze_expression(functions, local_types, left)?;
-                Self::analyze_expression(functions, local_types, right)?;
-            }
-            ExprAST::Block(statements, final_expr, _) => {
-                for statement in statements {
-                    match statement {
-                        crate::ast::StatementAST::ExpressionStatement(expr, _) => Self::analyze_expression(functions, local_types, expr)?,
-                        crate::ast::StatementAST::Assignment(left, right, _) => {
-                            Self::analyze_expression(functions, local_types, left)?;
-                            Self::analyze_expression(functions, local_types, right)?;
-                        }
-                        crate::ast::StatementAST::Declaration(decl, _) => {
-                            match decl {
-                                DeclarationAST::Function { .. } => {
-                                    return Err("Did not expect function".into());
-                                }
-                                DeclarationAST::Variable { name, expr, .. } => {
-                                    local_types.insert(name.clone(), Type::BuiltIn(BuiltIn::I32));
-
-                                    Self::analyze_expression(functions, local_types, expr)?;
-                                }
+                                scope_check_expression(functions, local_types, expr)?;
                             }
                         }
                     }
                 }
-
-                if let Some(expr) = final_expr {
-                    Self::analyze_expression(functions, local_types, expr)?;
-                }
-            },
-            ExprAST::FunctionCall(name, subexprs, ..) => {
-                if !functions.contains_key(name) {
-                    return Err("Could not find function".into());
-                }
-                
-                for subexpr in subexprs {
-                    Self::analyze_expression(functions, local_types, subexpr)?;
-                }
             }
-            ExprAST::Literal(..) => (),
-            ExprAST::Variable(..) => (),            
-        }
 
-        Ok(())
+            if let Some(expr) = final_expr {
+                scope_check_expression(functions, local_types, expr)?;
+            }
+        },
+        ExprAST::FunctionCall(name, subexprs, ..) => {
+            if !functions.contains_key(name) {
+                return Err("Could not find function".into());
+            }
+            
+            for subexpr in subexprs {
+                scope_check_expression(functions, local_types, subexpr)?;
+            }
+        }
+        ExprAST::Literal(..) => (),
+        ExprAST::Variable(..) => (),       
+        ExprAST::Moved => panic!("ExprAST was moved"),     
     }
 
-    #[allow(clippy::unused_self)]
-    pub fn get_expr_type(&self, subtree: &ExprAST) -> Type {
-        // Very very preliminary and naive
+    Ok(())
+}
 
-        match subtree {
-            ExprAST::FunctionCall(name, ..) => self.functions.get(name).expect("Name found").return_type.clone(),
-            ExprAST::Block(_, None, _) => Type::BuiltIn(BuiltIn::Unit),
-            _ => Type::BuiltIn(BuiltIn::I32)
-        }
+pub(super) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
+    let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
+    let block = std::mem::take(&mut function.ast);
+
+    type_check_expression(env, &block)?;
+
+    // We need the old lifetime to die.
+    let function = env.functions.get_mut(name).expect("known exists");
+    function.ast = block;
+    Ok(())
+}
+
+fn type_check_expression(env: &mut CompilationEnvironment, expr: &ExprAST) -> Result<(), AnalysisError> {
+    // Very very preliminary
+    env.type_index.insert(expr.get_node_data().id, get_expr_type(env, expr));
+
+    match expr {
+        ExprAST::Add(left, right, _)
+        | ExprAST::Subtract(left, right, _)
+        | ExprAST::Multiply(left, right, _)
+        | ExprAST::Divide(left, right, _) => {
+            type_check_expression(env, left)?;
+            type_check_expression(env, right)?;
+        },
+        ExprAST::Block(statements, final_expr, _) => {
+            for stmt in statements {
+                match stmt {
+                    StatementAST::ExpressionStatement(expr, _) => type_check_expression(env, expr)?,
+                    StatementAST::Assignment(left, right, _) => {
+                        type_check_expression(env, left)?;
+                        type_check_expression(env, right)?;
+                    },
+                    StatementAST::Declaration(DeclarationAST::Variable { expr, .. }, _) => type_check_expression(env, expr)?,
+                    StatementAST::Declaration(DeclarationAST::Function { .. }, _) => 
+                        return Err("Can not process function definition here".into()),
+                }
+            }
+            if let Some(expr) = final_expr {
+                type_check_expression(env, expr)?;
+            }
+        },
+        ExprAST::FunctionCall(_, exprs, _) => {
+            for expr in exprs {
+                type_check_expression(env, expr)?;
+            }
+        },
+        _ => (),
+    }
+
+    Ok(())
+}
+
+
+fn get_expr_type(env: &CompilationEnvironment, subtree: &ExprAST) -> Type {
+    // Very very preliminary and naive
+
+    match subtree {
+        ExprAST::FunctionCall(name, ..) => env.functions.get(name).expect("Name found").return_type.clone(),
+        ExprAST::Block(_, None, _) => Type::BuiltIn(BuiltIn::Unit),
+        _ => Type::BuiltIn(BuiltIn::I32)
     }
 }
 
-fn get_default_types() -> HashMap<Type, TypeInfo> {
+// Deterines parameter types and return type, but does not yet resolve local
+// types.
+pub fn determine_function_info(params: Vec<String>, block: ExprAST) -> Result<Function, AnalysisError> {
+    match &block {
+        ExprAST::Block(_, final_expr, _ ) => {
+            Ok(Function { 
+                return_type: match final_expr {
+                    Some(_expr) => Type::BuiltIn(BuiltIn::I32),  // TODO: Get type of expression
+                    None => Type::BuiltIn(BuiltIn::Unit)
+                },
+                parameter_types: params.iter()
+                    .map(|param| (param.clone(), Type::BuiltIn(BuiltIn::I32)))  // TODO: Get type of parameter.
+                    .collect(),
+                local_types: HashMap::new(),
+                scope: HashMap::new(),
+                ast: block,
+            })
+        }
+        _ => Err("Function expected block".into())        
+    }        
+}
+
+pub fn get_default_types() -> HashMap<Type, TypeInfo> {
     let mut map = HashMap::new();
 
     map.insert(Type::BuiltIn(BuiltIn::U8) , TypeInfo { size: 1, alignment: 1 });

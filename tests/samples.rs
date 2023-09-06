@@ -3,7 +3,7 @@ use test_generator::test_resources;
 
 use std::io::Read;
 
-use nom::compile;
+use nom::compile_file;
 use nom::runtime::Runtime;
 
 
@@ -29,7 +29,7 @@ fn run_sample(resource: &str) {
         
     expected_output.push('\n');
     
-    let code = compile(&input);
+    let code = compile_file(resource.to_string());
 
     let mut runtime = Runtime::new(code);
 

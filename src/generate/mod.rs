@@ -5,8 +5,9 @@ mod optimize_instructions;  // Makes optimizations at the instruction level.
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use crate::CompilationEnvironment;
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
-use crate::analysis::{AnalyzedAST, Type};
+use crate::analysis::Type;
 use crate::instructions::{Instruction, IntSize, IntegerBinaryOperation, Constant};
 use crate::util::reinterpret;
 use crate::error::GenerateError;
@@ -35,30 +36,25 @@ impl CodeGenerator {
         CodeGenerator { functions: HashMap::new() }
     }
 
-    pub fn generate(mut self, analyzed_ast: &AnalyzedAST) -> Result<Vec<Instruction>, GenerateError> {
+    pub(super) fn generate(mut self, env: &CompilationEnvironment) -> Result<Vec<Instruction>, GenerateError> {
         use PseudoInstruction as PI;
         use Instruction as I;
 
-        let function_list = analyzed_ast.ast.declarations.iter()
-            .map(|decl| match decl {
-                DeclarationAST::Function { name, block, .. } => {
-                    Ok((name, block))
-                }
-                DeclarationAST::Variable { .. } => {
-                    Err(GenerateError("Cannot yet handle global variables".to_string()))
-                }
-            })
-            .collect::<Result<Vec<(_, _)>, _>>()?;
+        // TODO: Pruning? Here or in lib / analysis
+        
+        let function_list = env.functions.iter()
+            .map(|(name, func)| (name, &func.ast))
+            .collect::<Vec<(_, _)>>();
 
         // Preprocess step: Determine the local variable storage locations
         for (fn_name, _) in &function_list {
-            self.functions.insert((*fn_name).to_string(), FunctionInfo::new(analyzed_ast, fn_name)?);
+            self.functions.insert((*fn_name).to_string(), FunctionInfo::new(env, fn_name)?);
         }
 
         // Process functions and generate code
 
         for (fn_name, block) in &function_list {
-            let instructions = self.generate_function(analyzed_ast, block, fn_name)?;
+            let instructions = self.generate_function(env, block, fn_name)?;
 
             let fn_info = self.functions.get_mut(*fn_name)
                 .ok_or(GenerateError("Could not find function".to_string()))?;
@@ -110,14 +106,14 @@ impl CodeGenerator {
         Ok(())
     }
 
-    fn generate_function(&self, analyzed_ast: &AnalyzedAST, subtree: &ExprAST, name: &str) -> Result<Vec<PseudoInstruction>, GenerateError> {
+    fn generate_function(&self, env: &CompilationEnvironment, subtree: &ExprAST, name: &str) -> Result<Vec<PseudoInstruction>, GenerateError> {
         let function_info = self.functions.get(name).ok_or(GenerateError("Failed to find function".to_string()))?;
 
         let mut instructions = vec![];
 
         // TODO: Better alignment functions.
-        let expr_type = analyzed_ast.get_expr_type(subtree);
-        let expr_type_info = analyzed_ast.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+        let expr_type = &env.type_index[&subtree.get_node_data().id];
+        let expr_type_info = env.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
         let mut depth = function_info.top - 16;  // Skipping the saved registers is done by Call
         let alignment = get_align_shift(depth, expr_type_info.alignment);  
@@ -125,7 +121,7 @@ impl CodeGenerator {
 
         instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(depth)));
 
-        instructions.append(&mut self.generate_expression(analyzed_ast, subtree, function_info, depth)?);  // TODO: Should this be zero or function_info.top. Can we call it depth?
+        instructions.append(&mut self.generate_expression(env, subtree, function_info, depth)?);  // TODO: Should this be zero or function_info.top. Can we call it depth?
 
         instructions.append(&mut Self::generate_return(function_info)?);
 
@@ -163,7 +159,7 @@ impl CodeGenerator {
     // Postcondition: The stack has the expression value at that desired position. The pointer points one byte above the value.
     // Expressions are being evaluated as rvalues, not as lvalues. In particular, pass a variable here is you want to put its
     // value on the stack, but see generate_statement if you want to store something into that variable.
-    fn generate_expression(&self, analyzed_ast: &AnalyzedAST, subtree: &ExprAST, 
+    fn generate_expression(&self, env: &CompilationEnvironment, subtree: &ExprAST, 
         function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
         use ExprAST as E;
@@ -177,9 +173,9 @@ impl CodeGenerator {
             | E::Subtract(left, right, ..)
             | E::Multiply(left, right, ..)
             | E::Divide(left, right, ..) => {
-                let subtree_type = analyzed_ast.get_expr_type(subtree);
-                let left_type = analyzed_ast.get_expr_type(left);
-                let right_type = analyzed_ast.get_expr_type(right);
+                let subtree_type = &env.type_index[&subtree.get_node_data().id];
+                let left_type = &env.type_index[&left.get_node_data().id];
+                let right_type = &env.type_index[&right.get_node_data().id];
 
                 if subtree_type != left_type || left_type != right_type {
                     return Err("Cannot handle binary operator applied to different types".into());
@@ -188,8 +184,8 @@ impl CodeGenerator {
                 if let Type::BuiltIn(curr_type) = subtree_type {
                     let arg_size = curr_type.get_int_size().ok_or(GenerateError("Expected builtin int type".to_string()))?;
 
-                    instructions.append(&mut self.generate_expression(analyzed_ast, left, function_info, depth)?);
-                    instructions.append(&mut self.generate_expression(analyzed_ast, right, function_info, depth + arg_size.to_usize())?);
+                    instructions.append(&mut self.generate_expression(env, left, function_info, depth)?);
+                    instructions.append(&mut self.generate_expression(env, right, function_info, depth + arg_size.to_usize())?);
 
                     instructions.push(PI::Actual(I::IntegerBinaryOperation(
                         match subtree {
@@ -225,11 +221,11 @@ impl CodeGenerator {
             }
             E::Block(statements, expr, ..) => {
                 for statement in statements {
-                    instructions.append(&mut self.generate_statement(analyzed_ast, statement, function_info, depth)?);
+                    instructions.append(&mut self.generate_statement(env, statement, function_info, depth)?);
                 }
 
                 if let Some(expr) = expr {
-                    instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, depth)?);
+                    instructions.append(&mut self.generate_expression(env, expr, function_info, depth)?);
                 }
             }
             E::FunctionCall(name, subexprs, ..) => {
@@ -265,7 +261,7 @@ impl CodeGenerator {
                     relative_position = *param_loc;
                     
                     instructions.append(&mut self.generate_expression(
-                        analyzed_ast, 
+                        env, 
                         expr, 
                         function_info, 
                         depth + align_shift + (relative_position - relative_return_loc) as usize
@@ -286,20 +282,21 @@ impl CodeGenerator {
                     _ => instructions.push(PI::Actual(I::RetractMoving(align_shift, (*return_size).try_into()?))),
                 }
             }
+            E::Moved => panic!("ExprAST Moved"),
         }
 
         Ok(instructions)
     }
 
-    fn generate_statement(&self, analyzed_ast: &AnalyzedAST, statement: &StatementAST, 
+    fn generate_statement(&self, env: &CompilationEnvironment, statement: &StatementAST, 
         function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
         let mut instructions = vec![];
 
         match statement {
             StatementAST::ExpressionStatement(expr, _) => {
-                let expr_type = analyzed_ast.get_expr_type(expr);
-                let expr_type_info = analyzed_ast.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+                let expr_type = &env.type_index[&expr.get_node_data().id];
+                let expr_type_info = env.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
                 
                 let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
@@ -308,7 +305,7 @@ impl CodeGenerator {
                     Instruction::AdvanceStackPtr(align_shift)
                 ));
     
-                instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, depth + align_shift)?);
+                instructions.append(&mut self.generate_expression(env, expr, function_info, depth + align_shift)?);
 
                 // Ignore generated expression
                 instructions.push(PseudoInstruction::Actual(
@@ -322,7 +319,7 @@ impl CodeGenerator {
             },
             StatementAST::Assignment(left, right, ..) => {
                 if let ExprAST::Variable(name, ..) = left {
-                    instructions.append(&mut self.generate_assignment(analyzed_ast, name, right, function_info, depth)?);
+                    instructions.append(&mut self.generate_assignment(env, name, right, function_info, depth)?);
                 }
                 else {
                     return Err("Could not find variable".into());
@@ -333,7 +330,7 @@ impl CodeGenerator {
                     DeclarationAST::Function { .. } => 
                         return Err("Tried to build function in function".into()),  // Lambdas?
                     DeclarationAST::Variable { name, expr, .. } => {
-                        instructions.append(&mut self.generate_assignment(analyzed_ast, name, expr, function_info, depth)?);
+                        instructions.append(&mut self.generate_assignment(env, name, expr, function_info, depth)?);
                     }
                 }
             }
@@ -342,13 +339,13 @@ impl CodeGenerator {
         Ok(instructions)
     }
 
-    fn generate_assignment(&self, analyzed_ast: &AnalyzedAST, var_name: &str, expr: &ExprAST,
+    fn generate_assignment(&self, env: &CompilationEnvironment, var_name: &str, expr: &ExprAST,
         function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
         let mut instructions = vec![];
         
-        let expr_type = analyzed_ast.get_expr_type(expr);
-        let expr_type_info = analyzed_ast.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+        let expr_type = &env.type_index[&expr.get_node_data().id];
+        let expr_type_info = env.types.get(&expr_type).ok_or(GenerateError("Type not found".to_string()))?;
         
         let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
@@ -357,7 +354,7 @@ impl CodeGenerator {
             Instruction::AdvanceStackPtr(align_shift)
         ));
 
-        instructions.append(&mut self.generate_expression(analyzed_ast, expr, function_info, depth + align_shift)?);
+        instructions.append(&mut self.generate_expression(env, expr, function_info, depth + align_shift)?);
 
         let (offset, size) = function_info.variable_info_by_name(var_name)
             .ok_or(GenerateError("Could not find local variable".to_string()))?;
@@ -395,7 +392,7 @@ struct FunctionInfo {
 }
 
 impl FunctionInfo {
-    fn new(analyzed_ast: &AnalyzedAST, name: &str) -> Result<FunctionInfo, GenerateError> {
+    fn new(env: &CompilationEnvironment, name: &str) -> Result<FunctionInfo, GenerateError> {
         let mut info = FunctionInfo {
             variables: HashMap::new(),
             top: 0,
@@ -403,21 +400,21 @@ impl FunctionInfo {
             parameters: vec![],
         };
 
-        let analysis_info = analyzed_ast.functions.get(name)
+        let analysis_info = env.functions.get(name)
             .ok_or(GenerateError("Could not find analyzed function data".to_string()))?;
 
         // We first allocate return value and arguments, then we push them behind
         // the base pointer and ensure they have 8 alignment. Then we allocate
         // local variables.
                   
-        let return_type_info = analyzed_ast.types.get(&analysis_info.return_type)
+        let return_type_info = env.types.get(&analysis_info.return_type)
             .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
     
         info.add_variable(Variable::Return, return_type_info.size, return_type_info.alignment);
 
         for (name, param) in &analysis_info.parameter_types {
-            let param_type_info = analyzed_ast.types.get(param)
+            let param_type_info = env.types.get(param)
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(Variable::Parameter(name.clone()), param_type_info.size, param_type_info.alignment);
@@ -434,7 +431,7 @@ impl FunctionInfo {
         info.top = 16;  // Room for two u64 saved registers
 
         for (name, local) in &analysis_info.local_types {
-            let local_type_info = analyzed_ast.types.get(local)
+            let local_type_info = env.types.get(local)
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(Variable::Parameter(name.clone()), local_type_info.size, local_type_info.alignment);

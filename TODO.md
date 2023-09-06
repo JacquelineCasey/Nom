@@ -3,6 +3,9 @@
 - Note that any design I come up with now will likely be flawed, and thats ok. I'll
   discover the flaws later.
 
+- Name resolution? Maybe partial, if we consider member access (requiring some type
+  info) and name resolution to be the same.
+  - Do skip for now.
 - The step before the first step might be to process type declarations, to determine
   if they are valid and to write down any properties realizeable from their local declaration.
   - We definitely won't have this for a while.
@@ -51,6 +54,15 @@
       we will have to provide at least some free conversions (even if its just like
       int promotion).
   - Note: These operations might be inseperable, or at least natural to do together.
+- Prune. If we want to emit warnings about dead code, this might be the time. We
+  should definitely remove functions that are never called, which of course might
+  have been the only thing calling other functions...
+  - Note that a pre-prune stage (request based model) might also make sense, as we
+    don't want to waste time compiling stuff that never gets used. Perhaps importing
+    a module should run enough steps to generate data about what exists in the module,
+    but then further analysis is done only when that thing is used. It's possible I
+    want different rules for compiling all functions that user writes, though...
+
 
 Implementation notes - analysis is a big stage, with lots of steps. You can definitely
 decompose them into individual (though related) parts, and you should. In fact, each
@@ -62,6 +74,13 @@ keeping the current tests. Write dummy functions that are no-ops.
 - Ownership is a pain, make sure you don't tie a changing AST to a struct that is
   changing (or being examined, like in a loop) at the same time. We might package
   the AST with the data at the end of the process.
+- Try to break things up so they operate on individual functions as much as possible.
+  - Suppose you determine a variable v in a function has type X. This allows you to
+    realize that v.some_op() refers to a specific function, which you now have to
+    pull into consideration (there should definitely be some type of pruning or
+    something, definitely we should not pull function in from the standard library
+    if they are never requested; however we should also compile unused functions to
+    make a progressive coding style feasible...).
 
   
 
@@ -94,6 +113,7 @@ keeping the current tests. Write dummy functions that are no-ops.
 - Global Variables
 - Tokens should include span data for better error messages
 - See tower-lsp to write a language server. I miss the pretty colors lol.
+- Package into reusable binary or file format. Linking?
 
 
 

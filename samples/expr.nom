@@ -1,8 +1,8 @@
 
-fn main() {
-    var a = 10;
+fn main() -> i32 {
+    var a: i32 = 10;
     a = a / 5 + 2;
-    var b = 12 * 4 / 16;
+    var b: i32 = 12 * 4 / 16;
     a = a + b;
     a;
     a;

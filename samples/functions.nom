@@ -1,13 +1,13 @@
 //! 27
 
-fn square(a) {  // Reuse letter a
-    val a1 = a;
-    val a2 = a;
+fn square(a: i32) -> i32 {  // Reuse letter a
+    val a1: i32 = a;
+    val a2: i32 = a;
     a1 * a2
 }
 
-fn main() {
-    val a = 2;
-    val b = square(a);
+fn main() -> i32 {
+    val a: i32 = 2;
+    val b: i32 = square(a);
     a + square(b + 1) // ensure a is not affected by the squaring
 }

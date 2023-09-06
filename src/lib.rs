@@ -90,12 +90,13 @@ impl CompilationEnvironment {
 
         for decl in ast.declarations {
             match decl {
-                ast::DeclarationAST::Function { name, params, block, node_data: _ } => {
+                ast::DeclarationAST::Function { name, params, block, node_data: _, return_type } => {
                     if self.functions.contains_key(&name) {
                         return Err("Double declaration".into());
                     }
-
-                    self.functions.insert(name.clone(), analysis::determine_function_info(&params, block)?);
+                    
+                    // Expects all types in the file to be processed first.
+                    self.functions.insert(name.clone(), analysis::Function::new(self, block, params, return_type)?);
 
                     if define_all {
                         self.queue.add_goal(CompilationGoal::ScopeCheck(name));
@@ -208,12 +209,6 @@ enum FileOrString {
     File (String),  // Path
     String (String, String)  // A "Fake Path" for diagnostics, and string with data
 }
-
-
-// // TODO: Could this move?
-// enum TopLevelDeclaration {
-//     Function (String)
-// }
 
 
 fn compile(file: FileOrString) -> Vec<instructions::Instruction> {

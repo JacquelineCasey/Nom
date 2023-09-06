@@ -26,8 +26,9 @@ pub struct AST {
 
 #[derive(Debug)]
 pub enum DeclarationAST {
-    Function { name: String, params: Vec<String>, block: ExprAST, node_data: ASTNodeData },
-    Variable { mutability: Mutability, name: String, expr: ExprAST, node_data: ASTNodeData }
+    // The parameters are pairs of names and type ascriptions
+    Function { name: String, params: Vec<(String, String)>, block: ExprAST, return_type: String, node_data: ASTNodeData },
+    Variable { mutability: Mutability, name: String, expr: ExprAST, type_ascription: Option<String> , node_data: ASTNodeData }
 }
 
 #[derive(Debug, Default)]
@@ -108,42 +109,62 @@ fn build_declaration_ast(tree: &SyntaxTree<Token>) -> Result<DeclarationAST, AST
                 
             match &subexpressions[0] {
                 ST::RuleNode { rule_name, ref subexpressions } if rule_name == "FunctionDeclaration" => {
-                    if subexpressions.len() != 4 {
+                    if subexpressions.len() != 6 {
                         return Err("Incorrect number of subnodes to function node".into());
                     }
                     
-                    if !matches!(subexpressions[0], ST::TokenNode( Token { body: TokenBody::Keyword(Keyword::Fn) })) {
+                    if !matches!(subexpressions[0], ST::TokenNode(Token { body: TokenBody::Keyword(Keyword::Fn) })) {
                         return Err("Expected `fn` in function declaration".into());
                     }
 
-                    let name = if let ST::TokenNode( Token { body: TokenBody::Identifier(name) }) = &subexpressions[1] {
+                    let name = if let ST::TokenNode(Token { body: TokenBody::Identifier(name) }) = &subexpressions[1] {
                         name.clone()
                     } 
                     else { 
                         return Err("Expected function name".into());
                     };
 
-                    let params = build_parameter_list(&subexpressions[2])?;
-                    let block = build_expr_ast(&subexpressions[3])?;
+                    if !matches!(subexpressions[3], ST::TokenNode(Token {body: TokenBody::Operator(Operator::ThinRightArrow)})) {
+                        return Err("Expected `->` in function declaration".into());
+                    }
 
-                    Ok(DeclarationAST::Function { name, params, block, node_data: ASTNodeData::new() })
+                    let return_type = build_type(&subexpressions[4])?;
+
+                    let params = build_parameter_list(&subexpressions[2])?;
+                    let block = build_expr_ast(&subexpressions[5])?;
+
+                    Ok(DeclarationAST::Function { name, params, block, node_data: ASTNodeData::new(), return_type })
                 },
                 ST::RuleNode { rule_name, ref subexpressions } if rule_name == "VariableDeclaration" => {
                     match &subexpressions[..] {
                         [ ST::TokenNode(Token { body: TokenBody::Keyword(keyword @ (Keyword::Val | Keyword::Var))})
                         , ST::TokenNode(Token { body: TokenBody::Identifier(name)})
+                        , ..
                         , ST::TokenNode(Token { body: TokenBody::Operator(Operator::Equals)})
                         , expr_node @ ST::RuleNode { rule_name: last_rule_name, ..}
                         ] if last_rule_name == "Expression" => {
+                            let mutability = match keyword {
+                                Keyword::Var => Mutability::Var,
+                                Keyword::Val => Mutability::Val,
+                                _ => panic!("Known unreachable")
+                            };
+
+                            let type_ascription = if subexpressions.len() == 6 {
+                                match &subexpressions[2..4] {
+                                    [ ST::TokenNode(Token { body: TokenBody::Punctuation(Punctuation::Colon)})
+                                    , type_node
+                                    ] => Some(build_type(type_node)?),
+                                    _ => return Err("Expected type".into()),
+                                }
+                            }
+                            else { None };
+
                             Ok(DeclarationAST::Variable { 
-                                mutability: match keyword {
-                                    Keyword::Var => Mutability::Var,
-                                    Keyword::Val => Mutability::Val,
-                                    _ => panic!("Known unreachable")
-                                },
+                                mutability,
                                 name: name.clone(), 
                                 expr: build_expr_ast(expr_node)?,
-                                node_data: ASTNodeData::new()
+                                node_data: ASTNodeData::new(),
+                                type_ascription,
                             })
                         }
                         _ => Err("Failed to parse variable declaration".into())
@@ -156,7 +177,7 @@ fn build_declaration_ast(tree: &SyntaxTree<Token>) -> Result<DeclarationAST, AST
     }
 }
 
-fn build_parameter_list(node: &SyntaxTree<Token>) -> Result<Vec<String>, ASTError> {
+fn build_parameter_list(node: &SyntaxTree<Token>) -> Result<Vec<(String, String)>, ASTError> {
     use SyntaxTree as ST;
     use Token as T;
     use TokenBody as TB;
@@ -171,14 +192,19 @@ fn build_parameter_list(node: &SyntaxTree<Token>) -> Result<Vec<String>, ASTErro
             }
 
             let list = &subexpressions[1..subexpressions.len() - 1];
-            let mut iter = list.iter();
+            let mut iter = list.iter().peekable();
             
-            let mut param_names = vec![];
+            let mut parameters = vec![];
             while let Some(node) = iter.next() {
                 let ST::TokenNode(T {body: TB::Identifier(name)}) = node
                     else { return Err("Expected name".into())};
+                        
+                let Some(ST::TokenNode (T {body: TB::Punctuation(Punctuation::Colon)})) = iter.next()
+                    else { todo!() };
+
+                let param_type = build_type(iter.next().ok_or(ASTError::from("Expected type node"))?)?;
                 
-                param_names.push(name.clone());
+                parameters.push((name.clone(), param_type));
 
                 match iter.next() {
                     Some(ST::TokenNode (T {body: TB::Punctuation(Punctuation::Comma)})) => (),
@@ -187,10 +213,23 @@ fn build_parameter_list(node: &SyntaxTree<Token>) -> Result<Vec<String>, ASTErro
                 }
             }
 
-            Ok(param_names)
+            Ok(parameters)
         }
         _ => Err("Expected parameter list in function declaration".into())
     }
+}
+
+fn build_type(tree: &SyntaxTree<Token>) -> Result<String, ASTError> {
+    
+    if let SyntaxTree::RuleNode { rule_name, subexpressions } = tree {
+        if rule_name == "Type" {
+            if let SyntaxTree::TokenNode(Token {body: TokenBody::Identifier(ident)}) = &subexpressions[0] {
+                return Ok(ident.clone());
+            }
+        }
+    }
+
+    Err("Could not build Type node".into())
 }
 
 fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {

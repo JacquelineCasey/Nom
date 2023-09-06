@@ -5,11 +5,11 @@
 // tests in tests/samples.rs look at it as expected output for running this code.
 // They can go anywhere at the start of a line.
 
-fn main() {
+fn main() -> i32 {
     1000 * ( 234 + 123 / (4 - 2)   )    
 }    
 
-fn another() {
-    var a = 450 + 112; 
+fn another() -> i32 {
+    var a: i32 = 450 + 112; 
     a
 }

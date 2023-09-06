@@ -15,6 +15,23 @@ pub struct Function {
     pub scope: HashMap<String, bool>,  // Temporary - the bool being true means mutable (aka `var`).
 }
 
+impl Function {
+    pub(super) fn new(env: &CompilationEnvironment, ast: ExprAST, 
+        params: Vec<(String, String)>, return_type: String) -> Result<Function, AnalysisError> {
+        
+        let parameter_types = params.into_iter()
+            .map(|(name, type_name)| (name, type_name.into()))
+            .collect();
+        Ok(Function { 
+            ast, 
+            return_type: return_type.into(), 
+            parameter_types, 
+            local_types: HashMap::new(), 
+            scope: HashMap::new(), 
+        })
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub enum Type {
     BuiltIn (BuiltIn),
@@ -59,6 +76,23 @@ impl BuiltIn {
             B::U32 | B::I32 => Some(IS::FourByte),
             B::U64 | B::I64 => Some(IS::EightByte),
             _ => None
+        }
+    }
+}
+
+impl From<String> for Type {
+    fn from(value: String) -> Self {
+        match &value[..] {
+            "i8" => Type::BuiltIn(BuiltIn::I8),
+            "i16" => Type::BuiltIn(BuiltIn::I16),
+            "i32" => Type::BuiltIn(BuiltIn::I32),
+            "i64" => Type::BuiltIn(BuiltIn::I64),
+            "u8" => Type::BuiltIn(BuiltIn::U8),
+            "u16" => Type::BuiltIn(BuiltIn::U16),
+            "u32" => Type::BuiltIn(BuiltIn::U32),
+            "u64" => Type::BuiltIn(BuiltIn::U64),
+            "unit" => Type::BuiltIn(BuiltIn::Unit),
+            _ => panic!("User defined type not yet implemented"),
         }
     }
 }
@@ -204,28 +238,6 @@ fn get_expr_type(env: &CompilationEnvironment, subtree: &ExprAST) -> Type {
         ExprAST::Block(_, None, _) => Type::BuiltIn(BuiltIn::Unit),
         _ => Type::BuiltIn(BuiltIn::I32)
     }
-}
-
-// Deterines parameter types and return type, but does not yet resolve local
-// types.
-pub fn determine_function_info(params: &[String], block: ExprAST) -> Result<Function, AnalysisError> {
-    match &block {
-        ExprAST::Block(_, final_expr, _ ) => {
-            Ok(Function { 
-                return_type: match final_expr {
-                    Some(_expr) => Type::BuiltIn(BuiltIn::I32),  // TODO: Get type of expression
-                    None => Type::BuiltIn(BuiltIn::Unit)
-                },
-                parameter_types: params.iter()
-                    .map(|param| (param.clone(), Type::BuiltIn(BuiltIn::I32)))  // TODO: Get type of parameter.
-                    .collect(),
-                local_types: HashMap::new(),
-                scope: HashMap::new(),
-                ast: block,
-            })
-        }
-        _ => Err("Function expected block".into())        
-    }        
 }
 
 pub fn get_default_types() -> HashMap<Type, TypeInfo> {

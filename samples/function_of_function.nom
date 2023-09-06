@@ -1,9 +1,9 @@
 //! 256
 
-fn f(x) {
+fn f(x: i32) -> i32 {
     2 * x
 }
 
-fn main() {
+fn main() -> i32 {
     f(f(f(f(f(f(f(f(1))))))))  // 8 times
 }

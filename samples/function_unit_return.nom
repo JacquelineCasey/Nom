@@ -1,18 +1,18 @@
 //! 10
 
-fn unit(x) {
+fn unit(x: i32) -> unit {
     val y = x * x * x * x;
 }
 
-fn f(x, y, z) {
+fn f(x: i32, y: i32, z: i32) -> i32 {
     unit(x);
     unit(y);
     10
 }
 
 
-fn main() {
-    val a = 10;
-    var z = f(a, 20, 30);
+fn main() -> i32 {
+    val a: i32 = 10;
+    var z: i32 = f(a, 20, 30);
     a
 }

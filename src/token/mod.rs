@@ -53,7 +53,8 @@ pub enum Operator {  // Operators currently accepted greedily
     Minus,
     Times, 
     Divide,
-    Equals
+    Equals,
+    ThinRightArrow,
 }
 
 impl FromStr for Operator {
@@ -78,6 +79,7 @@ impl FromStr for Operator {
 pub enum Punctuation {
     Semicolon,
     Comma,
+    Colon,
     LeftCurlyBrace,
     RightCurlyBrace,
     LeftParenthesis,
@@ -95,6 +97,7 @@ impl TryFrom<char> for Punctuation {
         match value {
             ';' => Ok(P::Semicolon),
             ',' => Ok(P::Comma),
+            ':' => Ok(P::Colon),
             '{' => Ok(P::LeftCurlyBrace),
             '}' => Ok(P::RightCurlyBrace),
             '(' => Ok(P::LeftParenthesis),           
@@ -266,6 +269,11 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
 
             return Ok(operators)
         }
+        // This is an operator for lexical reasons. Punctuation has to be single characters.
+        else if slice.starts_with("->") {
+            operators.push(Operator::ThinRightArrow);
+            slice = &slice[2..];
+        }
         else if slice.starts_with('+') {
             operators.push(Operator::Plus);
             slice = &slice[1..];
@@ -296,7 +304,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
 
 
 fn is_operator_char(ch: char) -> bool {
-    let operators = ['+', '-', '*', '/', '='];
+    let operators = ['+', '-', '*', '/', '=', '>'];
 
     operators.contains(&ch)
 }
@@ -353,12 +361,14 @@ impl parsley::Token for Token {
             "RightSquareBracket" => matches!(token, T { body: TB::Punctuation(P::RightSquareBracket), .. }),
             "Semicolon"          => matches!(token, T { body: TB::Punctuation(P::Semicolon), .. }),
             "Comma"              => matches!(token, T { body: TB::Punctuation(P::Comma), .. }),
+            "Colon"              => matches!(token, T { body: TB::Punctuation(P::Colon), .. }),
 
-            "Plus"   => matches!(token, T { body: TB::Operator(O::Plus) }),
-            "Minus"  => matches!(token, T { body: TB::Operator(O::Minus) }),
-            "Times"  => matches!(token, T { body: TB::Operator(O::Times) }), 
-            "Divide" => matches!(token, T { body: TB::Operator(O::Divide) }),
-            "Equals" => matches!(token, T { body: TB::Operator(O::Equals) }),
+            "Plus"           => matches!(token, T { body: TB::Operator(O::Plus) }),
+            "Minus"          => matches!(token, T { body: TB::Operator(O::Minus) }),
+            "Times"          => matches!(token, T { body: TB::Operator(O::Times) }), 
+            "Divide"         => matches!(token, T { body: TB::Operator(O::Divide) }),
+            "Equals"         => matches!(token, T { body: TB::Operator(O::Equals) }),
+            "ThinRightArrow" => matches!(token, T { body: TB::Operator(O::ThinRightArrow) }),
 
             "Var" => matches!(token, T { body: TB::Keyword(K::Var) }),
             "Val" => matches!(token, T { body: TB::Keyword(K::Val) }),

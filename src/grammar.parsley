@@ -16,16 +16,16 @@ Declaration
 
 # TODO: Add return type
 FunctionDeclaration
-    : _Fn _Identifier ParameterList BlockExpression
+    : _Fn _Identifier ParameterList _ThinRightArrow Type BlockExpression
     ;
 
 # TODO: Add parameters
 ParameterList
-    : _LeftParenthesis (_Identifier (_Comma _Identifier)*)? _RightParenthesis
+    : _LeftParenthesis (_Identifier _Colon Type (_Comma _Identifier _Colon Type)*)? _RightParenthesis
     ;
 
 VariableDeclaration
-    : (_Var | _Val) _Identifier _Equals Expression 
+    : (_Var | _Val) _Identifier (_Colon Type)? _Equals Expression 
     ;
 
 
@@ -84,4 +84,12 @@ AssignmentStatement
 
 Literal
     : _NumericLiteral
+    ;
+
+
+
+# Types
+
+Type
+    : _Identifier
     ;

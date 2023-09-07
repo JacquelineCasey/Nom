@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::CompilationEnvironment;
 use crate::ast::{ExprAST, DeclarationAST, StatementAST} ;
 use crate::instructions::IntSize;
-use crate::error::{AnalysisError, GenerateError};
+use crate::error::AnalysisError;
 
 
 pub struct Function {
@@ -18,7 +18,9 @@ pub struct Function {
 }
 
 impl Function {
-    pub(super) fn new(env: &CompilationEnvironment, ast: ExprAST, 
+    pub(super) fn new(_env: &CompilationEnvironment, ast: ExprAST, 
+        // TODO: Someday we might want this to add requests to _env
+
         params: Vec<(String, String)>, return_type: String) -> Result<Function, AnalysisError> {
         
         let parameter_types = params.into_iter()
@@ -148,7 +150,7 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                             DeclarationAST::Function { .. } => {
                                 return Err("Did not expect function".into());
                             }
-                            DeclarationAST::Variable { name, expr, .. } => {
+                            DeclarationAST::Variable { expr, .. } => {
                                 scope_check_expression(functions, local_types, expr)?;
                             }
                         }

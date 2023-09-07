@@ -125,8 +125,7 @@ impl CodeGenerator {
 
         instructions.append(&mut Self::generate_return(function_info)?);
 
-        // Ok(optimize(instructions)) // TODO
-        Ok(instructions)
+        Ok(optimize(instructions))
     }
     
     // Precondition: stack pointer is byte above return value.

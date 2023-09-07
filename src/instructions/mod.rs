@@ -101,6 +101,10 @@ pub enum Instruction {
     // pointer jumps to the instruction index.
     Call (usize),  
 
+    // Components are the size and signedness of the input, and the size and signedness of the output.
+    // May emit an error.
+    IntegerConversion (IntSize, bool, IntSize, bool),
+
     // Precondition: The base pointer has not moved since a previous call instruction.
     // The function return value has been placed below the function arguments (which
     // are just below the current base pointer).

@@ -220,7 +220,6 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                         type_check_expression(env, expr, function_name, &None)?;
                     }
                     StatementAST::Declaration(DeclarationAST::Variable { expr, name, type_ascription, .. }, _) => {
-                        println!("Inserting {name}");
 
                         let var_type: Type = type_ascription.clone()
                             .ok_or(AnalysisError::from("Type inference not yet supported"))?
@@ -256,7 +255,6 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             return_type            
         },
         ExprAST::Literal(literal, _) => {
-            println!("Literal {literal} is expected to have type {expected:?}");
             match expected {
                 Some(inner_type) => {
                     if !literal_fits(*literal, &inner_type) {

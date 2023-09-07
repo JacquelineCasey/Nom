@@ -52,7 +52,6 @@ impl Runtime {
         self.running = true;
 
         while self.running {
-            // println!("{}", self.instruction_index);
             let instruction = self.instructions[self.instruction_index];
 
             self.instruction_index += 1;  // Might be overriden by running a jump
@@ -200,7 +199,41 @@ impl Runtime {
                 self.base_pointer = u64::pop(self) as *mut u8;
                 self.instruction_index = u64::pop(self) as usize;
             }
+            Instruction::IntegerConversion(start_size, start_sign, end_size, end_sign) => {
+                self.convert_integer(start_size, start_sign, end_size, end_sign);
+            },
         }
+    }
+
+    fn convert_integer(&mut self, start_size: IntSize, start_sign: bool, end_size: IntSize, end_sign: bool) {
+        match (start_size, start_sign) {
+            (IntSize::OneByte, true) => self.convert_integer_impl_1::<i8>(end_size, end_sign),
+            (IntSize::OneByte, false) => self.convert_integer_impl_1::<u8>(end_size, end_sign),
+            (IntSize::TwoByte, true) => self.convert_integer_impl_1::<i16>(end_size, end_sign),
+            (IntSize::TwoByte, false) => self.convert_integer_impl_1::<u16>(end_size, end_sign),
+            (IntSize::FourByte, true) => self.convert_integer_impl_1::<i32>(end_size, end_sign),
+            (IntSize::FourByte, false) => self.convert_integer_impl_1::<u32>(end_size, end_sign),
+            (IntSize::EightByte, true) => self.convert_integer_impl_1::<i64>(end_size, end_sign),
+            (IntSize::EightByte, false) => self.convert_integer_impl_1::<u64>(end_size, end_sign),
+        }
+    }
+
+    fn convert_integer_impl_1<In: Number>(&mut self, end_size: IntSize, end_sign: bool) {
+        match (end_size, end_sign) {
+            (IntSize::OneByte, true) => self.convert_integer_impl_2::<In, i8>(),
+            (IntSize::OneByte, false) => self.convert_integer_impl_2::<In, u8>(),
+            (IntSize::TwoByte, true) => self.convert_integer_impl_2::<In, i16>(),
+            (IntSize::TwoByte, false) => self.convert_integer_impl_2::<In, u16>(),
+            (IntSize::FourByte, true) => self.convert_integer_impl_2::<In, i32>(),
+            (IntSize::FourByte, false) => self.convert_integer_impl_2::<In, u32>(),
+            (IntSize::EightByte, true) => self.convert_integer_impl_2::<In, i64>(),
+            (IntSize::EightByte, false) => self.convert_integer_impl_2::<In, u64>(),
+        }
+    }
+
+    fn convert_integer_impl_2<In: Number, Out: Number>(&mut self) {
+        let a = In::pop(self);
+        Out::push(Out::from_i128(a.as_i128()), self);
     }
 
     // Unlike the Instruction, this does nothing to the stack
@@ -249,7 +282,7 @@ impl Runtime {
         T::push(val, self);
     }
 
-    fn eval_binary_int_op_impl<U: Stackable, S: Number>(&mut self, op: IntegerBinaryOperation) {
+    fn eval_binary_int_op_impl<U: Number, S: Number>(&mut self, op: IntegerBinaryOperation) {
         let right = U::pop(self);
         let left = U::pop(self);
 
@@ -275,7 +308,7 @@ impl Runtime {
         U::push(result, self);
     }
 
-    fn eval_unary_int_op_impl<U: Stackable, S: Signed>(&mut self, op: IntegerUnaryOperation) {
+    fn eval_unary_int_op_impl<U: Number, S: Signed>(&mut self, op: IntegerUnaryOperation) {
         let val = U::pop(self);
         
         let result = match op {
@@ -298,7 +331,7 @@ impl Drop for Runtime {
 /* Type shenanigans */
 
 /* Marker trait representing something we might push and pull from the stack. */
-trait Stackable: Number {
+trait Stackable: Copy {
     /* These operations assume but also check alignment. If alignment is wrong, they panic. */
     fn push(val: Self, runtime: &mut Runtime); 
     fn pop(runtime: &mut Runtime) -> Self; 
@@ -421,18 +454,86 @@ trait Number :
     + std::ops::Div<Output = Self> 
     + Copy
     + std::fmt::Display
-{ } 
+    + Stackable
+{ 
+    fn as_i128(self) -> i128;
+    fn from_i128(val: i128) -> Self;
+} 
 
 trait Signed : Number + std::ops::Neg<Output = Self> { }
 
-impl Number for u8 { }
-impl Number for u16 { }
-impl Number for u32 { }
-impl Number for u64 { }
-impl Number for i8 { }
-impl Number for i16 { }
-impl Number for i32 { }
-impl Number for i64 { }
+impl Number for u8 { 
+    fn as_i128(self) -> i128 { self as i128 }
+    fn from_i128(val: i128) -> Self { val as Self }
+}
+impl Number for u16 { 
+    fn as_i128(self) -> i128 { self as i128 }
+    fn from_i128(val: i128) -> Self { val as Self }
+}
+impl Number for u32 { 
+    fn as_i128(self) -> i128 { self as i128 }
+    fn from_i128(val: i128) -> Self { val as Self }
+}
+impl Number for u64 { 
+    fn as_i128(self) -> i128 { self as i128 }
+    fn from_i128(val: i128) -> Self { val as Self }
+}
+impl Number for i8 { 
+    fn as_i128(self) -> i128 { self as i128 }
+    fn from_i128(val: i128) -> Self { val as Self }
+}
+impl Number for i16 { 
+    fn as_i128(self) -> i128 { self as i128 }
+    fn from_i128(val: i128) -> Self { val as Self }
+}
+impl Number for i32 { 
+    fn as_i128(self) -> i128 { self as i128 }
+    fn from_i128(val: i128) -> Self { val as Self }
+}
+impl Number for i64 { 
+    fn as_i128(self) -> i128 { self as i128 }
+    fn from_i128(val: i128) -> Self { val as Self }
+}
+
+impl Stackable for i8 {
+    fn push(val: Self, runtime: &mut Runtime) {
+        u8::push(reinterpret(val), runtime);
+    }
+
+    fn pop(runtime: &mut Runtime) -> Self {
+        reinterpret(u8::pop(runtime))
+    }
+}
+
+impl Stackable for i16 {
+    fn push(val: Self, runtime: &mut Runtime) {
+        u16::push(reinterpret(val), runtime);
+    }
+
+    fn pop(runtime: &mut Runtime) -> Self {
+        reinterpret(u16::pop(runtime))
+    }
+}
+
+impl Stackable for i32 {
+    fn push(val: Self, runtime: &mut Runtime) {
+        u32::push(reinterpret(val), runtime);
+    }
+
+    fn pop(runtime: &mut Runtime) -> Self {
+        reinterpret(u32::pop(runtime))
+    }
+}
+
+impl Stackable for i64 {
+    fn push(val: Self, runtime: &mut Runtime) {
+        u64::push(reinterpret(val), runtime);
+    }
+
+    fn pop(runtime: &mut Runtime) -> Self {
+        reinterpret(u64::pop(runtime))
+    }
+}
 
 impl Signed for i8 { }
 impl Signed for i16 { }

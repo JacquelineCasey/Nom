@@ -167,3 +167,25 @@ fn function_call() {
 
     assert_eq!(lines, ["81"]);
 }
+
+#[test]
+fn conversion() {
+    // 40 - (2 + 3 * 8 / 2) = 26
+    let lines = run_collecting_output(vec![
+        I::PushConstant(Constant::OneByte(10)),
+        I::PushConstant(Constant::OneByte(20)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::OneByte),
+        I::IntegerConversion(IntSize::OneByte, false, IntSize::FourByte, true),
+        I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(-1))),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::SignedMultiplication, IntSize::FourByte),
+        I::PushConstant(Constant::FourByte(230)),  // This would overflow an i8
+        I::IntegerBinaryOperation(IntegerBinaryOperation::SignedAddition, IntSize::FourByte),
+        I::IntegerConversion(IntSize::FourByte, true, IntSize::OneByte, false),
+        I::PushConstant(Constant::OneByte(100)),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::OneByte),
+        I::DebugPrintSigned(IntSize::OneByte),  // Note - always prints signed...
+        I::Exit,
+    ]);
+
+    assert_eq!(lines, ["100"]);
+}

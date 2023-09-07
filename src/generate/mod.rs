@@ -297,8 +297,6 @@ impl CodeGenerator {
             E::Moved => panic!("ExprAST Moved"),
         }
 
-        println!("{subtree:?} \n EMITS {instructions:?}");
-
         Ok(instructions)
     }
 
@@ -372,8 +370,7 @@ impl CodeGenerator {
 
         let (offset, size) = function_info.variable_info_by_name(var_name)
             .ok_or(GenerateError("Could not find local variable".to_string()))?;
-        
-        println!("SIZE: {size} for VAR_NAME: {var_name} with TYPE: {expr_type:?}");
+    
 
         // Store generated expression
         instructions.push(PseudoInstruction::Actual(
@@ -453,7 +450,6 @@ impl FunctionInfo {
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(Variable::Parameter(name.clone()), local_type_info.size, local_type_info.alignment);
-            println!("Adding {name} with {local_type:?}");
         }
 
         Ok(info)

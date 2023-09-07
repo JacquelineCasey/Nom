@@ -1,0 +1,8 @@
+//! 100
+
+fn main() -> i32 {
+    var long: i64 = 2000000000 * 44333;  // This will overflow an i32
+    long = long * 4;
+    var long2: i64 = long;
+    100  // Main must be i32 though
+}

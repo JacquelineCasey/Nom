@@ -125,7 +125,8 @@ impl CodeGenerator {
 
         instructions.append(&mut Self::generate_return(function_info)?);
 
-        Ok(optimize(instructions))
+        // Ok(optimize(instructions)) // TODO
+        Ok(instructions)
     }
     
     // Precondition: stack pointer is byte above return value.
@@ -205,10 +206,21 @@ impl CodeGenerator {
                     return Err("Cannot run binary operator on non builtin type".into());
                 }
             }
-            E::Literal(num, ..) => {
-                // TODO: Support types beyond i32
+            E::Literal(num, data) => {
+                let num_type = &env.type_index[&data.id];
 
-                instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(*num)))));
+                let int_size = match num_type {
+                    Type::BuiltIn(builtin) => builtin.get_int_size().ok_or(GenerateError::from("Literal type did not fit in int"))?,
+                    _ => return Err("Tried to construct literal with non builtin size".into())
+                };
+                
+                // TODO: This might not be perfect
+                match int_size {
+                    IntSize::OneByte => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(reinterpret::<i8, u8>(*num as i8))))),
+                    IntSize::TwoByte => instructions.push(PI::Actual(I::PushConstant(Constant::TwoByte(reinterpret::<i16, u16>(*num as i16))))),
+                    IntSize::FourByte => instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(*num as i32))))),
+                    IntSize::EightByte => instructions.push(PI::Actual(I::PushConstant(Constant::EightByte(reinterpret::<i64, u64>(*num as i64))))),
+                }
             }
             E::Variable(name, ..) => {
                 // This is placing a variable's value on the stack. See statement for storing
@@ -285,6 +297,8 @@ impl CodeGenerator {
             E::Moved => panic!("ExprAST Moved"),
         }
 
+        println!("{subtree:?} \n EMITS {instructions:?}");
+
         Ok(instructions)
     }
 
@@ -359,6 +373,8 @@ impl CodeGenerator {
         let (offset, size) = function_info.variable_info_by_name(var_name)
             .ok_or(GenerateError("Could not find local variable".to_string()))?;
         
+        println!("SIZE: {size} for VAR_NAME: {var_name} with TYPE: {expr_type:?}");
+
         // Store generated expression
         instructions.push(PseudoInstruction::Actual(
             Instruction::WriteBase(offset, size.try_into()?)
@@ -413,8 +429,8 @@ impl FunctionInfo {
     
         info.add_variable(Variable::Return, return_type_info.size, return_type_info.alignment);
 
-        for (name, param) in &analysis_info.parameter_types {
-            let param_type_info = env.types.get(param)
+        for (name, param_type) in &analysis_info.parameter_types {
+            let param_type_info = env.types.get(param_type)
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(Variable::Parameter(name.clone()), param_type_info.size, param_type_info.alignment);
@@ -430,11 +446,14 @@ impl FunctionInfo {
 
         info.top = 16;  // Room for two u64 saved registers
 
-        for (name, local) in &analysis_info.local_types {
-            let local_type_info = env.types.get(local)
+        for (name, local_type) in &analysis_info.local_types {
+            let local_type = local_type.clone().ok_or(GenerateError("Type not specified".into()))?;
+
+            let local_type_info = env.types.get(&local_type)
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(Variable::Parameter(name.clone()), local_type_info.size, local_type_info.alignment);
+            println!("Adding {name} with {local_type:?}");
         }
 
         Ok(info)

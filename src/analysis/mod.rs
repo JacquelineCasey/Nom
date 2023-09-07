@@ -4,14 +4,16 @@ use std::collections::HashMap;
 use crate::CompilationEnvironment;
 use crate::ast::{ExprAST, DeclarationAST, StatementAST} ;
 use crate::instructions::IntSize;
-use crate::error::AnalysisError;
+use crate::error::{AnalysisError, GenerateError};
 
 
 pub struct Function {
     pub ast: ExprAST,
     pub return_type: Type,
     pub parameter_types: Vec<(String, Type)>,  // Argument order is important, so a Vector is used.
-    pub local_types: HashMap<String, Type>,  // Local order *kinda* doesn't matter, so we have a hash map
+    // Local order *kinda* doesn't matter, so we have a hash map
+    // None means the type has not yet been decided.
+    pub local_types: HashMap<String, Option<Type>>,  
     pub scope: HashMap<String, bool>,  // Temporary - the bool being true means mutable (aka `var`).
 }
 
@@ -32,7 +34,7 @@ impl Function {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Type {
     BuiltIn (BuiltIn),
     
@@ -40,7 +42,7 @@ pub enum Type {
     NotYetImplemented,
 }
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum BuiltIn {
     U8,
     U16,
@@ -103,6 +105,7 @@ pub struct TypeInfo {
     pub alignment: usize,  // In bytes
 }
 
+// Sets the 
 pub(super) fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
     let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
     let block = std::mem::take(&mut function.ast);
@@ -123,7 +126,7 @@ pub(super) fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Resul
     Ok(())
 }
 
-fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &mut HashMap<String, Type>, expr: &ExprAST) -> Result<(), AnalysisError> {
+fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &mut HashMap<String, Option<Type>>, expr: &ExprAST) -> Result<(), AnalysisError> {
     match expr {
         ExprAST::Add(left, right, _) 
         | ExprAST::Subtract(left, right, _)
@@ -146,8 +149,6 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                                 return Err("Did not expect function".into());
                             }
                             DeclarationAST::Variable { name, expr, .. } => {
-                                local_types.insert(name.clone(), Type::BuiltIn(BuiltIn::I32));
-
                                 scope_check_expression(functions, local_types, expr)?;
                             }
                         }
@@ -178,9 +179,10 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
 
 pub(super) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
     let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
-    let block = std::mem::take(&mut function.ast);
+    let mut block = std::mem::take(&mut function.ast);
+    let return_type = function.return_type.clone();
 
-    type_check_expression(env, &block)?;
+    type_check_expression(env, &mut block, name, &Some(return_type))?;
 
     // We need the old lifetime to die.
     let function = env.functions.get_mut(name).expect("known exists");
@@ -188,57 +190,118 @@ pub(super) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result
     Ok(())
 }
 
-fn type_check_expression(env: &mut CompilationEnvironment, expr: &ExprAST) -> Result<(), AnalysisError> {
-    // Very very preliminary
-    env.type_index.insert(expr.get_node_data().id, get_expr_type(env, expr));
+// Resolves the types of all expressions in the function. May decide the types of some
+// expressions if they are ambiguous. May add conversion nodes to the AST.
+fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, function_name: &str, expected: &Option<Type>) -> Result<Type, AnalysisError> {
+    // TODO: Conversions!
 
-    match expr {
+    let expr_type = match expr {
         ExprAST::Add(left, right, _)
         | ExprAST::Subtract(left, right, _)
         | ExprAST::Multiply(left, right, _)
         | ExprAST::Divide(left, right, _) => {
-            type_check_expression(env, left)?;
-            type_check_expression(env, right)?;
+            let left_type = type_check_expression(env, left, function_name, expected)?;
+            let right_type = type_check_expression(env, right, function_name, expected)?;
+
+            if left_type != right_type {
+                return Err("Types don't match".into())
+            }
+
+            left_type
         },
         ExprAST::Block(statements, final_expr, _) => {
             for stmt in statements {
                 match stmt {
                     StatementAST::Assignment(left, right, _) => {
-                        type_check_expression(env, left)?;
-                        type_check_expression(env, right)?;
+                        let left_type = type_check_expression(env, left, function_name, &None)?;
+                        type_check_expression(env, right, function_name, &Some(left_type.clone()))?;
                     },
-                    StatementAST::ExpressionStatement(expr, _)
-                    | StatementAST::Declaration(DeclarationAST::Variable { expr, .. }, _) => 
-                        type_check_expression(env, expr)?,
+                    StatementAST::ExpressionStatement(expr, _) => {
+                        type_check_expression(env, expr, function_name, &None)?;
+                    }
+                    StatementAST::Declaration(DeclarationAST::Variable { expr, name, type_ascription, .. }, _) => {
+                        println!("Inserting {name}");
+
+                        let var_type: Type = type_ascription.clone()
+                            .ok_or(AnalysisError::from("Type inference not yet supported"))?
+                            .into();
+
+                        env.functions.get_mut(function_name).expect("known").local_types.insert(name.clone(), Some(var_type.clone()));
+
+                        let expr_type = type_check_expression(env, expr, function_name, &Some(var_type.clone()))?;
+                        
+                        if expr_type != var_type {
+                            return Err("Type checking failed at variable declaration".into())
+                        }
+                    }
                     StatementAST::Declaration(DeclarationAST::Function { .. }, _) => 
                         return Err("Can not process function definition here".into()),
                 }
             }
             if let Some(expr) = final_expr {
-                type_check_expression(env, expr)?;
+                type_check_expression(env, expr, function_name, expected)?
+            }
+            else {
+                Type::BuiltIn(BuiltIn::Unit)
             }
         },
-        ExprAST::FunctionCall(_, exprs, _) => {
-            for expr in exprs {
-                type_check_expression(env, expr)?;
+        ExprAST::FunctionCall(name, exprs, _) => {
+            let func = env.functions.get(name).ok_or(AnalysisError::from("Could not lookup function"))?;
+            let return_type = func.return_type.clone();
+
+            for (expr, (_, expected_type)) in exprs.iter_mut().zip(func.parameter_types.clone()) {
+                type_check_expression(env, expr, function_name, &Some(expected_type))?;
+            }
+
+            return_type            
+        },
+        ExprAST::Literal(literal, _) => {
+            println!("Literal {literal} is expected to have type {expected:?}");
+            match expected {
+                Some(inner_type) => {
+                    if !literal_fits(*literal, &inner_type) {
+                        return Err("Literal does not fit in type".into())
+                    }
+                    else {
+                        inner_type.clone()
+                    }
+                },
+                None => {
+                    if !literal_fits(*literal, &Type::BuiltIn(BuiltIn::I32)) {
+                        return Err("Literal does not fit in i32. Try increasing the size of nearby variables?".into())
+                    }
+                    else {
+                        Type::BuiltIn(BuiltIn::I32)
+                    }
+                }
             }
         },
-        _ => (),
-    }
+        ExprAST::Variable(name, _) => {
+            if let Some(inner) = env.functions[function_name].local_types.get(name) {
+                inner.clone().ok_or(AnalysisError::from("Variable lookup succeeded, but had unknown_type"))?
+            } 
+            else if let Some((_, inner)) = env.functions[function_name].parameter_types.iter()
+                .filter(|(p_name, _p_type)| p_name == name).next() {
+                inner.clone()
+            }
+            else {
+                return Err("AKJSnagkj".into())
+            }
+    
+        }
+        ExprAST::Moved => panic!("ExprAST moved"),
+    };
 
-    Ok(())
+    env.type_index.insert(expr.get_node_data().id, expr_type.clone());
+    Ok(expr_type)
 }
 
-
-fn get_expr_type(env: &CompilationEnvironment, subtree: &ExprAST) -> Type {
-    // Very very preliminary and naive
-
-    match subtree {
-        ExprAST::FunctionCall(name, ..) => env.functions.get(name).expect("Name found").return_type.clone(),
-        ExprAST::Block(_, None, _) => Type::BuiltIn(BuiltIn::Unit),
-        _ => Type::BuiltIn(BuiltIn::I32)
-    }
+fn literal_fits(literal: i32, expected: &Type) -> bool {
+    // TODO!
+    
+    true
 }
+
 
 pub fn get_default_types() -> HashMap<Type, TypeInfo> {
     let mut map = HashMap::new();

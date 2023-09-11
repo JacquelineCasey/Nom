@@ -37,7 +37,7 @@ pub enum ExprAST {
     Subtract (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Multiply (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Divide (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
-    Literal (i32, ASTNodeData),
+    IntegerLiteral(i128, ASTNodeData), // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
     Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     FunctionCall (String, Vec<ExprAST>, ASTNodeData),  // The vec contains arguments
@@ -56,7 +56,7 @@ impl ExprAST {
             | E::Subtract(_, _, data)
             | E::Multiply(_, _, data)
             | E::Divide(_, _, data)
-            | E::Literal(_, data)
+            | E::IntegerLiteral(_, data)
             | E::Variable(_, data)
             | E::Block(_, _, data) 
             | E::FunctionCall(_, _, data)
@@ -341,7 +341,7 @@ fn build_literal_expr(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     match child {
         SyntaxTree::RuleNode { .. } => Err("Rule node under Literal node".into()),
         SyntaxTree::TokenNode(Token { body: TokenBody::NumericLiteral(str) }) => 
-            Ok(ExprAST::Literal(str.parse().map_err(|_| ASTError("Integer parse failed".to_string()))?, ASTNodeData::new())),
+            Ok(ExprAST::IntegerLiteral(str.parse().map_err(|_| ASTError("Integer parse failed. Literals must fit in i128".to_string()))?, ASTNodeData::new())),
         SyntaxTree::TokenNode(_) => Err("Non numeric literal under Literal node".into())
     }
 }

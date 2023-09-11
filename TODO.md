@@ -17,6 +17,7 @@
 
 == Medium Term TODO ==
 
+- Booleaas!
 - I'm using a lot of panic! and expect! in Runtime, maybe I should switch to Result<>
 - Runtime Overflow checks?
 - Scope

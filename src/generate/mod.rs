@@ -7,7 +7,7 @@ use std::hash::Hash;
 
 use crate::CompilationEnvironment;
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
-use crate::analysis::Type;
+use crate::analysis::types::Type;
 use crate::instructions::{Instruction, IntSize, IntegerBinaryOperation, Constant};
 use crate::util::reinterpret;
 use crate::error::GenerateError;
@@ -159,6 +159,7 @@ impl CodeGenerator {
     // Postcondition: The stack has the expression value at that desired position. The pointer points one byte above the value.
     // Expressions are being evaluated as rvalues, not as lvalues. In particular, pass a variable here is you want to put its
     // value on the stack, but see generate_statement if you want to store something into that variable.
+    #[allow(clippy::too_many_lines)]
     fn generate_expression(&self, env: &CompilationEnvironment, subtree: &ExprAST, 
         function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
@@ -205,20 +206,29 @@ impl CodeGenerator {
                     return Err("Cannot run binary operator on non builtin type".into());
                 }
             }
-            E::Literal(num, data) => {
+            E::IntegerLiteral(num, data) => {
                 let num_type = &env.type_index[&data.id];
 
-                let int_size = match num_type {
-                    Type::BuiltIn(builtin) => builtin.get_int_size().ok_or(GenerateError::from("Literal type did not fit in int"))?,
-                    _ => return Err("Tried to construct literal with non builtin size".into())
-                };
-                
-                // TODO: This might not be perfect
-                match int_size {
-                    IntSize::OneByte => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(reinterpret::<i8, u8>(*num as i8))))),
-                    IntSize::TwoByte => instructions.push(PI::Actual(I::PushConstant(Constant::TwoByte(reinterpret::<i16, u16>(*num as i16))))),
-                    IntSize::FourByte => instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(*num as i32))))),
-                    IntSize::EightByte => instructions.push(PI::Actual(I::PushConstant(Constant::EightByte(reinterpret::<i64, u64>(*num as i64))))),
+                let Type::BuiltIn(builtin) = num_type
+                    else { return Err("Literal has non built in type".into()) };
+
+                let int_size = builtin.get_int_size().ok_or(GenerateError::from("Literal type did not fit in int"))?;
+
+                if builtin.is_signed() {
+                    match int_size {
+                        IntSize::OneByte => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(reinterpret::<i8, u8>(*num as i8))))),
+                        IntSize::TwoByte => instructions.push(PI::Actual(I::PushConstant(Constant::TwoByte(reinterpret::<i16, u16>(*num as i16))))),
+                        IntSize::FourByte => instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(*num as i32))))),
+                        IntSize::EightByte => instructions.push(PI::Actual(I::PushConstant(Constant::EightByte(reinterpret::<i64, u64>(*num as i64))))),
+                    }
+                }
+                else {
+                    match int_size {
+                        IntSize::OneByte => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(*num as u8)))),
+                        IntSize::TwoByte => instructions.push(PI::Actual(I::PushConstant(Constant::TwoByte(*num as u16)))),
+                        IntSize::FourByte => instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(*num as u32)))),
+                        IntSize::EightByte => instructions.push(PI::Actual(I::PushConstant(Constant::EightByte(*num as u64)))),
+                    }
                 }
             }
             E::Variable(name, ..) => {
@@ -399,6 +409,7 @@ fn get_align_shift(depth: usize, alignment: usize) -> usize {
 
 // Information associated with each function. This is a working copy, so many of 
 // the fields are optional.
+#[derive(Debug)]
 struct FunctionInfo {
     variables: HashMap<Variable, (isize, usize)>, // maps parameters, locals, and the return value to their position and sizes in memory.  
     top: usize,  // Points to byte one past the topmost local variable
@@ -446,12 +457,16 @@ impl FunctionInfo {
         info.top = 16;  // Room for two u64 saved registers
 
         for (name, local_type) in &analysis_info.local_types {
+            if info.variables.contains_key(&Variable::Parameter(name.clone())) {
+                continue;
+            }
+
             let local_type = local_type.clone().ok_or(GenerateError("Type not specified".into()))?;
 
             let local_type_info = env.types.get(&local_type)
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
-            info.add_variable(Variable::Parameter(name.clone()), local_type_info.size, local_type_info.alignment);
+            info.add_variable(Variable::Local(name.clone()), local_type_info.size, local_type_info.alignment);
         }
 
         Ok(info)
@@ -481,7 +496,7 @@ impl FunctionInfo {
 }
 
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 enum Variable {
     Return,
     Parameter (String),

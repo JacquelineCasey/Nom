@@ -40,8 +40,8 @@ struct CompilationEnvironment {
     parser: parsley::Parser<token::Token>,
     queue: CompilationQueue,
     functions: HashMap<String, analysis::Function>,
-    types: HashMap<analysis::Type, analysis::TypeInfo>,
-    type_index: HashMap<u32, analysis::Type>,  // Maps expressions (by id) to types. Filled in by type_check goals
+    types: HashMap<analysis::types::Type, analysis::types::TypeInfo>,
+    type_index: HashMap<u32, analysis::types::Type>,  // Maps expressions (by id) to types. Filled in by type_check goals
 }
 
 impl CompilationEnvironment {
@@ -96,7 +96,7 @@ impl CompilationEnvironment {
                     }
                     
                     // Expects all types in the file to be processed first.
-                    self.functions.insert(name.clone(), analysis::Function::new(self, block, params, return_type)?);
+                    self.functions.insert(name.clone(), analysis::Function::new(self, block, params, return_type));
 
                     if define_all {
                         self.queue.add_goal(CompilationGoal::ScopeCheck(name));

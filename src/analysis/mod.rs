@@ -1,10 +1,14 @@
 
+pub mod types;
+
+
 use std::collections::HashMap;
 
 use crate::CompilationEnvironment;
 use crate::ast::{ExprAST, DeclarationAST, StatementAST} ;
-use crate::instructions::IntSize;
 use crate::error::AnalysisError;
+
+use types::{Type, BuiltIn, TypeInfo};
 
 
 pub struct Function {
@@ -19,100 +23,32 @@ pub struct Function {
 
 impl Function {
     pub(super) fn new(_env: &CompilationEnvironment, ast: ExprAST, 
-        // TODO: Someday we might want this to add requests to _env
+        params: Vec<(String, String)>, return_type: String) -> Function { // Could become Result
 
-        params: Vec<(String, String)>, return_type: String) -> Result<Function, AnalysisError> {
+        // TODO: Someday we might want this to add type generation requests to _env
         
         let parameter_types = params.into_iter()
             .map(|(name, type_name)| (name, type_name.into()))
             .collect();
-        Ok(Function { 
+        Function { 
             ast, 
             return_type: return_type.into(), 
             parameter_types, 
             local_types: HashMap::new(), 
             scope: HashMap::new(), 
-        })
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum Type {
-    BuiltIn (BuiltIn),
-    
-    #[allow(dead_code)]
-    NotYetImplemented,
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum BuiltIn {
-    U8,
-    U16,
-    U32,
-    U64, 
-    I8,
-    I16,
-    I32, 
-    I64,
-    Unit,
-}
-
-impl BuiltIn {
-    pub fn is_signed(&self) -> bool {
-        use BuiltIn as B;
-       
-        matches!(self, B::I8 | B::I16 | B::I32 | B::I64)
-    }
-
-    pub fn is_unsigned(&self) -> bool {
-        use BuiltIn as B;
-       
-        matches!(self, B::U8 | B::U16 | B::U32 | B::U64)
-    }
-
-    pub fn get_int_size(&self) -> Option<IntSize> {
-        use BuiltIn as B;
-        use IntSize as IS;
-
-        match self {
-            B::U8 | B::I8 => Some(IS::OneByte),
-            B::U16 | B::I16 => Some(IS::TwoByte),
-            B::U32 | B::I32 => Some(IS::FourByte),
-            B::U64 | B::I64 => Some(IS::EightByte),
-            _ => None
         }
     }
 }
 
-impl From<String> for Type {
-    fn from(value: String) -> Self {
-        match &value[..] {
-            "i8" => Type::BuiltIn(BuiltIn::I8),
-            "i16" => Type::BuiltIn(BuiltIn::I16),
-            "i32" => Type::BuiltIn(BuiltIn::I32),
-            "i64" => Type::BuiltIn(BuiltIn::I64),
-            "u8" => Type::BuiltIn(BuiltIn::U8),
-            "u16" => Type::BuiltIn(BuiltIn::U16),
-            "u32" => Type::BuiltIn(BuiltIn::U32),
-            "u64" => Type::BuiltIn(BuiltIn::U64),
-            "unit" => Type::BuiltIn(BuiltIn::Unit),
-            _ => panic!("User defined type not yet implemented"),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct TypeInfo {
-    pub size: usize,  // Number of bytes the types takes on the stack.
-    pub alignment: usize,  // In bytes
-}
-
-// Sets the 
+// Checks the scope (as well as const-ness) rules, and builds a table of local variables.
 pub(super) fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
     let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
     let block = std::mem::take(&mut function.ast);
     
     let mut local_types = HashMap::new();
+    for (name, param_type) in &function.parameter_types {
+        local_types.insert(name.clone(), Some(param_type.clone()));
+    }
 
     scope_check_expression(
         &env.functions,
@@ -150,7 +86,13 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                             DeclarationAST::Function { .. } => {
                                 return Err("Did not expect function".into());
                             }
-                            DeclarationAST::Variable { expr, .. } => {
+                            DeclarationAST::Variable { name, expr, .. } => {
+                                if local_types.contains_key(name) {
+                                    return Err("Variable redeclared. Shadowing not yet implemented.".into())
+                                }
+
+                                local_types.insert(name.clone(), None);
+
                                 scope_check_expression(functions, local_types, expr)?;
                             }
                         }
@@ -171,8 +113,12 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                 scope_check_expression(functions, local_types, subexpr)?;
             }
         }
-        ExprAST::Literal(..)
-        | ExprAST::Variable(..) => (),       
+        ExprAST::IntegerLiteral(..) => (),
+        ExprAST::Variable(name, ..) => {
+            if !local_types.contains_key(name) {
+                return Err(format!("{name} not found in local scope.").into());
+            }
+        },       
         ExprAST::Moved => panic!("ExprAST was moved"),     
     }
 
@@ -194,6 +140,12 @@ pub(super) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result
 
 // Resolves the types of all expressions in the function. May decide the types of some
 // expressions if they are ambiguous. May add conversion nodes to the AST.
+//
+// An expected type can be passed if the expression has known type. If this is done,
+// then the function will error if the resolved type does not match the expected.
+// The expected type may be used to decide certain ambiguous expressions, such as
+// literals. If the type is not provided, it will be decided (i.e. literals will be
+// assumed to be i32, etc.)
 fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, function_name: &str, expected: &Option<Type>) -> Result<Type, AnalysisError> {
     // TODO: Conversions!
 
@@ -256,10 +208,10 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
 
             return_type            
         },
-        ExprAST::Literal(literal, _) => {
+        ExprAST::IntegerLiteral(literal, _) => {
             match expected {
                 Some(inner_type) => {
-                    if !literal_fits(*literal, &inner_type) {
+                    if !integer_literal_fits(*literal, inner_type) {
                         return Err("Literal does not fit in type".into())
                     }
                     else {
@@ -267,8 +219,8 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                     }
                 },
                 None => {
-                    if !literal_fits(*literal, &Type::BuiltIn(BuiltIn::I32)) {
-                        return Err("Literal does not fit in i32. Try increasing the size of nearby variables?".into())
+                    if !integer_literal_fits(*literal, &Type::BuiltIn(BuiltIn::I32)) {
+                        return Err("Literal does not fit in i32. i32 was chosen because type of literal was unknown. Type inference needs some help".into())
                     }
                     else {
                         Type::BuiltIn(BuiltIn::I32)
@@ -281,7 +233,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                 inner.clone().ok_or(AnalysisError::from("Variable lookup succeeded, but had unknown_type"))?
             } 
             else if let Some((_, inner)) = env.functions[function_name].parameter_types.iter()
-                .filter(|(p_name, _p_type)| p_name == name).next() {
+                .find(|(p_name, _p_type)| p_name == name) {
                 inner.clone()
             }
             else {
@@ -292,16 +244,20 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 
+    if let Some(inner) = expected {
+        if *inner != expr_type {
+            return Err("Type did not matched expected".into());
+        }
+    }
+
     env.type_index.insert(expr.get_node_data().id, expr_type.clone());
     Ok(expr_type)
 }
 
-fn literal_fits(literal: i32, expected: &Type) -> bool {
+fn integer_literal_fits(literal: i128, expected: &Type) -> bool {
     // TODO!
-    
     true
 }
-
 
 pub fn get_default_types() -> HashMap<Type, TypeInfo> {
     let mut map = HashMap::new();

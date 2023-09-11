@@ -463,35 +463,35 @@ trait Number :
 trait Signed : Number + std::ops::Neg<Output = Self> { }
 
 impl Number for u8 { 
-    fn as_i128(self) -> i128 { self as i128 }
+    fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
 impl Number for u16 { 
-    fn as_i128(self) -> i128 { self as i128 }
+    fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
 impl Number for u32 { 
-    fn as_i128(self) -> i128 { self as i128 }
+    fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
 impl Number for u64 { 
-    fn as_i128(self) -> i128 { self as i128 }
+    fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
 impl Number for i8 { 
-    fn as_i128(self) -> i128 { self as i128 }
+    fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
 impl Number for i16 { 
-    fn as_i128(self) -> i128 { self as i128 }
+    fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
 impl Number for i32 { 
-    fn as_i128(self) -> i128 { self as i128 }
+    fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
 impl Number for i64 { 
-    fn as_i128(self) -> i128 { self as i128 }
+    fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
 

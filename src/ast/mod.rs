@@ -339,7 +339,10 @@ fn build_literal_expr(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     let child = &subexpressions[0];
 
     match child {
-        SyntaxTree::RuleNode { .. } => Err("Rule node under Literal node".into()),
+        SyntaxTree::RuleNode { rule_name, subexpressions: _ } if rule_name == "BooleanLiteral" => 
+            todo!(),
+        SyntaxTree::RuleNode { .. } =>
+            Err("Unexpected rule node under Literal node".into()),
         SyntaxTree::TokenNode(Token { body: TokenBody::NumericLiteral(str) }) => 
             Ok(ExprAST::IntegerLiteral(str.parse().map_err(|_| ASTError("Integer parse failed. Literals must fit in i128".to_string()))?, ASTNodeData::new())),
         SyntaxTree::TokenNode(_) => Err("Non numeric literal under Literal node".into())

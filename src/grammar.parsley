@@ -84,6 +84,12 @@ AssignmentStatement
 
 Literal
     : _NumericLiteral
+    | BooleanLiteral
+    ;
+
+BooleanLiteral
+    : _True
+    | _False
     ;
 
 

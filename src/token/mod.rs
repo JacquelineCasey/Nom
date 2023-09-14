@@ -30,6 +30,8 @@ pub enum Keyword {
     Var,
     Val,
     Fn,
+    True,
+    False
 }
 
 impl FromStr for Keyword {
@@ -42,6 +44,8 @@ impl FromStr for Keyword {
             "var" => K::Var,
             "val" => K::Val,
             "fn" => K::Fn,
+            "true" => K::True,
+            "false" => K::False,
             _ => Err(TokenError("Not a keyword".to_string()))?
         })
     }
@@ -373,6 +377,8 @@ impl parsley::Token for Token {
             "Var" => matches!(token, T { body: TB::Keyword(K::Var) }),
             "Val" => matches!(token, T { body: TB::Keyword(K::Val) }),
             "Fn"  => matches!(token, T { body: TB::Keyword(K::Fn) }),
+            "True" => matches!(token, T { body: TB::Keyword(K::True) }),
+            "False" => matches!(token, T { body: TB::Keyword(K::False) }),
 
             _ => Err(parsley::ParseError(format!("Bad token type: \"{token_type}\"")))?
         })

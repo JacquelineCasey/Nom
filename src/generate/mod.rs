@@ -28,6 +28,9 @@ enum PseudoInstruction {
 #[derive(Clone, Debug)]
 enum TempInstruction {
     Call (String),  // Call a function by name (we don't yet know its index).
+    JumpIfTrue (u32),  // This is a unique id. This corresponds to a jump instruction later.
+    JumpFrom (u32),  // This will be removed (will not be an actual instruction), 
+                     // but allows reasoning about jumps without counting instructions early on (before optimization).
 }
 
 
@@ -91,11 +94,20 @@ impl CodeGenerator {
                     let location = function_locations.get(&name).ok_or(GenerateError(format!("Could not find function named {name}")))?;
                     Ok(Instruction::Call(*location))
                 }
+                PseudoInstruction::Temp(TempInstruction::JumpIfTrue(..) | TempInstruction::JumpFrom(..)) => {
+                    Err("Expected jump pseudo instructions to be removed".into())
+                }
             })
             .collect::<Result<_, _>>()
     }
 
-    // Push
+    fn resolve_jumps(instructions: Vec<PseudoInstruction>) -> Result<Vec<PseudoInstruction>, GenerateError> {
+        if instructions.iter().find(|instr| matches!(instr, PseudoInstruction::Temp(TempInstruction::JumpIfTrue(..) | TempInstruction::JumpFrom(..)))).is_some() {
+            todo!()
+        }
+        Ok(instructions)
+    }  
+
     fn layout_function(&self, name: &str, instructions: &mut Vec<PseudoInstruction>) -> Result<(), GenerateError> {
         let a = self.functions.get(name).ok_or(GenerateError("Function not found".to_string()))?;
         
@@ -125,7 +137,9 @@ impl CodeGenerator {
 
         instructions.append(&mut Self::generate_return(function_info)?);
 
-        Ok(optimize(instructions))
+        let instructions = optimize(instructions);
+        let instructions = Self::resolve_jumps(instructions)?;
+        Ok(instructions)
     }
     
     // Precondition: stack pointer is byte above return value.

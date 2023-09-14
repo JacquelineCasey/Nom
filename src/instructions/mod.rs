@@ -51,7 +51,9 @@ impl TryFrom<usize> for IntSize {
 /* Specify the type of arguments to some floating point operation. */
 #[derive(Clone, Copy)]
 pub enum FloatSize {
+    #[allow(unused)] // Not yet used..
     FourByte,
+    #[allow(unused)] // Not yet used..
     EightByte,
 }
 

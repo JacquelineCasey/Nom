@@ -38,6 +38,7 @@ pub enum ExprAST {
     Multiply (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Divide (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     IntegerLiteral(i128, ASTNodeData), // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
+    BooleanLiteral(bool, ASTNodeData),
     Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     FunctionCall (String, Vec<ExprAST>, ASTNodeData),  // The vec contains arguments
@@ -60,6 +61,7 @@ impl ExprAST {
             | E::Variable(_, data)
             | E::Block(_, _, data) 
             | E::FunctionCall(_, _, data)
+            | E::BooleanLiteral(_, data)
             => data,
             E::Moved => panic!("ExprAST was moved"),
         }
@@ -339,8 +341,15 @@ fn build_literal_expr(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     let child = &subexpressions[0];
 
     match child {
-        SyntaxTree::RuleNode { rule_name, subexpressions: _ } if rule_name == "BooleanLiteral" => 
-            todo!(),
+        SyntaxTree::RuleNode { rule_name, subexpressions } if rule_name == "BooleanLiteral" => {
+            match subexpressions.as_slice() {
+                [SyntaxTree::TokenNode(Token { body: TokenBody::Keyword(Keyword::True) })] => 
+                    Ok(ExprAST::BooleanLiteral(true, ASTNodeData::new())),
+                [SyntaxTree::TokenNode(Token { body: TokenBody::Keyword(Keyword::False) })] => 
+                    Ok(ExprAST::BooleanLiteral(false, ASTNodeData::new())),
+                _ => Err("Expected true or false under BooleanLiteral node".into()),
+            }
+        }
         SyntaxTree::RuleNode { .. } =>
             Err("Unexpected rule node under Literal node".into()),
         SyntaxTree::TokenNode(Token { body: TokenBody::NumericLiteral(str) }) => 

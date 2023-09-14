@@ -231,6 +231,12 @@ impl CodeGenerator {
                     }
                 }
             }
+            E::BooleanLiteral(val, ..) => {
+                match val {
+                    true => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(1)))),
+                    false => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(0)))),
+                }
+            }
             E::Variable(name, ..) => {
                 // This is placing a variable's value on the stack. See statement for storing
                 // a variable.

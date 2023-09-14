@@ -50,7 +50,7 @@ impl CompilationEnvironment {
             parser: parsley::define_parser::<token::Token>(PARSER_DEFINITION).expect("Parser definition should be valid"),
             queue: CompilationQueue::new(),
             functions: HashMap::new(),
-            types: analysis::get_default_types(),
+            types: analysis::types::get_default_types(),
             type_index: HashMap::new(),
         }
     }

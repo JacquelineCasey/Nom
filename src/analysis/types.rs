@@ -1,4 +1,6 @@
 
+use std::collections::HashMap;
+
 use crate::instructions::IntSize;
 
 
@@ -21,6 +23,7 @@ pub enum BuiltIn {
     I32, 
     I64,
     Unit,
+    Boolean
 }
 
 impl BuiltIn {
@@ -62,6 +65,7 @@ impl From<String> for Type {
             "u32" => Type::BuiltIn(BuiltIn::U32),
             "u64" => Type::BuiltIn(BuiltIn::U64),
             "unit" => Type::BuiltIn(BuiltIn::Unit),
+            "bool" => Type::BuiltIn(BuiltIn::Boolean),
             _ => panic!("User defined type not yet implemented"),
         }
     }
@@ -71,4 +75,24 @@ impl From<String> for Type {
 pub struct TypeInfo {
     pub size: usize,  // Number of bytes the types takes on the stack.
     pub alignment: usize,  // In bytes
+}
+
+
+pub fn get_default_types() -> HashMap<Type, TypeInfo> {
+    let mut map = HashMap::new();
+
+    map.insert(Type::BuiltIn(BuiltIn::U8) , TypeInfo { size: 1, alignment: 1 });
+    map.insert(Type::BuiltIn(BuiltIn::U16), TypeInfo { size: 2, alignment: 2 });
+    map.insert(Type::BuiltIn(BuiltIn::U32), TypeInfo { size: 4, alignment: 4 });
+    map.insert(Type::BuiltIn(BuiltIn::U64), TypeInfo { size: 8, alignment: 8 });
+    map.insert(Type::BuiltIn(BuiltIn::I8) , TypeInfo { size: 1, alignment: 1 });
+    map.insert(Type::BuiltIn(BuiltIn::I16), TypeInfo { size: 2, alignment: 2 });
+    map.insert(Type::BuiltIn(BuiltIn::I32), TypeInfo { size: 4, alignment: 4 });
+    map.insert(Type::BuiltIn(BuiltIn::I64), TypeInfo { size: 8, alignment: 8 });
+    
+    map.insert(Type::BuiltIn(BuiltIn::Boolean), TypeInfo { size: 1, alignment: 1 });
+
+    map.insert(Type::BuiltIn(BuiltIn::Unit), TypeInfo { size: 0, alignment: 1 });  // Not sure if this should have an alignment
+
+    map
 }

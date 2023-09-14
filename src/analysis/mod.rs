@@ -8,7 +8,7 @@ use crate::CompilationEnvironment;
 use crate::ast::{ExprAST, DeclarationAST, StatementAST} ;
 use crate::error::AnalysisError;
 
-use types::{Type, BuiltIn, TypeInfo};
+use types::{Type, BuiltIn};
 
 
 pub struct Function {
@@ -113,12 +113,12 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                 scope_check_expression(functions, local_types, subexpr)?;
             }
         }
-        ExprAST::IntegerLiteral(..) => (),
         ExprAST::Variable(name, ..) => {
             if !local_types.contains_key(name) {
                 return Err(format!("{name} not found in local scope.").into());
             }
-        },       
+        }, 
+        ExprAST::IntegerLiteral(..) | ExprAST::BooleanLiteral(..) => (),      
         ExprAST::Moved => panic!("ExprAST was moved"),     
     }
 
@@ -228,6 +228,9 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                 }
             }
         },
+        ExprAST::BooleanLiteral(..) => {
+            Type::BuiltIn(BuiltIn::Boolean)
+        }
         ExprAST::Variable(name, _) => {
             if let Some(inner) = env.functions[function_name].local_types.get(name) {
                 inner.clone().ok_or(AnalysisError::from("Variable lookup succeeded, but had unknown_type"))?
@@ -254,24 +257,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
     Ok(expr_type)
 }
 
-fn integer_literal_fits(literal: i128, expected: &Type) -> bool {
+fn integer_literal_fits(_literal: i128, _expected: &Type) -> bool {
     // TODO!
     true
-}
-
-pub fn get_default_types() -> HashMap<Type, TypeInfo> {
-    let mut map = HashMap::new();
-
-    map.insert(Type::BuiltIn(BuiltIn::U8) , TypeInfo { size: 1, alignment: 1 });
-    map.insert(Type::BuiltIn(BuiltIn::U16), TypeInfo { size: 2, alignment: 2 });
-    map.insert(Type::BuiltIn(BuiltIn::U32), TypeInfo { size: 4, alignment: 4 });
-    map.insert(Type::BuiltIn(BuiltIn::U64), TypeInfo { size: 8, alignment: 8 });
-    map.insert(Type::BuiltIn(BuiltIn::I8) , TypeInfo { size: 1, alignment: 1 });
-    map.insert(Type::BuiltIn(BuiltIn::I16), TypeInfo { size: 2, alignment: 2 });
-    map.insert(Type::BuiltIn(BuiltIn::I32), TypeInfo { size: 4, alignment: 4 });
-    map.insert(Type::BuiltIn(BuiltIn::I64), TypeInfo { size: 8, alignment: 8 });
-
-    map.insert(Type::BuiltIn(BuiltIn::Unit), TypeInfo { size: 0, alignment: 1 });  // Not sure if this should have an alignment
-
-    map
 }

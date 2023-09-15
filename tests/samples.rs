@@ -30,7 +30,7 @@ fn run_sample(resource: &str) {
     expected_output.push('\n');
     
     let code = compile_file(resource.to_string());
-    println!("{}", code.iter().map(|instr| format!("{:?}", instr)).collect::<Vec<_>>().join("\n"));
+    println!("{}", code.iter().enumerate().map(|(i, instr)| format!("{i:<4}  {instr:?}")).collect::<Vec<_>>().join("\n"));
 
     let mut runtime = Runtime::new(code);
 

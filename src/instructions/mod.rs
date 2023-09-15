@@ -116,6 +116,15 @@ pub enum Instruction {
     // the stack pointer below the arguments, to just above the return value.
     Return, 
 
+    // Jumps: Instead of advancing the instruction pointer by one, the instruction pointer
+    // is adjusted by the i32 shift, positive or negative.
+
+    // Consumes a bool (1 byte), and jumps if it was true
+    RelativeJumpIfTrue (i32),
+
+    // Consumes a bool (1 byte), and jumps if it was false.
+    RelativeJumpIfFalse (i32),
+
     // Exit the program
     Exit,
 }

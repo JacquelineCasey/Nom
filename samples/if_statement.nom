@@ -5,15 +5,18 @@ fn main() -> i32 {
     val a: bool = false;
     val b: bool = true;
 
+    // Semicolon required (for now)
     if (a) {
         res = res + 10;
-    }; // Semicolon required (for now)
+    }; 
 
-    if b { // The parentheses around the condition are optional (and discouraged). The block is required though.
+     // The parentheses around the condition are optional (and discouraged). The block is required though.
+    if b {
         res = res + 20;
     };
 
-    if true {
+    // The if statement evaluates to the chosen block. If no else exists, the block must have type `unit`
+    val dummy: unit = if true { 
         res = res + 30;
     };
 

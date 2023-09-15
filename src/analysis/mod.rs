@@ -249,7 +249,10 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
     
         }
         ExprAST::If { condition, block, .. } => {
-            todo!()
+            type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
+
+            // We expect unit until we add else statements.
+            type_check_expression(env, block, function_name, &Some(Type::BuiltIn(BuiltIn::Unit)))?
         }
         ExprAST::Moved => panic!("ExprAST moved"),
     };

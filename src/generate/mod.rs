@@ -5,7 +5,7 @@ mod optimize_instructions;  // Makes optimizations at the instruction level.
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use crate::CompilationEnvironment;
+use crate::{CompilationEnvironment, util};
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
 use crate::analysis::types::Type;
 use crate::instructions::{Instruction, IntSize, IntegerBinaryOperation, Constant};
@@ -29,6 +29,7 @@ enum PseudoInstruction {
 enum TempInstruction {
     Call (String),  // Call a function by name (we don't yet know its index).
     JumpIfTrue (u32),  // This is a unique id. This corresponds to a jump instruction later.
+    JumpIfFalse (u32),
     JumpFrom (u32),  // This will be removed (will not be an actual instruction), 
                      // but allows reasoning about jumps without counting instructions early on (before optimization).
 }
@@ -94,7 +95,7 @@ impl CodeGenerator {
                     let location = function_locations.get(&name).ok_or(GenerateError(format!("Could not find function named {name}")))?;
                     Ok(Instruction::Call(*location))
                 }
-                PseudoInstruction::Temp(TempInstruction::JumpIfTrue(..) | TempInstruction::JumpFrom(..)) => {
+                PseudoInstruction::Temp(TempInstruction::JumpIfTrue(..) | TempInstruction::JumpFrom(..) | TempInstruction::JumpIfFalse(..)) => {
                     Err("Expected jump pseudo instructions to be removed".into())
                 }
             })
@@ -102,15 +103,70 @@ impl CodeGenerator {
     }
 
     fn resolve_jumps(instructions: Vec<PseudoInstruction>) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        if instructions.iter().find(|instr| matches!(instr, PseudoInstruction::Temp(TempInstruction::JumpIfTrue(..) | TempInstruction::JumpFrom(..)))).is_some() {
-            todo!()
+        // Maps jump id to the source and target effective indices
+        let mut jumps: HashMap<u32, (Option<usize>, Option<usize>)> = HashMap::new();
+
+        let mut final_instructions = vec![];
+
+        let mut effective_index = 0;
+        for instr in instructions {
+            match instr {
+                PseudoInstruction::Temp(TempInstruction::JumpIfTrue(i) | TempInstruction::JumpIfFalse(i)) => {
+                    if !jumps.contains_key(&i) {
+                        jumps.insert(i, (None, None));
+                    }
+
+                    let entry = jumps.get_mut(&i).unwrap();
+
+                    if entry.0 == None {
+                        entry.0 = Some(effective_index);
+                    }
+                    else {
+                        return Err("Two jump sources with same id".into());
+                    }
+                },
+                PseudoInstruction::Temp(TempInstruction::JumpFrom(i)) => {
+                    if !jumps.contains_key(&i) {
+                        jumps.insert(i, (None, None));
+                    }
+
+                    let entry = jumps.get_mut(&i).unwrap();
+
+                    if entry.1 == None {
+                        entry.1 = Some(effective_index);
+                    }
+                    else {
+                        return Err("Two jump sources with same id".into());
+                    }
+                },
+                _ => (),
+            }
+
+            if !matches!(instr, PseudoInstruction::Temp(TempInstruction::JumpFrom(_))) {
+                effective_index += 1;
+                final_instructions.push(instr);
+            }
         }
-        Ok(instructions)
 
-        // TODO: Replace the senders without contracting the vector at all (two passes, one to
-        // determine *final* locations, one to perform replacements). Then just remove the targets.
-
-        // Hashmap<u32, (Optional<usize>, Optional<usize>)>
+        Ok(final_instructions.into_iter()
+            .map(|instr| match instr {
+                PseudoInstruction::Temp(ref temp @ (TempInstruction::JumpIfTrue(i) | TempInstruction::JumpIfFalse(i))) => {
+                    if let Some((Some(start), Some(end))) = jumps.get(&i) {
+                        let shift = *end as i32 - *start as i32;
+                        match temp {
+                            TempInstruction::JumpIfTrue(_) => Ok(PseudoInstruction::Actual(Instruction::RelativeJumpIfTrue(shift))),
+                            TempInstruction::JumpIfFalse(_) => Ok(PseudoInstruction::Actual(Instruction::RelativeJumpIfFalse(shift))),
+                            _ => panic!()
+                        }
+                    }
+                    else {
+                        Err("Could not find start and end to jump".into())
+                    }
+                },
+                i => Ok(i),
+            })
+            .collect::<Result<Vec<_>, GenerateError>>()?
+        )
     }  
 
     fn layout_function(&self, name: &str, instructions: &mut Vec<PseudoInstruction>) -> Result<(), GenerateError> {
@@ -331,7 +387,17 @@ impl CodeGenerator {
                 }
             },
             E::If { condition, block, .. } => {
-                todo!();
+                let mut condition_instrs = self.generate_expression(env, &condition, function_info, depth)?;
+                let mut block_instrs = self.generate_expression(env, &block, function_info, depth)?;
+                let skip_jump_id = util::next_id();
+
+                instructions.append(&mut condition_instrs);
+                
+                instructions.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
+
+                instructions.append(&mut block_instrs);
+
+                instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
             },
             E::Moved => panic!("ExprAST Moved"),
         }

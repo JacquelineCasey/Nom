@@ -12,4 +12,4 @@ can go here:
 - Code generation creating Temp jump instructions
 - Specialize jump instructions into actual instructions, removing the JumpFrom's accordingly (tricky, maybe needs a forward and backwards pass?)
 
-- Q: Can if statements ignore the semicolon? What about standard block expression? Will this create grammar ambiguity?
+- Q: Can if statements ignore the semicolon? What about standard block expressions? Will this create grammar ambiguity?

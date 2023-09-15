@@ -29,6 +29,7 @@ mod error;  // Error types
 use std::collections::{VecDeque, HashSet, HashMap};
 
 use error::CompileError;
+pub use instructions::Instruction;
 
 
 static PARSER_DEFINITION: &str = include_str!("grammar.parsley");  // Drops the string right into the binary.

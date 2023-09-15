@@ -1,0 +1,10 @@
+//! Out of stack memory
+
+fn kaboom() -> i32 {
+    val a: i32 = kaboom();
+    a
+}
+
+fn main() -> i32 {
+    kaboom()
+}

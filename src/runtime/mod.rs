@@ -9,7 +9,7 @@ use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOpera
 use crate::util::reinterpret;
 
 
-const STACK_SIZE: usize = 1_048_576;  // In terms of u8 units. This exactly a megabyte.
+const STACK_SIZE: usize = 1_048_576;  // In terms of u8 units. This is exactly a megabyte.
 
 pub struct Runtime {
     instructions: Vec<Instruction>,

@@ -13,7 +13,12 @@ it is transformed into a bytecode which is then subsequently interpretted. Of co
 Java goes further with a JIT that *actually* compiles the code later on, which Nom
 does not have.
 
-
+The benefit to this approach is that I get to write basically everything, which I quite enjoy.
+I am writing the parser, the analysis stage, the code generation stage, and the runtime.
+While I am of course installing various crates to help out with utility stuff, I am
+avoiding those that implement major steps like parsing or code generation. Of course,
+this means that Nom's compile times are likely to be much higher than ideal, and 
+its runtime efficiency much lower than ideal.
 
 ## Features
 
@@ -41,10 +46,9 @@ does not have.
     - Blocks and functions without a final expression return unit. Constructing a unit value
       can be done by writing the empty block `{}`. This resemble's Zig's unit type (called `void`).
   - There are currently no implicit conversions between primitive types, and there are no plans
-    to make numeric conversions free like in C++. Other implicit conversion may be added
-    as we get more types. Explicit conversion have not been added yet, but plans have
+    to make numeric conversions free like in C++. Other implicit conversions may be added
+    as we get more types. Explicit conversions have not been added yet, but plans have
     been made and the bytecode supports numeric conversions. 
-
 
 ## See also
 

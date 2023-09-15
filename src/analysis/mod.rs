@@ -118,7 +118,11 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                 return Err(format!("{name} not found in local scope.").into());
             }
         }, 
-        ExprAST::IntegerLiteral(..) | ExprAST::BooleanLiteral(..) => (),      
+        ExprAST::IntegerLiteral(..) | ExprAST::BooleanLiteral(..) => (),
+        ExprAST::If { condition, block, .. } => {
+            scope_check_expression(functions, local_types, condition)?;
+            scope_check_expression(functions, local_types, block)?;
+        }    
         ExprAST::Moved => panic!("ExprAST was moved"),     
     }
 
@@ -243,6 +247,9 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                 return Err("AKJSnagkj".into())
             }
     
+        }
+        ExprAST::If { condition, block, .. } => {
+            todo!()
         }
         ExprAST::Moved => panic!("ExprAST moved"),
     };

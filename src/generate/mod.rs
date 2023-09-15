@@ -106,6 +106,11 @@ impl CodeGenerator {
             todo!()
         }
         Ok(instructions)
+
+        // TODO: Replace the senders without contracting the vector at all (two passes, one to
+        // determine *final* locations, one to perform replacements). Then just remove the targets.
+
+        // Hashmap<u32, (Optional<usize>, Optional<usize>)>
     }  
 
     fn layout_function(&self, name: &str, instructions: &mut Vec<PseudoInstruction>) -> Result<(), GenerateError> {
@@ -324,7 +329,10 @@ impl CodeGenerator {
                     0 => instructions.push(PI::Actual(I::RetractStackPtr(align_shift))),
                     _ => instructions.push(PI::Actual(I::RetractMoving(align_shift, (*return_size).try_into()?))),
                 }
-            }
+            },
+            E::If { condition, block, .. } => {
+                todo!();
+            },
             E::Moved => panic!("ExprAST Moved"),
         }
 

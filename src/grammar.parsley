@@ -33,7 +33,13 @@ VariableDeclaration
 # Expressions - This section encodes operator precedence, but not associativity.
 
 Expression 
-    : AdditiveExpression
+    : IfExpression
+    | AdditiveExpression
+    ;
+
+# This will be extended later to include elses
+IfExpression
+    : _If Expression BlockExpression
     ;
 
 AdditiveExpression 

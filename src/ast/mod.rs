@@ -42,6 +42,7 @@ pub enum ExprAST {
     Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     FunctionCall (String, Vec<ExprAST>, ASTNodeData),  // The vec contains arguments
+    If { condition: Box<ExprAST>, block: Box<ExprAST>, data: ASTNodeData }, // Else to be added later.
 
     #[default]
     Moved,  // This is a hack that allows us to remove an AST, operate on it, and put it back.
@@ -62,6 +63,7 @@ impl ExprAST {
             | E::Block(_, _, data) 
             | E::FunctionCall(_, _, data)
             | E::BooleanLiteral(_, data)
+            | E::If { data, .. }
             => data,
             E::Moved => panic!("ExprAST was moved"),
         }
@@ -206,7 +208,7 @@ fn build_parameter_list(node: &SyntaxTree<Token>) -> Result<Vec<(String, String)
             else { return Err("Expected name".into()) };
                 
         let Some(ST::TokenNode (T {body: TB::Punctuation(Punctuation::Colon)})) = iter.next()
-            else { todo!() };
+            else { return Err("Expected colon".into()) };
 
         let param_type = build_type(iter.next().ok_or(ASTError::from("Expected type node"))?)?;
         
@@ -317,8 +319,23 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
             build_literal_expr(tree),
         ST::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "BlockExpression" =>
             build_block_expr(tree),
+        ST::RuleNode { ref rule_name, subexpressions } if rule_name == "IfExpression" => {
+            if subexpressions.len() != 3 {
+                return Err("Expected 3 subexpressions for IfExpression".into());
+            }
+
+            if !matches!(subexpressions[0], ST::TokenNode(Token {body: TB::Keyword(Keyword::If)})) {
+                return Err("Expected keyword if".into());
+            }
+
+            let condition = Box::new(build_expr_ast(&subexpressions[1])?);
+
+            let block = Box::new(build_block_expr(&subexpressions[2])?);
+
+            Ok(ExprAST::If { condition, block, data: ASTNodeData::new() })
+        }, 
         ST::RuleNode { rule_name, subexpressions: _ } => 
-            Err(format!("Expected expression, found {rule_name}").into()),
+            Err(format!("Expected Expression. Unknown expression node name: {rule_name}").into()),
         ST::TokenNode (T { body: TB::Identifier(name) }) =>
             Ok(ExprAST::Variable(name.clone(), ASTNodeData::new() )),
         ST::TokenNode (tok) => 

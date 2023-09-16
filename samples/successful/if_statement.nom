@@ -10,7 +10,7 @@ fn main() -> i32 {
         res = res + 10;
     }; 
 
-     // The parentheses around the condition are optional (and discouraged). The block is required though.
+    // The parentheses around the condition are optional (and discouraged). The block is required though.
     if b {
         res = res + 20;
     };

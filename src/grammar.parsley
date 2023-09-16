@@ -64,6 +64,7 @@ FunctionCall
 
 # Blocks are also expressions. They follow Rust rules, evaluating to the final expression,
 # or the unit type if the final expression has a semicolon (or is some other statement).
+# PS - Semicolon could reasonably be placed after certain statement types instead of here.
 
 BlockExpression
     : _LeftCurlyBrace (Statement _Semicolon)* (Expression)? _RightCurlyBrace

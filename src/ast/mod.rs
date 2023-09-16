@@ -244,12 +244,23 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     match tree {
         ST::RuleNode { rule_name, subexpressions } if rule_name == "Expression" => {
             if subexpressions.len() == 1 {
-                build_expr_ast(subexpressions.iter().next().expect("Known to exist"))
+                build_expr_ast(&subexpressions[0])
             }
             else {
                 Err("Expected exactly 1 subtree".into())
             }
         }
+        ST::RuleNode { rule_name, subexpressions } if rule_name == "ComparisonExpression" => {
+            if subexpressions.len() == 1 {
+                build_expr_ast(&subexpressions[0])
+            }
+            else if subexpressions.len() == 3 {
+                todo!()
+            }
+            else {
+                Err("Unexpected number of subexpression under ComparisonExpression".into())
+            }
+        },
         ST::RuleNode { rule_name, subexpressions } if rule_name == "AdditiveExpression" => 
             combine_binary_ops(subexpressions, true, |left, op, right| {
                 match op {

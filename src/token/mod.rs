@@ -63,6 +63,12 @@ pub enum Operator {  // Operators currently accepted greedily
     Divide,
     Equals,
     ThinRightArrow,
+    DoubleEquals,
+    NotEquals,
+    LessEquals,
+    GreaterEquals,
+    Less,
+    Greater,
 }
 
 impl FromStr for Operator {
@@ -282,6 +288,30 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
             operators.push(Operator::ThinRightArrow);
             slice = &slice[2..];
         }
+        else if slice.starts_with("==") {
+            operators.push(Operator::DoubleEquals);
+            slice = &slice[2..];
+        }
+        else if slice.starts_with("!=") {
+            operators.push(Operator::NotEquals);
+            slice = &slice[2..];
+        }
+        else if slice.starts_with("<=") {
+            operators.push(Operator::LessEquals);
+            slice = &slice[2..];
+        }
+        else if slice.starts_with(">=") {
+            operators.push(Operator::GreaterEquals);
+            slice = &slice[2..];
+        }
+        else if slice.starts_with("<") {
+            operators.push(Operator::Less);
+            slice = &slice[2..];
+        }
+        else if slice.starts_with(">") {
+            operators.push(Operator::Greater);
+            slice = &slice[2..];
+        }
         else if slice.starts_with('+') {
             operators.push(Operator::Plus);
             slice = &slice[1..];
@@ -377,6 +407,12 @@ impl parsley::Token for Token {
             "Divide"         => matches!(token, T { body: TB::Operator(O::Divide) }),
             "Equals"         => matches!(token, T { body: TB::Operator(O::Equals) }),
             "ThinRightArrow" => matches!(token, T { body: TB::Operator(O::ThinRightArrow) }),
+            "DoubleEquals"   => matches!(token, T { body: TB::Operator(O::DoubleEquals) }),
+            "NotEquals"      => matches!(token, T { body: TB::Operator(O::NotEquals) }),
+            "LessEquals"     => matches!(token, T { body: TB::Operator(O::LessEquals) }),
+            "GreaterEquals"  => matches!(token, T { body: TB::Operator(O::GreaterEquals) }),
+            "Less"           => matches!(token, T { body: TB::Operator(O::Less) }),
+            "Greater"        => matches!(token, T { body: TB::Operator(O::Greater) }),
 
             "Var" => matches!(token, T { body: TB::Keyword(K::Var) }),
             "Val" => matches!(token, T { body: TB::Keyword(K::Val) }),

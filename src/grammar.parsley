@@ -34,12 +34,16 @@ VariableDeclaration
 
 Expression 
     : IfExpression
-    | AdditiveExpression
+    | ComparisonExpression
     ;
 
 # This will be extended later to include elses
 IfExpression
     : _If Expression BlockExpression
+    ;
+
+ComparisonExpression
+    : AdditiveExpression ((_DoubleEquals | _NotEquals | _LessEquals | _GreaterEquals | _Less | _Greater ) AdditiveExpression)?
     ;
 
 AdditiveExpression 

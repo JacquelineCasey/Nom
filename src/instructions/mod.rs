@@ -15,7 +15,7 @@
 
 /* Specify the type of arguments to some operation. */
 #[allow(clippy::enum_variant_names)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub enum IntSize {
     OneByte,
     TwoByte,

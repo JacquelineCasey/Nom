@@ -306,11 +306,11 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
         }
         else if slice.starts_with("<") {
             operators.push(Operator::Less);
-            slice = &slice[2..];
+            slice = &slice[1..];
         }
         else if slice.starts_with(">") {
             operators.push(Operator::Greater);
-            slice = &slice[2..];
+            slice = &slice[1..];
         }
         else if slice.starts_with('+') {
             operators.push(Operator::Plus);
@@ -342,7 +342,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
 
 
 fn is_operator_char(ch: char) -> bool {
-    let operators = ['+', '-', '*', '/', '=', '>'];
+    let operators = ['+', '-', '*', '/', '=', '>', '<', '!'];
 
     operators.contains(&ch)
 }

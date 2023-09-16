@@ -280,7 +280,32 @@ impl CodeGenerator {
                 else {
                     return Err("Cannot run binary operator on non builtin type".into());
                 }
-            }
+            },
+            E::Comparison(left, right, comparison, ..) => {
+                let left_type = &env.type_index[&left.get_node_data().id];
+                let right_type = &env.type_index[&right.get_node_data().id];
+
+                if left_type != right_type {
+                    return Err("Left and Right part of comparison have different types".into())
+                }
+
+                let align_shift = get_align_shift(depth, env.types[left_type].alignment);
+
+                let Type::BuiltIn(builtin_type) = left_type
+                    else { return Err("Tried to compare non builtin types".into()) };
+
+                let Some(int_size) = builtin_type.get_int_size()
+                    else { return Err("Tried to compare builtin type without int_size".into()) };
+
+                instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
+
+                instructions.append(&mut self.generate_expression(env, left, function_info, depth + align_shift)?);
+                instructions.append(&mut self.generate_expression(env, right, function_info, depth + align_shift + env.types[left_type].size)?);
+
+                instructions.push(PI::Actual(I::IntegerComparisonOperation { comparison: comparison.clone(), size: int_size, signed: builtin_type.is_signed() }));
+
+                instructions.push(PI::Actual(I::RetractMoving(align_shift, IntSize::OneByte)));
+            },
             E::IntegerLiteral(num, data) => {
                 let num_type = &env.type_index[&data.id];
 

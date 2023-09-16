@@ -26,6 +26,38 @@ pub enum BuiltIn {
     Boolean
 }
 
+// Sometimes, with int types in particular, we need to decide what types a certain
+pub fn upper_bound_type(left: &Type, right: &Type) -> Option<Type> {
+    let (Type::BuiltIn(left), Type::BuiltIn(right)) = (left, right)
+        else { return None; }; // Cannot unify non builtin.
+
+    if type_fits(left, right) {
+        return Some(Type::BuiltIn(right.clone()));
+    }
+    else if type_fits(right, left) {
+        return Some(Type::BuiltIn(left.clone()));
+    }
+    else {
+        None  // TODO - try more types.
+    }
+}
+
+fn type_fits(source: &BuiltIn, target: &BuiltIn) -> bool {
+    match source {
+        source if source.is_signed() => {
+            target.is_signed() 
+                && source.get_int_size().expect("known") <= target.get_int_size().expect("known")
+        },
+        source if source.is_unsigned() => {
+            if target.is_unsigned() || target.is_unsigned() {
+                source.get_int_size().expect("known") <= target.get_int_size().expect("known")
+            }
+            else { false } 
+        },
+        _ => false
+    }
+}
+
 impl BuiltIn {
     pub fn is_signed(&self) -> bool {
         use BuiltIn as B;

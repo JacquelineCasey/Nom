@@ -8,7 +8,7 @@ use crate::CompilationEnvironment;
 use crate::ast::{ExprAST, DeclarationAST, StatementAST} ;
 use crate::error::AnalysisError;
 
-use types::{Type, BuiltIn};
+use types::{Type, BuiltIn, upper_bound_type};
 
 
 pub struct Function {
@@ -69,10 +69,11 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
         ExprAST::Add(left, right, _) 
         | ExprAST::Subtract(left, right, _)
         | ExprAST::Multiply(left, right, _)
-        | ExprAST::Divide(left, right, _) => {
+        | ExprAST::Divide(left, right, _) 
+        | ExprAST::Comparison(left, right, _, _) => {
             scope_check_expression(functions, local_types, left)?;
             scope_check_expression(functions, local_types, right)?;
-        }
+        }   
         ExprAST::Block(statements, final_expr, _) => {
             for statement in statements {
                 match statement {
@@ -122,8 +123,8 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
         ExprAST::If { condition, block, .. } => {
             scope_check_expression(functions, local_types, condition)?;
             scope_check_expression(functions, local_types, block)?;
-        }    
-        ExprAST::Moved => panic!("ExprAST was moved"),     
+        },
+        ExprAST::Moved => panic!("ExprAST was moved"),
     }
 
     Ok(())
@@ -167,6 +168,23 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
 
             left_type
         },
+        ExprAST::Comparison(left, right, _, _) => {
+            let left_type = type_check_expression(env, left, function_name, &None)?;
+            let right_type = type_check_expression(env, right, function_name, &None)?;
+
+            if left_type != right_type {
+                let Some(bound) = upper_bound_type(&left_type, &right_type)
+                    else { return Err("Types don't match".into()); };
+
+                // TODO: This repeat definitely could cause some efficiency issues. 
+                // We need a smarter unification algorithm perhaps...
+
+                type_check_expression(env, left, function_name, &Some(bound.clone()))?;
+                type_check_expression(env, right, function_name, &Some(bound))?;
+            }
+
+            Type::BuiltIn(BuiltIn::Boolean)
+        },
         ExprAST::Block(statements, final_expr, _) => {
             for stmt in statements {
                 match stmt {
@@ -180,7 +198,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                     StatementAST::Declaration(DeclarationAST::Variable { expr, name, type_ascription, .. }, _) => {
 
                         let var_type: Type = type_ascription.clone()
-                            .ok_or(AnalysisError::from("Type inference not yet supported"))?
+                            .ok_or(AnalysisError::from(format!("Type inference not yet supported - give {name} (in {function_name}) an explicit type.")))?
                             .into();
 
                         env.functions.get_mut(function_name).expect("known").local_types.insert(name.clone(), Some(var_type.clone()));

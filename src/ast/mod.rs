@@ -2,6 +2,7 @@
 use parsley::SyntaxTree;
 
 use crate::token::{Token, TokenBody, Operator, Punctuation, Keyword};
+use crate::instructions::Comparison;
 use crate::error::ASTError;
 
 
@@ -37,6 +38,7 @@ pub enum ExprAST {
     Subtract (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Multiply (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Divide (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
+    Comparison (Box<ExprAST>, Box<ExprAST>, Comparison, ASTNodeData),
     IntegerLiteral(i128, ASTNodeData), // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
     BooleanLiteral(bool, ASTNodeData),
     Variable (String, ASTNodeData),
@@ -58,6 +60,7 @@ impl ExprAST {
             | E::Subtract(_, _, data)
             | E::Multiply(_, _, data)
             | E::Divide(_, _, data)
+            | E::Comparison(_, _, _, data)
             | E::IntegerLiteral(_, data)
             | E::Variable(_, data)
             | E::Block(_, _, data) 
@@ -255,7 +258,20 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 build_expr_ast(&subexpressions[0])
             }
             else if subexpressions.len() == 3 {
-                todo!()
+                let comparison = match &subexpressions[1] {
+                    SyntaxTree::TokenNode(T {body: TokenBody::Operator(Operator::DoubleEquals)}) => Comparison::Equals,
+                    SyntaxTree::TokenNode(T {body: TokenBody::Operator(Operator::NotEquals)}) => Comparison::NotEquals,
+                    SyntaxTree::TokenNode(T {body: TokenBody::Operator(Operator::LessEquals)}) => Comparison::LessEquals,
+                    SyntaxTree::TokenNode(T {body: TokenBody::Operator(Operator::GreaterEquals)}) => Comparison::GreaterEquals,
+                    SyntaxTree::TokenNode(T {body: TokenBody::Operator(Operator::Less)}) => Comparison::Less,
+                    SyntaxTree::TokenNode(T {body: TokenBody::Operator(Operator::Greater)}) => Comparison::Greater,
+                    _ => return Err("Expected comparison operator".into()),
+                };
+
+                let left = Box::new(build_expr_ast(&subexpressions[0])?);
+                let right = Box::new(build_expr_ast(&subexpressions[2])?);
+
+                Ok(ExprAST::Comparison(left, right, comparison, ASTNodeData::new()))
             }
             else {
                 Err("Unexpected number of subexpression under ComparisonExpression".into())

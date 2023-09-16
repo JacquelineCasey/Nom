@@ -1,0 +1,43 @@
+
+// Note - not run by tests
+//! 102334155
+
+fn fib(n: i32) -> i32 {
+    var result: i32 = 1;  // fib n == 1 or n == 2
+    if n >= 3 {
+        result = fib(n-1) + fib(n-2);
+    };
+
+    result
+}
+
+fn main() -> i32 {
+    fib(40)
+}
+
+// Benchmarked against the following nearly identical python. Python was run with
+// Python 3.10.5; Nom was run after being built in release mode `cargo clean && cargo build --release`.
+// Nom was run like `target/release/nom < samples/slow/fib_40.nom`, so it did indeed have to
+// compile the code, making a comparison with interpretted python more fair.
+
+//  def fib(n):
+//      result = 1  # n == 1 or n == 2
+//      if n >= 3:
+//          result = fib(n-1) + fib(n-2)
+//  
+//      return result
+//      
+//  if __name__ == "__main__":
+//      print(fib(40))
+
+// Python median of 3 runs: 19.519s
+// Nom median of 3 runs: 17.022s
+// Nom is faster! Hooray!
+
+// Caveats - the above, strange form of fibonacci is written because (a) I haven't 
+// yet added else statements and (b) Nom needs much more help optimizing than python,
+// I guess. It really didn't like the form with 3 seperate if statements, in which case it 
+// performs worse than python (though to be fair, not by much).
+
+// As an aside, here is what happens when you run without compiling Nom in release mode:
+// median of 3 runs: 81.28s

@@ -1,0 +1,39 @@
+//! 103050
+
+fn other() -> i32 {
+    100
+}
+
+fn main() -> i32 {
+    val a: i32 = 0;  
+    val space: i8 = 0;  // Mess with alignment a lil.
+
+    var b: i32 = 10;
+    var c: i32 = 20;
+
+    if b + 10 == c {
+        a = a + 100000;
+    };
+
+    if 11 != c - 9 {
+        a = a + 20000;
+    };
+
+    if 5 >= 3 {
+        a = a + 3000;
+    };
+
+    if other() <= 99 {
+        a = a + 400;
+    };
+
+    if b < c {
+        a = a + 50;
+    };
+
+    if b * 2 < c {
+        a = a + 6;
+    };
+
+    a
+}

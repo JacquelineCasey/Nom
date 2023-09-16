@@ -6,5 +6,8 @@ can go here:
 
 == Immediate TODO ==
 - If statement type checking (condition must be bool, body must match expected)
+- AST for comparisons
+- Analysis for comparisons
+- CodeGen for comparisons
 
 - Q: Can if statements ignore the semicolon? What about standard block expressions? Will this create grammar ambiguity?

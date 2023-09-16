@@ -5,7 +5,7 @@ mod tests;
 
 use std::alloc::{Layout, alloc, dealloc};
 
-use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize, Constant};
+use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize, Constant, Comparison};
 use crate::util::reinterpret;
 
 
@@ -65,10 +65,13 @@ impl Runtime {
         match instruction {
             Instruction::IntegerBinaryOperation(op, size) => {
                 self.eval_binary_int_op(op, size);
-            }
+            },
             Instruction::UnaryOperation(op, size) => {
                 self.eval_unary_int_op(op, size);
             },
+            Instruction::IntegerComparisonOperation { comparison, size, signed } => {
+                self.eval_int_comparison(comparison, size, signed);
+            }
             Instruction::AdvanceStackPtr(amount) => {
                 self.stack_pointer = unsafe { self.stack_pointer.add(amount) };
             },
@@ -232,7 +235,7 @@ impl Runtime {
         }
     }
 
-    fn convert_integer_impl_1<In: Number>(&mut self, end_size: IntSize, end_sign: bool) {
+    fn convert_integer_impl_1<In: RuntimeInt>(&mut self, end_size: IntSize, end_sign: bool) {
         match (end_size, end_sign) {
             (IntSize::OneByte, true) => self.convert_integer_impl_2::<In, i8>(),
             (IntSize::OneByte, false) => self.convert_integer_impl_2::<In, u8>(),
@@ -245,7 +248,7 @@ impl Runtime {
         }
     }
 
-    fn convert_integer_impl_2<In: Number, Out: Number>(&mut self) {
+    fn convert_integer_impl_2<In: RuntimeInt, Out: RuntimeInt>(&mut self) {
         let a = In::pop(self);
         Out::push(Out::from_i128(a.as_i128()), self);
     }
@@ -296,7 +299,7 @@ impl Runtime {
         T::push(val, self);
     }
 
-    fn eval_binary_int_op_impl<U: Number, S: Number>(&mut self, op: IntegerBinaryOperation) {
+    fn eval_binary_int_op_impl<U: RuntimeInt, S: RuntimeInt>(&mut self, op: IntegerBinaryOperation) {
         let right = U::pop(self);
         let left = U::pop(self);
 
@@ -322,7 +325,7 @@ impl Runtime {
         U::push(result, self);
     }
 
-    fn eval_unary_int_op_impl<U: Number, S: Signed>(&mut self, op: IntegerUnaryOperation) {
+    fn eval_unary_int_op_impl<U: RuntimeInt, S: Signed>(&mut self, op: IntegerUnaryOperation) {
         let val = U::pop(self);
         
         let result = match op {
@@ -332,6 +335,40 @@ impl Runtime {
         };
 
         U::push(result, self);        
+    }
+
+    fn eval_int_comparison(&mut self, comparison: crate::instructions::Comparison, size: IntSize, signed: bool) {
+        match (signed, size) {
+            (true, IntSize::OneByte) =>    self.eval_int_comparison_impl::<u8>(comparison),
+            (true, IntSize::TwoByte) =>    self.eval_int_comparison_impl::<u16>(comparison),
+            (true, IntSize::FourByte) =>   self.eval_int_comparison_impl::<u32>(comparison),
+            (true, IntSize::EightByte) =>  self.eval_int_comparison_impl::<u64>(comparison),
+            (false, IntSize::OneByte) =>   self.eval_int_comparison_impl::<i8>(comparison),
+            (false, IntSize::TwoByte) =>   self.eval_int_comparison_impl::<i16>(comparison),
+            (false, IntSize::FourByte) =>  self.eval_int_comparison_impl::<i32>(comparison),
+            (false, IntSize::EightByte) => self.eval_int_comparison_impl::<i64>(comparison),
+        }
+    }
+
+    fn eval_int_comparison_impl<R: RuntimeInt>(&mut self, comparison: Comparison) {
+        let right = R::pop(self);
+        let left = R::pop(self);
+
+        let result = match comparison {
+            Comparison::Equals => left == right,
+            Comparison::NotEquals => left != right,
+            Comparison::LessEquals => left <= right,
+            Comparison::GreaterEquals => left >= right,
+            Comparison::Less => left < right,
+            Comparison::Greater => left > right,
+        };
+
+        if result {
+            u8::push(1, self);
+        }
+        else {
+            u8::push(0, self);
+        }
     }
 }
 
@@ -461,7 +498,7 @@ impl Stackable for u64 {
     }
 }
 
-trait Number : 
+trait RuntimeInt : 
     std::ops::Add<Output = Self> 
     + std::ops::Sub<Output = Self> 
     + std::ops::Mul<Output = Self> 
@@ -469,42 +506,44 @@ trait Number :
     + Copy
     + std::fmt::Display
     + Stackable
+    + Eq
+    + Ord
 { 
     fn as_i128(self) -> i128;
     fn from_i128(val: i128) -> Self;
 } 
 
-trait Signed : Number + std::ops::Neg<Output = Self> { }
+trait Signed : RuntimeInt + std::ops::Neg<Output = Self> { }
 
-impl Number for u8 { 
+impl RuntimeInt for u8 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
-impl Number for u16 { 
+impl RuntimeInt for u16 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
-impl Number for u32 { 
+impl RuntimeInt for u32 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
-impl Number for u64 { 
+impl RuntimeInt for u64 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
-impl Number for i8 { 
+impl RuntimeInt for i8 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
-impl Number for i16 { 
+impl RuntimeInt for i16 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
-impl Number for i32 { 
+impl RuntimeInt for i32 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }
-impl Number for i64 { 
+impl RuntimeInt for i64 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
 }

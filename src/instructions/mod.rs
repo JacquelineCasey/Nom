@@ -60,7 +60,12 @@ pub enum FloatSize {
 #[derive(Clone, Copy, Debug)]
 pub enum Instruction {
     // Both operands must be the same type. Pops two operands, pushes one as the result.
-    IntegerBinaryOperation (IntegerBinaryOperation, IntSize),  
+    // The result is the same size (and type) as the input.
+    IntegerBinaryOperation (IntegerBinaryOperation, IntSize),
+
+    // Both operands must be the same type and size. Consumes two operands, and
+    // pushes a single byte, which is the result.
+    IntegerComparisonOperation { comparison: Comparison, size: IntSize, signed: bool },
 
     // Pops one operand, pushes one as the result
     UnaryOperation (IntegerUnaryOperation, IntSize),  
@@ -127,6 +132,16 @@ pub enum Instruction {
 
     // Exit the program
     Exit,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Comparison {
+    Equals,
+    NotEquals,
+    LessEquals,
+    GreaterEquals,
+    Less,
+    Greater
 }
 
 #[derive(Clone, Copy, Debug)]

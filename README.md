@@ -36,11 +36,15 @@ its runtime efficiency much lower than ideal.
     line to be considered an expression instead of a statement.
   - Similiarly, functions implicitely return the final expression. At time of writing,
     there is no explicit return statement.
+- If statements with Rusty syntax. Else blocks are not here yet, but when complete,
+  an if-else block will act like an expression, yielding the final value of whichever
+  block was chosen.
 - Simple, Rust / Zig like primitive types.
   - Signed and unsigned integer types, from `u8` and `i8` up to `u64` and `i64`.
     (There is currently no plan to add larger primitives, which would require higher
     alignment for every function call.)
   - A boolean type `bool`, which is implemented as a single byte which is either 0 or 1.
+    These can be created with numeric comparison operators.
   - A unit type `unit`, which takes a single value. Since the value is known, it is implemented
     as a zero sized type, meaning variables that hold unit effectively vanish in the bytecode.
     - Blocks and functions without a final expression return unit. Constructing a unit value
@@ -49,6 +53,13 @@ its runtime efficiency much lower than ideal.
     to make numeric conversions free like in C++. Other implicit conversions may be added
     as we get more types. Explicit conversions have not been added yet, but plans have
     been made and the bytecode supports numeric conversions. 
+
+## Successes
+
+We beat python! See the benchmark in `samples/slow/fib_40.nom` - we perform ~14%
+better than python. Caveat - the exact algorithm applied is slightly cherry picked; 
+Nom has nearly no optimization, so I had to write the algorithm very carefully. Also,
+python is approximately the slowest language in common use.
 
 ## See also
 

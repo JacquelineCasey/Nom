@@ -1,0 +1,9 @@
+// At time of writing, Parsley is not all that good at parsing really nested things.
+// Each level of nesting doubles the runtime.
+// See: https://github.com/jackcasey067/Nom/issues/19
+
+//! 8
+
+fn main() -> i32 {
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1}}}}}}}
+}

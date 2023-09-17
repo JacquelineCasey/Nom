@@ -306,11 +306,29 @@ impl CodeGenerator {
 
                 instructions.push(PI::Actual(I::RetractMoving(align_shift, IntSize::OneByte)));
             },
-            E::And(left, right, data) | E::Or(left, right, data) => {
-                todo!()
+            E::And(left, right, _) | E::Or(left, right, _) => {
+                let jump_id = util::next_id();
+
+                instructions.append(&mut self.generate_expression(env, left, function_info, depth)?);
+                
+                instructions.push(PI::Actual(I::Duplicate(IntSize::OneByte)));
+
+                if let E::And(..) = subtree {
+                    instructions.push(PI::Temp(TempInstruction::JumpIfFalse(jump_id)));
+                }
+                else {
+                    instructions.push(PI::Temp(TempInstruction::JumpIfTrue(jump_id)));
+                }
+
+                instructions.push(PI::Actual(I::RetractStackPtr(1)));  // Overwrite old bool.
+                instructions.append(&mut self.generate_expression(env, right, function_info, depth)?);
+
+                instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_id)));
+                // If we jumped, the left value is still there. Otherwise, it was repleaced with the right value.
             },
-            E::Not(inner, data) => {
-                todo!()
+            E::Not(inner, _) => {
+                instructions.append(&mut self.generate_expression(env, inner, function_info, depth)?);
+                instructions.push(PI::Actual(I::BooleanNot));
             },
             E::IntegerLiteral(num, data) => {
                 let num_type = &env.type_index[&data.id];

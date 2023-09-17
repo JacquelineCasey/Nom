@@ -5,6 +5,10 @@ static mut ID: u32 = 0;
  * code, literally a race condition. */
 pub fn next_id() -> u32 {
     unsafe {
+        if ID == u32::MAX {
+            panic!("Ran out of unique ids!")
+        }
+
         let ret_val = ID;
         ID += 1;
         ret_val

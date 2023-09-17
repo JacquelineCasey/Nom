@@ -70,9 +70,6 @@ pub enum Instruction {
     // Pops one operand, pushes one as the result
     UnaryOperation (IntegerUnaryOperation, IntSize),  
 
-    // Pops two values from the stack, and pushs the result
-    BooleanBinaryOperation (BooleanBinaryOperation),
-
     // Pops one value from the stack, and pushs the result.
     BooleanNot,
 
@@ -165,12 +162,6 @@ pub enum IntegerBinaryOperation {
 #[derive(Clone, Copy, Debug)]
 pub enum IntegerUnaryOperation {
     NegateSigned,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum BooleanBinaryOperation {
-    And,
-    Or
 }
 
 #[allow(clippy::enum_variant_names)]

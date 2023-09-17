@@ -8,8 +8,12 @@ use crate::instructions::IntSize;
 pub enum Type {
     BuiltIn (BuiltIn),
     
-    #[allow(dead_code)]
-    NotYetImplemented,
+    PartiallyKnown (PartialType),
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub enum PartialType {
+    IntLiteral,  // The type of int literals. Will decay into i32 if nothing comes along to override it.
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]

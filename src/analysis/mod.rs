@@ -10,6 +10,8 @@ use crate::error::AnalysisError;
 
 use types::{Type, BuiltIn, upper_bound_type};
 
+use types::PartialType;
+
 
 pub struct Function {
     pub ast: ExprAST,
@@ -141,6 +143,7 @@ pub(super) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result
     let return_type = function.return_type.clone();
 
     type_check_expression(env, &mut block, name, &Some(return_type))?;
+    finalize_partial_types_expr(env, &mut block, name);
 
     // We need the old lifetime to die.
     let function = env.functions.get_mut(name).expect("known exists");
@@ -168,7 +171,15 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             let right_type = type_check_expression(env, right, function_name, expected)?;
 
             if left_type != right_type {
-                return Err("Types don't match".into())
+                if left_type == Type::PartiallyKnown(PartialType::IntLiteral) {
+                    type_check_expression(env, left, function_name, &Some(right_type))?;
+                }
+                else if right_type == Type::PartiallyKnown(PartialType::IntLiteral) {
+                    type_check_expression(env, right, function_name, &Some(left_type.clone()))?;
+                }
+                else {
+                    return Err("Types don't match".into());
+                }
             }
 
             left_type
@@ -178,23 +189,36 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             let right_type = type_check_expression(env, right, function_name, &None)?;
 
             if left_type != right_type {
-                let Some(bound) = upper_bound_type(&left_type, &right_type)
-                    else { return Err("Types don't match".into()); };
+                if left_type == Type::PartiallyKnown(PartialType::IntLiteral) {
+                    type_check_expression(env, left, function_name, &Some(right_type))?;
+                }
+                else if right_type == Type::PartiallyKnown(PartialType::IntLiteral) {
+                    type_check_expression(env, right, function_name, &Some(left_type))?;
+                }
+                else {
+                    let Some(bound) = upper_bound_type(&left_type, &right_type)
+                        else { return Err("Types don't match".into()); };
 
-                // TODO: This repeat definitely could cause some efficiency issues. 
-                // We need a smarter unification algorithm perhaps...
+                    // TODO: This repeat definitely could cause some efficiency issues. 
+                    // We need a smarter unification algorithm perhaps...
 
-                type_check_expression(env, left, function_name, &Some(bound.clone()))?;
-                type_check_expression(env, right, function_name, &Some(bound))?;
+                    type_check_expression(env, left, function_name, &Some(bound.clone()))?;
+                    type_check_expression(env, right, function_name, &Some(bound))?;
+                }
             }
 
             Type::BuiltIn(BuiltIn::Boolean)
         },
         ExprAST::And(left, right, _) | ExprAST::Or(left, right, _) => {
-            todo!()
+            type_check_expression(env, left, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
+            type_check_expression(env, right, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
+
+            Type::BuiltIn(BuiltIn::Boolean)
         },
         ExprAST::Not(inner, _) => {
-            todo!()
+            type_check_expression(env, inner, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
+
+            Type::BuiltIn(BuiltIn::Boolean)
         },
         ExprAST::Block(statements, final_expr, _) => {
             for stmt in statements {
@@ -256,7 +280,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                         return Err("Literal does not fit in i32. i32 was chosen because type of literal was unknown. Type inference needs some help".into())
                     }
                     else {
-                        Type::BuiltIn(BuiltIn::I32)
+                        Type::PartiallyKnown(PartialType::IntLiteral)
                     }
                 }
             }
@@ -294,6 +318,68 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
 
     env.type_index.insert(expr.get_node_data().id, expr_type.clone());
     Ok(expr_type)
+}
+
+// Converts partial types to final types
+fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut ExprAST, name: &str) {
+    let found_type = &env.type_index[&expr.get_node_data().id];
+
+    match found_type {
+        Type::PartiallyKnown(PartialType::IntLiteral) => {
+            env.type_index.insert(expr.get_node_data().id, Type::BuiltIn(BuiltIn::I32));
+        },
+        _ => (),
+    }
+
+    // Refactor... some function like all_child_expr...
+    match expr {
+        ExprAST::Add(a, b, _)
+        | ExprAST::Subtract(a, b, _)
+        | ExprAST::Multiply(a, b, _)
+        | ExprAST::Divide(a, b, _)
+        | ExprAST::Comparison(a, b, _, _)
+        | ExprAST::Or(a, b, _)
+        | ExprAST::And(a, b, _)
+        | ExprAST::If { condition: a, block: b, .. } => {
+            finalize_partial_types_expr(env, a, name);
+            finalize_partial_types_expr(env, b, name);
+        },
+        ExprAST::Not(a, _) => {
+            finalize_partial_types_expr(env, a, name);
+        },
+        ExprAST::Block(statements, final_expr, _) => {
+            for stmt in statements {
+                match stmt {
+                    StatementAST::ExpressionStatement(e, _) => finalize_partial_types_expr(env, e, name),
+                    StatementAST::Assignment(a, b, _) => {
+                        finalize_partial_types_expr(env, a, name);
+                        finalize_partial_types_expr(env, b, name);
+                    },
+                    StatementAST::Declaration(DeclarationAST::Function { .. }, _) => {
+                        panic!("Cannot yet handle functions in functions");
+                    }
+                    StatementAST::Declaration(DeclarationAST::Variable { expr, ..  }, _) => {
+                        // TODO - type inference here?, use name field
+                        finalize_partial_types_expr(env, expr, name);
+                    }
+                }
+            }
+
+            if let Some(e) =  final_expr {
+                finalize_partial_types_expr(env, e, name);
+            }
+        },
+        ExprAST::FunctionCall(_, exprs, _) => {
+            for e in exprs {
+                finalize_partial_types_expr(env, e, name)
+            }
+        },
+        ExprAST::IntegerLiteral(_, _)
+        | ExprAST::BooleanLiteral(_, _)
+        | ExprAST::Variable(_, _) => 
+            (),
+        ExprAST::Moved => panic!("AST moved"),
+    }
 }
 
 fn integer_literal_fits(_literal: i128, _expected: &Type) -> bool {

@@ -5,7 +5,7 @@ mod tests;
 
 use std::alloc::{Layout, alloc, dealloc};
 
-use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize, Constant, Comparison};
+use crate::instructions::{Instruction, IntegerBinaryOperation, IntegerUnaryOperation, IntSize, Constant, Comparison, BooleanBinaryOperation};
 use crate::util::reinterpret;
 
 
@@ -71,7 +71,33 @@ impl Runtime {
             },
             Instruction::IntegerComparisonOperation { comparison, size, signed } => {
                 self.eval_int_comparison(comparison, size, signed);
+            },
+            Instruction::BooleanBinaryOperation(op) => {
+                let right = u8::pop(self) != 0;
+                let left = u8::pop(self) != 0;
+
+                let res = match op {
+                    BooleanBinaryOperation::And => left && right,
+                    BooleanBinaryOperation::Or => left || right,
+                };
+
+                if res {
+                    u8::push(1, self);
+                }
+                else {
+                    u8::push(0, self);
+                }
             }
+            Instruction::BooleanNot => {
+                let arg = u8::pop(self);
+
+                if arg != 0 {
+                    u8::push(0, self);
+                }
+                else {
+                    u8::push(1, self);
+                }
+            },
             Instruction::AdvanceStackPtr(amount) => {
                 self.stack_pointer = unsafe { self.stack_pointer.add(amount) };
             },

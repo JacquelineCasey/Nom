@@ -44,7 +44,10 @@ its runtime efficiency much lower than ideal.
     (There is currently no plan to add larger primitives, which would require higher
     alignment for every function call.)
   - A boolean type `bool`, which is implemented as a single byte which is either 0 or 1.
-    These can be created with numeric comparison operators.
+    These can be created with numeric comparison operators. Booleans can be manipulated
+    with python style operator: `and`, `or`, `not`. I think these make things nice and
+    readable (no collision with bitwise ops) and leave lots of symbols for interesting
+    operators later.
   - A unit type `unit`, which takes a single value. Since the value is known, it is implemented
     as a zero sized type, meaning variables that hold unit effectively vanish in the bytecode.
     - Blocks and functions without a final expression return unit. Constructing a unit value

@@ -33,13 +33,26 @@ VariableDeclaration
 # Expressions - This section encodes operator precedence, but not associativity.
 
 Expression 
-    : IfExpression
-    | ComparisonExpression
+    : OrExpression
     ;
 
 # This will be extended later to include elses
 IfExpression
     : _If Expression BlockExpression
+    ;
+
+OrExpression
+    : AndExpression (_Or AndExpression)*
+    ;
+
+AndExpression
+    : NotExpression (_And NotExpression)*
+    ;
+
+# Of course might not contain a "not"
+NotExpression
+    : _Not NotExpression
+    | ComparisonExpression
     ;
 
 ComparisonExpression
@@ -60,6 +73,7 @@ PrimaryExpression
     | BlockExpression
     | _Identifier
     | FunctionCall
+    | IfExpression
     ; 
 
 FunctionCall

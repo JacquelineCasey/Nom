@@ -39,6 +39,9 @@ pub enum ExprAST {
     Multiply (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Divide (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Comparison (Box<ExprAST>, Box<ExprAST>, Comparison, ASTNodeData),
+    Or (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
+    And (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
+    Not (Box<ExprAST>, ASTNodeData),
     IntegerLiteral(i128, ASTNodeData), // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
     BooleanLiteral(bool, ASTNodeData),
     Variable (String, ASTNodeData),
@@ -67,7 +70,10 @@ impl ExprAST {
             | E::FunctionCall(_, _, data)
             | E::BooleanLiteral(_, data)
             | E::If { data, .. }
-            => data,
+            | E::Or (_, _, data)
+            | E::And (_, _, data)
+            | E::Not (_, data) => 
+                data,
             E::Moved => panic!("ExprAST was moved"),
         }
     }
@@ -297,6 +303,34 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                     _ => Err("Expected * or /".into())
                 }
             }),
+        ST::RuleNode { rule_name, subexpressions } if rule_name == "OrExpression" =>
+            combine_binary_ops(subexpressions, true, |left, op, right| {
+                match op {
+                    SyntaxTree::TokenNode(Token { body: TokenBody::Keyword(Keyword::Or) }) 
+                        => Ok(ExprAST::Or(Box::new(left), Box::new(right), ASTNodeData::new())),
+                    _ => Err("Expected 'or'".into())
+                }
+            }),
+        ST::RuleNode { rule_name, subexpressions } if rule_name == "AndExpression" =>
+            combine_binary_ops(subexpressions, true, |left, op, right| {
+                match op {
+                    SyntaxTree::TokenNode(Token { body: TokenBody::Keyword(Keyword::And) }) 
+                        => Ok(ExprAST::And(Box::new(left), Box::new(right), ASTNodeData::new())),
+                    _ => Err("Expected 'and'".into())
+                }
+            }),
+        ST::RuleNode { rule_name, subexpressions } if rule_name == "NotExpression" => {
+            if subexpressions.len() == 2 {
+                let ST::TokenNode(T {body: TokenBody::Keyword(Keyword::Not)}) = subexpressions[0]
+                    else { return Err("...".into()) };
+
+                let inner = build_expr_ast(&subexpressions[1])?;
+                Ok(ExprAST::Not(Box::new(inner), ASTNodeData::new()))
+            }
+            else {
+                build_expr_ast(&subexpressions[0])
+            }
+        },
         ST::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {            
             if subexpressions.len() == 1 {  // Literal, Variable, or Block
                 build_expr_ast(subexpressions.iter().next().expect("Known to exist"))

@@ -33,7 +33,10 @@ pub enum Keyword {
     True,
     False,
     If, 
-    Else
+    Else,
+    Not,
+    And,
+    Or,
 }
 
 impl FromStr for Keyword {
@@ -50,6 +53,9 @@ impl FromStr for Keyword {
             "false" => K::False,
             "if" => K::If,
             "else" => K::Else,
+            "not" => K::Not,
+            "and" => K::And,
+            "or" => K::Or,
             _ => Err(TokenError("Not a keyword".to_string()))?
         })
     }
@@ -421,6 +427,9 @@ impl parsley::Token for Token {
             "False" => matches!(token, T { body: TB::Keyword(K::False) }),
             "If" => matches!(token, T { body: TB::Keyword(K::If) }),
             "Else" => matches!(token, T { body: TB::Keyword(K::Else) }),
+            "Not" => matches!(token, T { body: TB::Keyword(K::Not) }),
+            "And" => matches!(token, T { body: TB::Keyword(K::And) }),
+            "Or" => matches!(token, T { body: TB::Keyword(K::Or) }),
             
             _ => Err(parsley::ParseError(format!("Bad token type: \"{token_type}\"")))?
         })

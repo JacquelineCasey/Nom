@@ -1,0 +1,45 @@
+//! 1111
+
+// Crash by infinite loop
+fn crash() -> i32 {
+    val a: i32 = crash();
+    a
+}
+
+fn main() -> i32 {
+    var res: i32 = 0;
+
+    val a: u8 = 1;
+    val b: u8 = 2;
+    val c: u8 = 3;
+    val d: u8 = 4;
+
+    // Boolean operators work
+
+    if a + 1 == b and c + 1 == d {
+        res = res + 1;
+    };
+
+    if a + 33 == b or c + 1 == d {
+        res = res + 10;
+    };
+
+    // Did we get the precedence right?
+
+    // ______________________    __________________
+    if not true and not false or not 1 == 4 and true {
+        res = res + 100;
+    };
+
+    // Is short circuiting good?
+
+    if 3 == 4 and crash() == 5 {
+        res = res - 100000;
+    }; 
+
+    if 4 == 4 or crash() == 5 {
+        res = res + 1000;
+    };
+
+    res
+}

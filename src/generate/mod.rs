@@ -306,6 +306,12 @@ impl CodeGenerator {
 
                 instructions.push(PI::Actual(I::RetractMoving(align_shift, IntSize::OneByte)));
             },
+            E::And(left, right, data) | E::Or(left, right, data) => {
+                todo!()
+            },
+            E::Not(inner, data) => {
+                todo!()
+            },
             E::IntegerLiteral(num, data) => {
                 let num_type = &env.type_index[&data.id];
 

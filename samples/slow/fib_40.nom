@@ -37,7 +37,7 @@ fn main() -> i32 {
 // Caveats - the above, strange form of fibonacci is written because (a) I haven't 
 // yet added else statements and (b) Nom needs much more help optimizing than python,
 // I guess. It really didn't like the form with 3 seperate if statements, in which case it 
-// performs worse much worse.
+// performs much worse.
 
 // As an aside, here is what happens when you run without compiling Nom in release mode:
 // median of 3 runs: 81.28s

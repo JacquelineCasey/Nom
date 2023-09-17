@@ -70,10 +70,15 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
         | ExprAST::Subtract(left, right, _)
         | ExprAST::Multiply(left, right, _)
         | ExprAST::Divide(left, right, _) 
-        | ExprAST::Comparison(left, right, _, _) => {
+        | ExprAST::Comparison(left, right, _, _)
+        | ExprAST::Or(left, right, _)
+        | ExprAST::And(left, right, _) => {
             scope_check_expression(functions, local_types, left)?;
             scope_check_expression(functions, local_types, right)?;
-        }   
+        },
+        ExprAST::Not(inner, _) => {
+            scope_check_expression(functions, local_types, inner)?;
+        }
         ExprAST::Block(statements, final_expr, _) => {
             for statement in statements {
                 match statement {
@@ -184,6 +189,12 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             }
 
             Type::BuiltIn(BuiltIn::Boolean)
+        },
+        ExprAST::And(left, right, _) | ExprAST::Or(left, right, _) => {
+            todo!()
+        },
+        ExprAST::Not(inner, _) => {
+            todo!()
         },
         ExprAST::Block(statements, final_expr, _) => {
             for stmt in statements {

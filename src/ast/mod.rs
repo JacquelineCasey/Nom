@@ -110,18 +110,14 @@ pub fn build_ast(tree: &SyntaxTree<Token>) -> Result<AST, ASTError> {
 fn build_declaration_ast(tree: &SyntaxTree<Token>) -> Result<DeclarationAST, ASTError> {
     use SyntaxTree as ST;
 
-    let ST::RuleNode { rule_name, subexpressions } = tree
+    let ST::RuleNode { rule_name, subexpressions: children } = tree
         else { return Err("Expected Rule node".into()); };
     
     if rule_name != "Declaration" {
         return Err("Expected Declaration node".into());
     }
-
-    if subexpressions.len() != 1 {
-        return Err("Expected single child of declaration node".into())
-    }
         
-    match &subexpressions[0] {
+    match &children[0] {
         ST::RuleNode { rule_name, ref subexpressions } if rule_name == "FunctionDeclaration" => {
             if subexpressions.len() != 6 {
                 return Err("Incorrect number of subnodes to function node".into());
@@ -446,11 +442,9 @@ fn build_block_expr(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 return Err("Expected closed bracket before block".into());
             }
 
-            let subexpressions = &subexpressions[1..subexpressions.len()-1];
-
-            let mut subexpressions: Vec<_> = subexpressions.iter()
-                .filter(|subtree| !matches!(subtree, SyntaxTree::TokenNode(Token {body: TokenBody::Punctuation(Punctuation::Semicolon)})))
-                .collect();
+            // &Vec<...> -> Vec<&...>
+            let mut subexpressions: Vec<&SyntaxTree<Token>> = subexpressions.iter().collect();
+            subexpressions.remove(subexpressions.len()-1); // Discard last_brace
 
             if subexpressions.is_empty() {
                 return Ok(ExprAST::Block(vec![], None, ASTNodeData::new()));
@@ -460,12 +454,13 @@ fn build_block_expr(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 if rule_name == "Expression" {
                     let last = subexpressions.remove(subexpressions.len() - 1);
                     
-                    Some(Box::new(build_expr_ast(last)?))
+                    Some(Box::new(build_expr_ast(&last)?))
                 }
                 else { None }
             } else { None };
 
             let statements = subexpressions.into_iter()
+                .skip(1)  // Discard first brace
                 .map(build_statement_ast)
                 .collect::<Result<Vec<_>, _>>()?;
 
@@ -484,9 +479,13 @@ fn build_statement_ast(tree: &SyntaxTree<Token>) -> Result<StatementAST, ASTErro
     }
 
     match &subexpressions[..] {
-        [SyntaxTree::RuleNode { rule_name, subexpressions }] if rule_name == "Expression" => 
+        [ SyntaxTree::RuleNode { rule_name, subexpressions }
+        , SyntaxTree::TokenNode (Token { body: TokenBody::Punctuation(Punctuation::Semicolon)})] 
+        if rule_name == "Expression" => 
             Ok(StatementAST::ExpressionStatement(build_expr_ast(&subexpressions[0])?, ASTNodeData::new())),
-        [SyntaxTree::RuleNode { rule_name, subexpressions }] if rule_name == "AssignmentStatement" => {
+        [ SyntaxTree::RuleNode { rule_name, subexpressions }
+        , SyntaxTree::TokenNode (Token { body: TokenBody::Punctuation(Punctuation::Semicolon)})
+        ] if rule_name == "AssignmentStatement" => {
             match &subexpressions[..] {
                 [ SyntaxTree::RuleNode { rule_name: rule_1, subexpressions: ref sub_expr_1 }
                 , SyntaxTree::TokenNode (Token { body: TokenBody::Operator(Operator::Equals) })
@@ -508,7 +507,7 @@ fn build_statement_ast(tree: &SyntaxTree<Token>) -> Result<StatementAST, ASTErro
         [SyntaxTree::RuleNode { rule_name, .. }] if rule_name == "Declaration" => {
             Ok(StatementAST::Declaration(build_declaration_ast(&subexpressions[0])?, ASTNodeData::new()))
         },
-        _ => Err("Failed to build AssignmentStatement".into())
+        _ => Err("Failed to build Statement".into())
     }
 }
 

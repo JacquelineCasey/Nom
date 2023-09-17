@@ -11,7 +11,7 @@ Program
 # Declarations - top level declarations in the program
 Declaration
     : FunctionDeclaration 
-    | VariableDeclaration
+    | VariableDeclaration _Semicolon
     ;
 
 # TODO: Add return type
@@ -82,10 +82,9 @@ FunctionCall
 
 # Blocks are also expressions. They follow Rust rules, evaluating to the final expression,
 # or the unit type if the final expression has a semicolon (or is some other statement).
-# PS - Semicolon could reasonably be placed after certain statement types instead of here.
 
 BlockExpression
-    : _LeftCurlyBrace (Statement _Semicolon)* (Expression)? _RightCurlyBrace
+    : _LeftCurlyBrace (Statement)* (Expression)? _RightCurlyBrace
     ;
 
 
@@ -94,14 +93,14 @@ BlockExpression
 # nested in an expression only by way of a BlockExpression.
 
 Statement
-    : Expression
-    | Declaration
-    | AssignmentStatement
-    # | CompoundAssignmentStatement
+    : Expression _Semicolon
+    | Declaration  # Semicolon included
+    | AssignmentStatement _Semicolon
     ;
 
 AssignmentStatement
     : Expression _Equals Expression
+    # | CompoundAssignmentStatement
     ;
 
 

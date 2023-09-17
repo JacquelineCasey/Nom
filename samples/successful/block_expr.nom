@@ -9,7 +9,7 @@ fn main() -> i32 {
         c = c + 10; 
         c = c * a;
         a + b + c    
-    };
+    }; // The semicolon here is necessary, unfortunately.
 
     d + b
 }

@@ -1,7 +1,10 @@
 
+// use parsley::ParseError;
+
 use std::str::FromStr;
 
 use crate::error::TokenError;
+
 
 /* Token Definitions */
 
@@ -431,7 +434,7 @@ impl parsley::Token for Token {
             "And" => matches!(token, T { body: TB::Keyword(K::And) }),
             "Or" => matches!(token, T { body: TB::Keyword(K::Or) }),
             
-            _ => Err(parsley::ParseError(format!("Bad token type: \"{token_type}\"")))?
+            _ => return Err(format!("Bad token type: \"{token_type}\"").into())
         })
     }
 }

@@ -2,8 +2,24 @@
 // Each level of nesting doubles the runtime.
 // See: https://github.com/jackcasey067/Nom/issues/19
 
-//! 8
+// Update: I replaced Parsley's algorithm for a better one. We should have a much
+// higher effective depth. 
+
+// However, it looks like the new Parsley algorithm struggles with stack space.
+// More investigation is required before we can process hundreds of nested expressions.
+
+//! 40
 
 fn main() -> i32 {
-    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1}}}}}}}
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
+
+        0
+
+    }}}}}}}}}}
+    }}}}}}}}}}
+    }}}}}}}}}}
+    }}}}}}}}}}
 }

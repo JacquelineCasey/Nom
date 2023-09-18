@@ -5,7 +5,7 @@ use crate::error::TokenError;
 
 /* Token Definitions */
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub body: TokenBody,
     // TODO: Add Span information for better error messages
@@ -14,7 +14,7 @@ pub struct Token {
 
 // Comments (single line only with "//") are stripped out entirely, and act as whitespace.
 // Whitespace impacts the split between some other tokens.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenBody {
     Identifier (String),
     Keyword (Keyword),
@@ -25,7 +25,7 @@ pub enum TokenBody {
     Punctuation (Punctuation),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Keyword {
     Var,
     Val,
@@ -61,7 +61,7 @@ impl FromStr for Keyword {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operator {  // Operators currently accepted greedily
     Plus,
     Minus,
@@ -95,7 +95,7 @@ impl FromStr for Operator {
 }
 
 // All punctuation is a single character that cannot be part of another token.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Punctuation {
     Semicolon,
     Comma,

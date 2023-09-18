@@ -5,8 +5,10 @@
 // Update: I replaced Parsley's algorithm for a better one. We should have a much
 // higher effective depth. 
 
-// However, it looks like the new Parsley algorithm struggles with stack space.
-// More investigation is required before we can process hundreds of nested expressions.
+// Now it looks like the problem is stack space. To go further, we'd want to use the
+// stacker library to make the recursive calls safe. This has already been done in
+// Parsley, where it matters most.
+// We have a lot of recursive functions here. Maybe a macro would help?
 
 //! 40
 

@@ -159,6 +159,7 @@ pub(super) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result
 // The expected type may be used to decide certain ambiguous expressions, such as
 // literals. If the type is not provided, it will be decided (i.e. literals will be
 // assumed to be i32, etc.)
+#[allow(clippy::too_many_lines)]
 fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, function_name: &str, expected: &Option<Type>) -> Result<Type, AnalysisError> {
     // TODO: Conversions!
 
@@ -271,17 +272,15 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                     if !integer_literal_fits(*literal, inner_type) {
                         return Err("Literal does not fit in type".into())
                     }
-                    else {
-                        inner_type.clone()
-                    }
+                    
+                    inner_type.clone()
                 },
                 None => {
                     if !integer_literal_fits(*literal, &Type::BuiltIn(BuiltIn::I32)) {
                         return Err("Literal does not fit in i32. i32 was chosen because type of literal was unknown. Type inference needs some help".into())
                     }
-                    else {
-                        Type::PartiallyKnown(PartialType::IntLiteral)
-                    }
+
+                    Type::PartiallyKnown(PartialType::IntLiteral)
                 }
             }
         },
@@ -321,14 +320,12 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
 }
 
 // Converts partial types to final types
-fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut ExprAST, name: &str) {
+#[allow(clippy::only_used_in_recursion)]
+fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut ExprAST, func_name: &str) {
     let found_type = &env.type_index[&expr.get_node_data().id];
 
-    match found_type {
-        Type::PartiallyKnown(PartialType::IntLiteral) => {
-            env.type_index.insert(expr.get_node_data().id, Type::BuiltIn(BuiltIn::I32));
-        },
-        _ => (),
+    if let Type::PartiallyKnown(PartialType::IntLiteral) = found_type {
+        env.type_index.insert(expr.get_node_data().id, Type::BuiltIn(BuiltIn::I32));
     }
 
     // Refactor... some function like all_child_expr...
@@ -341,37 +338,37 @@ fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut Expr
         | ExprAST::Or(a, b, _)
         | ExprAST::And(a, b, _)
         | ExprAST::If { condition: a, block: b, .. } => {
-            finalize_partial_types_expr(env, a, name);
-            finalize_partial_types_expr(env, b, name);
+            finalize_partial_types_expr(env, a, func_name);
+            finalize_partial_types_expr(env, b, func_name);
         },
         ExprAST::Not(a, _) => {
-            finalize_partial_types_expr(env, a, name);
+            finalize_partial_types_expr(env, a, func_name);
         },
         ExprAST::Block(statements, final_expr, _) => {
             for stmt in statements {
                 match stmt {
-                    StatementAST::ExpressionStatement(e, _) => finalize_partial_types_expr(env, e, name),
+                    StatementAST::ExpressionStatement(e, _) => finalize_partial_types_expr(env, e, func_name),
                     StatementAST::Assignment(a, b, _) => {
-                        finalize_partial_types_expr(env, a, name);
-                        finalize_partial_types_expr(env, b, name);
+                        finalize_partial_types_expr(env, a, func_name);
+                        finalize_partial_types_expr(env, b, func_name);
                     },
                     StatementAST::Declaration(DeclarationAST::Function { .. }, _) => {
                         panic!("Cannot yet handle functions in functions");
                     }
                     StatementAST::Declaration(DeclarationAST::Variable { expr, ..  }, _) => {
-                        // TODO - type inference here?, use name field
-                        finalize_partial_types_expr(env, expr, name);
+                        // TODO - type inference here?, use func_name field
+                        finalize_partial_types_expr(env, expr, func_name);
                     }
                 }
             }
 
             if let Some(e) =  final_expr {
-                finalize_partial_types_expr(env, e, name);
+                finalize_partial_types_expr(env, e, func_name);
             }
         },
         ExprAST::FunctionCall(_, exprs, _) => {
             for e in exprs {
-                finalize_partial_types_expr(env, e, name)
+                finalize_partial_types_expr(env, e, func_name);
             }
         },
         ExprAST::IntegerLiteral(_, _)

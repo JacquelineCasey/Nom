@@ -112,13 +112,11 @@ impl CodeGenerator {
         for instr in instructions {
             match instr {
                 PseudoInstruction::Temp(TempInstruction::JumpIfTrue(i) | TempInstruction::JumpIfFalse(i)) => {
-                    if !jumps.contains_key(&i) {
-                        jumps.insert(i, (None, None));
-                    }
+                    jumps.entry(i).or_insert((None, None));
 
                     let entry = jumps.get_mut(&i).unwrap();
 
-                    if entry.0 == None {
+                    if entry.0.is_none() {
                         entry.0 = Some(effective_index);
                     }
                     else {
@@ -126,13 +124,11 @@ impl CodeGenerator {
                     }
                 },
                 PseudoInstruction::Temp(TempInstruction::JumpFrom(i)) => {
-                    if !jumps.contains_key(&i) {
-                        jumps.insert(i, (None, None));
-                    }
+                    jumps.entry(i).or_insert((None, None));
 
                     let entry = jumps.get_mut(&i).unwrap();
 
-                    if entry.1 == None {
+                    if entry.1.is_none() {
                         entry.1 = Some(effective_index);
                     }
                     else {
@@ -148,7 +144,7 @@ impl CodeGenerator {
             }
         }
 
-        Ok(final_instructions.into_iter()
+        final_instructions.into_iter()
             .map(|instr| match instr {
                 PseudoInstruction::Temp(ref temp @ (TempInstruction::JumpIfTrue(i) | TempInstruction::JumpIfFalse(i))) => {
                     if let Some((Some(start), Some(end))) = jumps.get(&i) {
@@ -165,8 +161,7 @@ impl CodeGenerator {
                 },
                 i => Ok(i),
             })
-            .collect::<Result<Vec<_>, GenerateError>>()?
-        )
+            .collect::<Result<Vec<_>, GenerateError>>()
     }  
 
     fn layout_function(&self, name: &str, instructions: &mut Vec<PseudoInstruction>) -> Result<(), GenerateError> {
@@ -302,7 +297,7 @@ impl CodeGenerator {
                 instructions.append(&mut self.generate_expression(env, left, function_info, depth + align_shift)?);
                 instructions.append(&mut self.generate_expression(env, right, function_info, depth + align_shift + env.types[left_type].size)?);
 
-                instructions.push(PI::Actual(I::IntegerComparisonOperation { comparison: comparison.clone(), size: int_size, signed: builtin_type.is_signed() }));
+                instructions.push(PI::Actual(I::IntegerComparisonOperation { comparison: *comparison, size: int_size, signed: builtin_type.is_signed() }));
 
                 instructions.push(PI::Actual(I::RetractMoving(align_shift, IntSize::OneByte)));
             },
@@ -436,8 +431,8 @@ impl CodeGenerator {
                 }
             },
             E::If { condition, block, .. } => {
-                let mut condition_instrs = self.generate_expression(env, &condition, function_info, depth)?;
-                let mut block_instrs = self.generate_expression(env, &block, function_info, depth)?;
+                let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
+                let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
                 let skip_jump_id = util::next_id();
 
                 instructions.append(&mut condition_instrs);

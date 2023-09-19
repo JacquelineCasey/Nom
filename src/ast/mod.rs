@@ -241,6 +241,7 @@ fn build_type(tree: &SyntaxTree<Token>) -> Result<String, ASTError> {
     Err("Could not build Type node".into())
 }
 
+#[allow(clippy::too_many_lines)]
 fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
     use SyntaxTree as ST;
     use Token as T;
@@ -454,7 +455,7 @@ fn build_block_expr(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
                 if rule_name == "Expression" {
                     let last = subexpressions.remove(subexpressions.len() - 1);
                     
-                    Some(Box::new(build_expr_ast(&last)?))
+                    Some(Box::new(build_expr_ast(last)?))
                 }
                 else { None }
             } else { None };

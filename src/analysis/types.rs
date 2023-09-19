@@ -36,10 +36,10 @@ pub fn upper_bound_type(left: &Type, right: &Type) -> Option<Type> {
         else { return None; }; // Cannot unify non builtin.
 
     if type_fits(left, right) {
-        return Some(Type::BuiltIn(right.clone()));
+        Some(Type::BuiltIn(right.clone()))
     }
     else if type_fits(right, left) {
-        return Some(Type::BuiltIn(left.clone()));
+        Some(Type::BuiltIn(left.clone()))
     }
     else {
         None  // TODO - try more types.

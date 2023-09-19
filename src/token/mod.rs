@@ -313,11 +313,11 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
             operators.push(Operator::GreaterEquals);
             slice = &slice[2..];
         }
-        else if slice.starts_with("<") {
+        else if slice.starts_with('<') {
             operators.push(Operator::Less);
             slice = &slice[1..];
         }
-        else if slice.starts_with(">") {
+        else if slice.starts_with('>') {
             operators.push(Operator::Greater);
             slice = &slice[1..];
         }

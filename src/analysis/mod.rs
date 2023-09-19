@@ -135,6 +135,10 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                 scope_check_expression(functions, local_types, branch)?;
             }
         },
+        ExprAST::While { condition, block, .. } => {
+            scope_check_expression(functions, local_types, condition)?;
+            scope_check_expression(functions, local_types, block)?;
+        },
         ExprAST::Moved => panic!("ExprAST was moved"),
     }
 
@@ -335,7 +339,11 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             else {
                 if_type
             }
-        }
+        },
+        ExprAST::While { condition, block, .. } => {
+            type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
+            type_check_expression(env, block, function_name, &Some(Type::BuiltIn(BuiltIn::Unit)))?
+        },
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 
@@ -366,7 +374,8 @@ fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut Expr
         | ExprAST::Divide(a, b, _)
         | ExprAST::Comparison(a, b, _, _)
         | ExprAST::Or(a, b, _)
-        | ExprAST::And(a, b, _) => {
+        | ExprAST::And(a, b, _)
+        | ExprAST::While { condition: a, block: b, .. } => {
             finalize_partial_types_expr(env, a, func_name);
             finalize_partial_types_expr(env, b, func_name);
         },

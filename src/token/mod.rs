@@ -40,6 +40,7 @@ pub enum Keyword {
     Not,
     And,
     Or,
+    While,
 }
 
 impl FromStr for Keyword {
@@ -59,6 +60,7 @@ impl FromStr for Keyword {
             "not" => K::Not,
             "and" => K::And,
             "or" => K::Or,
+            "while" => K::While,
             _ => Err(TokenError("Not a keyword".to_string()))?
         })
     }
@@ -433,6 +435,7 @@ impl parsley::Token for Token {
             "Not" => matches!(token, T { body: TB::Keyword(K::Not) }),
             "And" => matches!(token, T { body: TB::Keyword(K::And) }),
             "Or" => matches!(token, T { body: TB::Keyword(K::Or) }),
+            "While" => matches!(token, T { body: TB::Keyword(K::While) }),
             
             _ => return Err(format!("Bad token type: \"{token_type}\"").into())
         })

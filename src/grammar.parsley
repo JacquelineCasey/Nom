@@ -36,11 +36,6 @@ Expression
     : OrExpression
     ;
 
-# This will be extended later to include elses
-IfExpression
-    : _If Expression BlockExpression (_Else (BlockExpression | IfExpression))?
-    ;
-
 OrExpression
     : AndExpression (_Or AndExpression)*
     ;
@@ -74,10 +69,19 @@ PrimaryExpression
     | _Identifier
     | FunctionCall
     | IfExpression
+    | WhileExpression  # Always returns unit for now, but someday might be more expression-y.
     ; 
 
 FunctionCall
     : _Identifier _LeftParenthesis (Expression (_Comma Expression)*)? _RightParenthesis
+    ;
+
+IfExpression
+    : _If Expression BlockExpression (_Else (BlockExpression | IfExpression))?
+    ;
+
+WhileExpression
+    : _While Expression BlockExpression
     ;
 
 # Blocks are also expressions. They follow Rust rules, evaluating to the final expression,

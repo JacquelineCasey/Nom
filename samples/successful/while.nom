@@ -1,0 +1,29 @@
+//! 100
+
+fn main() -> i32 {
+    var sum: i32 = 0;
+    var count: i32 = 1;
+
+    while sum < 50 {
+        sum = sum + count;
+        count = count + 1;
+    };
+
+    // sum = 55
+
+    count = 0;
+    while count < 9 {
+        var count_2: i32 = 0;
+        while count_2 < 5 {
+            sum = sum + 1;
+
+            count_2 = count_2 + 1;
+        };
+
+        count = count + 1;
+    };
+
+    // sum = 55 + 45
+
+    sum
+}

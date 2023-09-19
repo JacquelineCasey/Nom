@@ -47,7 +47,8 @@ pub enum ExprAST {
     Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     FunctionCall (String, Vec<ExprAST>, ASTNodeData),  // The vec contains arguments
-    If { condition: Box<ExprAST>, block: Box<ExprAST>, else_branch: Option<Box<ExprAST>>, data: ASTNodeData }, // Else to be added later.
+    If { condition: Box<ExprAST>, block: Box<ExprAST>, else_branch: Option<Box<ExprAST>>, data: ASTNodeData },
+    While { condition: Box<ExprAST>, block: Box<ExprAST>, data: ASTNodeData },
 
     #[default]
     Moved,  // This is a hack that allows us to remove an AST, operate on it, and put it back.
@@ -70,6 +71,7 @@ impl ExprAST {
             | E::FunctionCall(_, _, data)
             | E::BooleanLiteral(_, data)
             | E::If { data, .. }
+            | E::While { data, .. }
             | E::Or (_, _, data)
             | E::And (_, _, data)
             | E::Not (_, data) => 
@@ -403,6 +405,21 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
 
             Ok(ExprAST::If { condition, block, else_branch, data: ASTNodeData::new() })
         }, 
+        ST::RuleNode { ref rule_name, subexpressions } if rule_name == "WhileExpression" => {
+            if subexpressions.len() != 3 {
+                return Err("Expected 3 subexpressions for WhileExpression".into());
+            }
+
+            if !matches!(subexpressions[0], ST::TokenNode(Token {body: TB::Keyword(Keyword::While)})) {
+                return Err("Expected keyword while".into());
+            }
+
+            let condition = Box::new(build_expr_ast(&subexpressions[1])?);
+
+            let block = Box::new(build_block_expr(&subexpressions[2])?);
+
+            Ok(ExprAST::While { condition, block, data: ASTNodeData::new() })
+        },
         ST::RuleNode { rule_name, subexpressions: _ } => 
             Err(format!("Expected Expression. Unknown expression node name: {rule_name}").into()),
         ST::TokenNode (T { body: TB::Identifier(name) }) =>

@@ -448,9 +448,7 @@ impl CodeGenerator {
                 let skip_jump_id = util::next_id();
 
                 instructions.append(&mut condition_instrs);
-                
                 instructions.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
-
                 instructions.append(&mut block_instrs);
 
                 instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
@@ -463,19 +461,30 @@ impl CodeGenerator {
                 let jump_1_id = util::next_id();
                 let jump_2_id = util::next_id();
 
-                instructions.append(&mut condition_instrs);
-                
+                instructions.append(&mut condition_instrs);                
                 instructions.push(PI::Temp(TempInstruction::JumpIfFalse(jump_1_id)));
-
                 instructions.append(&mut block_instrs);
-
                 instructions.push(PI::Temp(TempInstruction::Jump(jump_2_id)));
 
                 instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_1_id)));
-
                 instructions.append(&mut else_instrs);
 
                 instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_2_id)));
+            },
+            E::While { condition, block, .. } => {
+                let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
+                let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
+                let skip_jump_id = util::next_id();
+                let back_jump_id = util::next_id();
+
+                instructions.push(PI::Temp(TempInstruction::JumpFrom(back_jump_id)));
+                instructions.append(&mut condition_instrs);
+                
+                instructions.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
+                instructions.append(&mut block_instrs);
+                instructions.push(PI::Temp(TempInstruction::Jump(back_jump_id)));
+
+                instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
             },
             E::Moved => panic!("ExprAST Moved"),
         }

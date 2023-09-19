@@ -86,9 +86,7 @@ impl CompilationEnvironment {
 
         let tokens = token::tokenize(&input)?;
 
-        dbg!();
-        let syntax_tree = self.parser.parse_tokens(tokens, "Program")?;
-        dbg!();
+        let syntax_tree = self.parser.parse_tokens(&tokens, "Program")?;
         let ast = ast::build_ast(&syntax_tree)?;
 
         for decl in ast.declarations {

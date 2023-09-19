@@ -308,14 +308,15 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             }
     
         }
-        ExprAST::If { condition, block, else_branch: None, .. } => {
+        ExprAST::If { condition, block, else_branch: None, .. }
+        | ExprAST::While { condition, block, .. } => {
             type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
             type_check_expression(env, block, function_name, &Some(Type::BuiltIn(BuiltIn::Unit)))?
         }
         ExprAST::If { condition, block, else_branch: Some(else_branch), .. } => {
             type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
-            let if_type = type_check_expression(env, block, function_name, &expected)?;
-            let else_type = type_check_expression(env, else_branch, function_name, &expected)?;
+            let if_type = type_check_expression(env, block, function_name, expected)?;
+            let else_type = type_check_expression(env, else_branch, function_name, expected)?;
 
             // Note: Applies only if expected was None.
             if if_type != else_type {
@@ -339,10 +340,6 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             else {
                 if_type
             }
-        },
-        ExprAST::While { condition, block, .. } => {
-            type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
-            type_check_expression(env, block, function_name, &Some(Type::BuiltIn(BuiltIn::Unit)))?
         },
         ExprAST::Moved => panic!("ExprAST moved"),
     };

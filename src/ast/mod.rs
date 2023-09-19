@@ -47,7 +47,7 @@ pub enum ExprAST {
     Variable (String, ASTNodeData),
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     FunctionCall (String, Vec<ExprAST>, ASTNodeData),  // The vec contains arguments
-    If { condition: Box<ExprAST>, block: Box<ExprAST>, data: ASTNodeData }, // Else to be added later.
+    If { condition: Box<ExprAST>, block: Box<ExprAST>, else_branch: Option<Box<ExprAST>>, data: ASTNodeData }, // Else to be added later.
 
     #[default]
     Moved,  // This is a hack that allows us to remove an AST, operate on it, and put it back.
@@ -378,7 +378,7 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
         ST::RuleNode { ref rule_name, subexpressions: _ } if rule_name == "BlockExpression" =>
             build_block_expr(tree),
         ST::RuleNode { ref rule_name, subexpressions } if rule_name == "IfExpression" => {
-            if subexpressions.len() != 3 {
+            if subexpressions.len() < 3 {
                 return Err("Expected 3 subexpressions for IfExpression".into());
             }
 
@@ -390,7 +390,18 @@ fn build_expr_ast(tree: &SyntaxTree<Token>) -> Result<ExprAST, ASTError> {
 
             let block = Box::new(build_block_expr(&subexpressions[2])?);
 
-            Ok(ExprAST::If { condition, block, data: ASTNodeData::new() })
+            let else_branch = if subexpressions.len() == 5 {
+                if !matches!(subexpressions[3], ST::TokenNode(Token {body: TB::Keyword(Keyword::Else)})) {
+                    return Err("Expected keyword else".into());
+                }
+
+                Some(Box::new(build_expr_ast(&subexpressions[4])?))
+            }
+            else {
+                None
+            };
+
+            Ok(ExprAST::If { condition, block, else_branch, data: ASTNodeData::new() })
         }, 
         ST::RuleNode { rule_name, subexpressions: _ } => 
             Err(format!("Expected Expression. Unknown expression node name: {rule_name}").into()),

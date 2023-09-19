@@ -1,0 +1,40 @@
+//! 3210
+
+fn main() -> i32 {
+    val a: i32 = 100;
+    val b: i32 = 200;
+
+
+    // Expressional if-else
+    val c: i32 = if a > b {
+        5
+    }
+    else {
+        10
+    };
+
+    // Expressional if-else_if-else
+    c = c + if false {
+        100
+    }
+    else if true {
+        200
+    }
+    else {
+        300
+    };
+
+    // statement form
+
+    if 12 == 13 {
+        c = c + 1000;
+    }
+    else if 44 < 2 {
+        c = c + 2000;
+    }
+    else {
+        c = c + 3000;
+    };
+    
+    c
+}

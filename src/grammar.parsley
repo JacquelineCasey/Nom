@@ -38,7 +38,7 @@ Expression
 
 # This will be extended later to include elses
 IfExpression
-    : _If Expression BlockExpression
+    : _If Expression BlockExpression (_Else (BlockExpression | IfExpression))?
     ;
 
 OrExpression

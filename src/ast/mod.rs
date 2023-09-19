@@ -138,14 +138,15 @@ fn build_statement_ast(tree: &ST<Token>) -> Result<StatementAST, ASTError> {
         , ST::TokenNode (Token { body: TB::Punctuation(Punc::Semicolon)})
         ] if rule_name == "Expression" => 
             Ok(StatementAST::ExpressionStatement(build_expr_ast(&subexpressions[0])?, ASTNodeData::new())),
+        
         [ stmt @ ST::RuleNode { rule_name, .. }
         , ST::TokenNode (Token { body: TB::Punctuation(Punc::Semicolon)})
-        ] if rule_name == "AssignmentStatement" => {
-            build_assignment_statement(stmt)
-        },
-        [ stmt @ ST::RuleNode { rule_name, .. } ] if rule_name == "Declaration" => {
-            Ok(StatementAST::Declaration(build_declaration_ast(stmt)?, ASTNodeData::new()))
-        },
+        ] if rule_name == "AssignmentStatement" => 
+            build_assignment_statement(stmt),
+        
+        [ stmt @ ST::RuleNode { rule_name, .. } ] if rule_name == "Declaration" => 
+            Ok(StatementAST::Declaration(build_declaration_ast(stmt)?, ASTNodeData::new())),
+        
         _ => Err("Failed to build Statement AST".into())
     }
 }
@@ -295,8 +296,8 @@ fn build_assignment_statement(tree: &ST<Token>) -> Result<StatementAST, ASTError
             let right = build_expr_ast(&sub_expr_2[0])?;
 
             Ok(StatementAST::Assignment(left, right, ASTNodeData::new()))
-        }
-    _ => Err("Failed to build AssignmentStatement".into())
+        },
+        _ => Err("Failed to build AssignmentStatement".into())
     }
 }
 
@@ -305,10 +306,10 @@ fn build_additive_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     
     combine_binary_ops(children, true, |left, op, right| {
         match op {
-            ST::TokenNode(Token { body: TB::Operator(Op::Plus) }) 
-                => Ok(ExprAST::Add(Box::new(left), Box::new(right), ASTNodeData::new())),
-            ST::TokenNode(Token { body: TB::Operator(Op::Minus) }) 
-                => Ok(ExprAST::Subtract(Box::new(left), Box::new(right), ASTNodeData::new())),
+            ST::TokenNode(Token { body: TB::Operator(Op::Plus) }) => 
+                Ok(ExprAST::Add(Box::new(left), Box::new(right), ASTNodeData::new())),
+            ST::TokenNode(Token { body: TB::Operator(Op::Minus) }) => 
+                Ok(ExprAST::Subtract(Box::new(left), Box::new(right), ASTNodeData::new())),
             _ => Err("Expected + or -".into())
         }
     })
@@ -360,8 +361,8 @@ fn build_or_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     
     combine_binary_ops(children, true, |left, op, right| {
         match op {
-            ST::TokenNode(Token { body: TB::Keyword(Kw::Or) }) 
-                => Ok(ExprAST::Or(Box::new(left), Box::new(right), ASTNodeData::new())),
+            ST::TokenNode(Token { body: TB::Keyword(Kw::Or) }) => 
+                Ok(ExprAST::Or(Box::new(left), Box::new(right), ASTNodeData::new())),
             _ => Err("Expected 'or'".into())
         }
     })
@@ -372,8 +373,8 @@ fn build_and_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     
     combine_binary_ops(children, true, |left, op, right| {
         match op {
-            ST::TokenNode(Token { body: TB::Keyword(Kw::And) }) 
-                => Ok(ExprAST::And(Box::new(left), Box::new(right), ASTNodeData::new())),
+            ST::TokenNode(Token { body: TB::Keyword(Kw::And) }) => 
+                Ok(ExprAST::And(Box::new(left), Box::new(right), ASTNodeData::new())),
             _ => Err("Expected 'and'".into())
         }
     })
@@ -412,11 +413,15 @@ fn build_literal_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
                     Ok(ExprAST::BooleanLiteral(false, ASTNodeData::new())),
                 _ => Err("Expected true or false under BooleanLiteral node".into()),
             }
-        }
+        },
         ST::RuleNode { .. } =>
             Err("Unexpected rule node under Literal node".into()),
-        ST::TokenNode(Token { body: TB::NumericLiteral(str) }) => 
-            Ok(ExprAST::IntegerLiteral(str.parse().map_err(|_| ASTError("Integer parse failed. Literals must fit in i128".to_string()))?, ASTNodeData::new())),
+        ST::TokenNode(Token { body: TB::NumericLiteral(str) }) => {
+            let num = str.parse()
+                .map_err(|_| ASTError("Integer parse failed. Literals must fit in i128".to_string()))?;
+
+            Ok(ExprAST::IntegerLiteral(num, ASTNodeData::new()))
+        },
         ST::TokenNode(_) => Err("Non numeric literal under Literal node".into())
     }
 }

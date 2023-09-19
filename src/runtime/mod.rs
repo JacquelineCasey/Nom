@@ -215,6 +215,10 @@ impl Runtime {
             Instruction::IntegerConversion(start_size, start_sign, end_size, end_sign) => {
                 self.convert_integer(start_size, start_sign, end_size, end_sign);
             },
+            Instruction::RelativeJump(i) => {
+                self.instruction_index -= 1;  // Ignore normal instruction pointer movement
+                self.instruction_index = (self.instruction_index as i32 + i) as usize;
+            }
             Instruction::RelativeJumpIfTrue(i) => {
                 let val = u8::pop(self);
                 if val != 0 {

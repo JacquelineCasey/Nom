@@ -133,6 +133,9 @@ pub enum Instruction {
     // Consumes a bool (1 byte), and jumps if it was false.
     RelativeJumpIfFalse (i32),
 
+    // Unconditional Jump
+    RelativeJump (i32),
+
     // Exit the program
     Exit,
 }

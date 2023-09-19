@@ -29,6 +29,7 @@ enum PseudoInstruction {
 enum TempInstruction {
     Call (String),  // Call a function by name (we don't yet know its index).
     #[allow(unused)] JumpIfTrue (u32),  // This is a unique id. This corresponds to a jump instruction later.
+    Jump (u32),
     JumpIfFalse (u32),
     JumpFrom (u32),  // This will be removed (will not be an actual instruction), 
                      // but allows reasoning about jumps without counting instructions early on (before optimization).
@@ -95,7 +96,13 @@ impl CodeGenerator {
                     let location = function_locations.get(&name).ok_or(GenerateError(format!("Could not find function named {name}")))?;
                     Ok(Instruction::Call(*location))
                 }
-                PseudoInstruction::Temp(TempInstruction::JumpIfTrue(..) | TempInstruction::JumpFrom(..) | TempInstruction::JumpIfFalse(..)) => {
+                PseudoInstruction::Temp(
+                    TempInstruction::JumpIfTrue(..) 
+                    | TempInstruction::JumpFrom(..) 
+                    | TempInstruction::JumpIfFalse(..)
+                    | TempInstruction::Jump(..)
+                ) => {
+                    
                     Err("Expected jump pseudo instructions to be removed".into())
                 }
             })
@@ -103,6 +110,10 @@ impl CodeGenerator {
     }
 
     fn resolve_jumps(instructions: Vec<PseudoInstruction>) -> Result<Vec<PseudoInstruction>, GenerateError> {
+        use PseudoInstruction as PI;
+        use TempInstruction as T;
+        use Instruction as I;
+
         // Maps jump id to the source and target effective indices
         let mut jumps: HashMap<u32, (Option<usize>, Option<usize>)> = HashMap::new();
 
@@ -111,7 +122,7 @@ impl CodeGenerator {
         let mut effective_index = 0;
         for instr in instructions {
             match instr {
-                PseudoInstruction::Temp(TempInstruction::JumpIfTrue(i) | TempInstruction::JumpIfFalse(i)) => {
+                PI::Temp(T::JumpIfTrue(i) | T::JumpIfFalse(i) | T::Jump(i)) => {
                     jumps.entry(i).or_insert((None, None));
 
                     let entry = jumps.get_mut(&i).unwrap();
@@ -123,7 +134,7 @@ impl CodeGenerator {
                         return Err("Two jump sources with same id".into());
                     }
                 },
-                PseudoInstruction::Temp(TempInstruction::JumpFrom(i)) => {
+                PI::Temp(T::JumpFrom(i)) => {
                     jumps.entry(i).or_insert((None, None));
 
                     let entry = jumps.get_mut(&i).unwrap();
@@ -138,7 +149,7 @@ impl CodeGenerator {
                 _ => (),
             }
 
-            if !matches!(instr, PseudoInstruction::Temp(TempInstruction::JumpFrom(_))) {
+            if !matches!(instr, PI::Temp(T::JumpFrom(_))) {
                 effective_index += 1;
                 final_instructions.push(instr);
             }
@@ -146,13 +157,14 @@ impl CodeGenerator {
 
         final_instructions.into_iter()
             .map(|instr| match instr {
-                PseudoInstruction::Temp(ref temp @ (TempInstruction::JumpIfTrue(i) | TempInstruction::JumpIfFalse(i))) => {
+                PI::Temp(ref temp @ (T::JumpIfTrue(i) | T::JumpIfFalse(i) | T::Jump(i))) => {
                     if let Some((Some(start), Some(end))) = jumps.get(&i) {
                         let shift = *end as i32 - *start as i32;
                         match temp {
-                            TempInstruction::JumpIfTrue(_) => Ok(PseudoInstruction::Actual(Instruction::RelativeJumpIfTrue(shift))),
-                            TempInstruction::JumpIfFalse(_) => Ok(PseudoInstruction::Actual(Instruction::RelativeJumpIfFalse(shift))),
-                            _ => panic!()
+                            T::JumpIfTrue(_) => Ok(PI::Actual(I::RelativeJumpIfTrue(shift))),
+                            T::JumpIfFalse(_) => Ok(PI::Actual(I::RelativeJumpIfFalse(shift))),
+                            T::Jump(_) => Ok(PI::Actual(I::RelativeJump(shift))),
+                            _ => panic!("Expected Jump instruction")
                         }
                     }
                     else {
@@ -430,7 +442,7 @@ impl CodeGenerator {
                     _ => instructions.push(PI::Actual(I::RetractMoving(align_shift, (*return_size).try_into()?))),
                 }
             },
-            E::If { condition, block, .. } => {
+            E::If { condition, block, else_branch: None, .. } => {
                 let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
                 let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
                 let skip_jump_id = util::next_id();
@@ -442,6 +454,28 @@ impl CodeGenerator {
                 instructions.append(&mut block_instrs);
 
                 instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
+            },
+            E::If { condition, block, else_branch: Some(else_branch), .. } => {
+                let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
+                let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
+                let mut else_instrs = self.generate_expression(env, else_branch, function_info, depth)?;
+
+                let jump_1_id = util::next_id();
+                let jump_2_id = util::next_id();
+
+                instructions.append(&mut condition_instrs);
+                
+                instructions.push(PI::Temp(TempInstruction::JumpIfFalse(jump_1_id)));
+
+                instructions.append(&mut block_instrs);
+
+                instructions.push(PI::Temp(TempInstruction::Jump(jump_2_id)));
+
+                instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_1_id)));
+
+                instructions.append(&mut else_instrs);
+
+                instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_2_id)));
             },
             E::Moved => panic!("ExprAST Moved"),
         }

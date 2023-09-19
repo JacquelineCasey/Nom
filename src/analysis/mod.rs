@@ -127,9 +127,13 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
             }
         }, 
         ExprAST::IntegerLiteral(..) | ExprAST::BooleanLiteral(..) => (),
-        ExprAST::If { condition, block, .. } => {
+        ExprAST::If { condition, block, else_branch, .. } => {
             scope_check_expression(functions, local_types, condition)?;
             scope_check_expression(functions, local_types, block)?;
+
+            if let Some(branch) = else_branch {
+                scope_check_expression(functions, local_types, branch)?;
+            }
         },
         ExprAST::Moved => panic!("ExprAST was moved"),
     }
@@ -300,11 +304,37 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             }
     
         }
-        ExprAST::If { condition, block, .. } => {
+        ExprAST::If { condition, block, else_branch: None, .. } => {
             type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
-
-            // We expect unit until we add else statements.
             type_check_expression(env, block, function_name, &Some(Type::BuiltIn(BuiltIn::Unit)))?
+        }
+        ExprAST::If { condition, block, else_branch: Some(else_branch), .. } => {
+            type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
+            let if_type = type_check_expression(env, block, function_name, &expected)?;
+            let else_type = type_check_expression(env, else_branch, function_name, &expected)?;
+
+            // Note: Applies only if expected was None.
+            if if_type != else_type {
+                if if_type == Type::PartiallyKnown(PartialType::IntLiteral) {
+                    type_check_expression(env, block, function_name, &Some(else_type))?
+                }
+                else if else_type == Type::PartiallyKnown(PartialType::IntLiteral) {
+                    type_check_expression(env, else_branch, function_name, &Some(if_type))?
+                }
+                else {
+                    let Some(bound) = upper_bound_type(&if_type, &else_type)
+                        else { return Err("Types don't match".into()); };
+
+                    // TODO: This repeat definitely could cause some efficiency issues. 
+                    // We need a smarter unification algorithm perhaps...
+
+                    type_check_expression(env, block, function_name, &Some(bound.clone()))?;
+                    type_check_expression(env, else_branch, function_name, &Some(bound))?
+                }
+            }
+            else {
+                if_type
+            }
         }
         ExprAST::Moved => panic!("ExprAST moved"),
     };
@@ -336,10 +366,16 @@ fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut Expr
         | ExprAST::Divide(a, b, _)
         | ExprAST::Comparison(a, b, _, _)
         | ExprAST::Or(a, b, _)
-        | ExprAST::And(a, b, _)
-        | ExprAST::If { condition: a, block: b, .. } => {
+        | ExprAST::And(a, b, _) => {
             finalize_partial_types_expr(env, a, func_name);
             finalize_partial_types_expr(env, b, func_name);
+        },
+        ExprAST::If { condition, block, else_branch, .. } => {
+            finalize_partial_types_expr(env, condition, func_name);
+            finalize_partial_types_expr(env, block, func_name);
+            if let Some(else_branch) = else_branch {
+                finalize_partial_types_expr(env, else_branch, func_name);
+            }
         },
         ExprAST::Not(a, _) => {
             finalize_partial_types_expr(env, a, func_name);

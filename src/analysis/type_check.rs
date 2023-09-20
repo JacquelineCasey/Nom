@@ -205,6 +205,9 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                 if_type
             }
         },
+        ExprAST::Return(expr, _) => {
+            todo!();
+        },
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 
@@ -279,6 +282,11 @@ fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut Expr
         ExprAST::FunctionCall(_, exprs, _) => {
             for e in exprs {
                 finalize_partial_types_expr(env, e, func_name)?;
+            }
+        },
+        ExprAST::Return(expr, _) => {
+            if let Some(expr) = expr {
+                finalize_partial_types_expr(env, expr, func_name)?;
             }
         },
         ExprAST::IntegerLiteral(_, _)

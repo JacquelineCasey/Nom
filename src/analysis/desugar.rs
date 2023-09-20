@@ -80,6 +80,11 @@ fn desugar_expression(expr: &mut crate::ast::ExprAST) {
                 desugar_expression(else_block);
             }
         },
+        ExprAST::Return(expr, _) => {
+            if let Some(expr) = expr {
+                desugar_expression(expr);
+            }
+        },
         ExprAST::IntegerLiteral(_, _)
         | ExprAST::BooleanLiteral(_, _)
         | ExprAST::Variable(_, _) => (),

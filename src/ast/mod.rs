@@ -102,6 +102,7 @@ pub enum ExprAST {
     Block (Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     If { condition: Box<ExprAST>, block: Box<ExprAST>, else_branch: Option<Box<ExprAST>>, data: ASTNodeData },
     While { condition: Box<ExprAST>, block: Box<ExprAST>, data: ASTNodeData },
+    Return (Option<Box<ExprAST>>, ASTNodeData),
     
     // This is a hack that allows us to remove an AST, operate on it, and put it back. (Blame the borrow checker for this.)
     #[default] 
@@ -125,7 +126,8 @@ impl ExprAST {
             | ExprAST::FunctionCall(_, _, data)
             | ExprAST::Block(_, _, data)
             | ExprAST::If { data, .. }
-            | ExprAST::While { data, .. } => data,
+            | ExprAST::While { data, .. }
+            | ExprAST::Return(_, data) => data,
             ExprAST::Moved => panic!("ExprAST was moved"),
         }
     }
@@ -176,6 +178,14 @@ impl ExprAST {
                     block: Box::new(block.as_ref().duplicate()),
                     data: ASTNodeData::new(),
                 },
+            ExprAST::Return(expr, _) => {
+                if let Some(expr) = expr {
+                    ExprAST::Return(Some(Box::new(expr.duplicate())), ASTNodeData::new())
+                }
+                else {
+                    ExprAST::Return(None, ASTNodeData::new())
+                }
+            }
             ExprAST::Moved => panic!("ExprAST moved"),
         }
     }
@@ -307,6 +317,8 @@ fn build_expr_ast(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
             build_if_expr(tree),
         ST::RuleNode { ref rule_name, .. } if rule_name == "WhileExpression" =>
             build_while_expr(tree),
+        ST::RuleNode { ref rule_name, .. } if rule_name == "ReturnExpression" =>
+            build_return_expr(tree),
         ST::RuleNode { rule_name, subexpressions: _ } => 
             Err(format!("Expected Expression. Unknown expression node name: {rule_name}").into()),
         ST::TokenNode (Token { body: TB::Identifier(name) }) =>
@@ -672,6 +684,23 @@ fn build_while_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     let block = Box::new(build_block_expr(&children[2])?);
 
     Ok(ExprAST::While { condition, block, data: ASTNodeData::new() })
+}
+
+fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
+    let children = assert_rule_get_children(tree, "ReturnExpression")?;
+
+    if !matches!(children[0], ST::TokenNode(Token {body: TB::Keyword(Kw::Return)})) {
+        return Err("Expected keyword Return".into());
+    }
+
+    let expr = if children.len() == 2 {
+        Some(Box::new(build_expr_ast(&children[1])?))
+    }
+    else {
+        None
+    };
+
+    Ok(ExprAST::Return(expr, ASTNodeData::new()))
 }
 
 

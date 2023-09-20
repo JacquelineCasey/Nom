@@ -1,0 +1,22 @@
+//! 20
+
+fn main() -> i32 {
+    var a: i32 = 0;
+
+    if 5 == 2 + 3 {
+        a += 10;
+    }
+    else {
+        return 100;
+    };
+
+    val c: u8 = if 4 == 2 + 2 {
+        return 2 * a  // Expression mode
+    }
+    else {
+        a += 1;
+        23
+    };
+
+    a
+}

@@ -34,6 +34,11 @@ VariableDeclaration
 
 Expression 
     : OrExpression
+    | ReturnExpression
+    ;
+
+ReturnExpression
+    : _Return Expression
     ;
 
 OrExpression
@@ -90,8 +95,6 @@ WhileExpression
 BlockExpression
     : _LeftCurlyBrace (Statement)* (Expression)? _RightCurlyBrace
     ;
-
-
 
 # Statements - These constructs do not yield any value, not even unit. They can be
 # nested in an expression only by way of a BlockExpression.

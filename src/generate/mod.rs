@@ -486,6 +486,9 @@ impl CodeGenerator {
 
                 instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
             },
+            E::Return(expr, _) => {
+                todo!(); // See generate_return...
+            },
             E::Moved => panic!("ExprAST Moved"),
         }
 

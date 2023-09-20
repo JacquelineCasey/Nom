@@ -35,6 +35,15 @@ fn main() -> i32 {
     else {
         c = c + 3000;
     };
+
+    // It is ok to discard the result expression if you want
+    if true {
+        val tmp: u8 = 2;
+        tmp  // try to mess with the stack alignment :P
+    }
+    else {
+        123  // Type inference is kinda smart now
+    };
     
     c
 }

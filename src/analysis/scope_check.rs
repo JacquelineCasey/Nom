@@ -105,6 +105,11 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
             scope_check_expression(functions, local_types, condition)?;
             scope_check_expression(functions, local_types, block)?;
         },
+        ExprAST::Return(expr, ..) => {
+            if let Some(expr) = expr {
+                scope_check_expression(functions, local_types, expr)?;
+            }
+        },
         ExprAST::Moved => panic!("ExprAST was moved"),
     }
 

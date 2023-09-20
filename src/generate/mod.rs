@@ -529,6 +529,8 @@ impl CodeGenerator {
                     return Err("Could not find variable".into());
                 }
             },
+            StatementAST::CompoundAssignment(..) =>
+                return Err("Expected Compound Assignment to have been desugared".into()),
             StatementAST::Declaration(decl, ..) => {
                 match decl {
                     DeclarationAST::Function { .. } => 

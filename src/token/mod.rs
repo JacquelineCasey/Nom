@@ -73,6 +73,10 @@ pub enum Operator {  // Operators currently accepted greedily
     Times, 
     Divide,
     Equals,
+    PlusEquals,
+    MinusEquals,
+    TimesEquals,
+    DivideEquals,
     ThinRightArrow,
     DoubleEquals,
     NotEquals,
@@ -315,6 +319,22 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
             operators.push(Operator::GreaterEquals);
             slice = &slice[2..];
         }
+        else if slice.starts_with("+=") {
+            operators.push(Operator::PlusEquals);
+            slice = &slice[2..];
+        }
+        else if slice.starts_with("-=") {
+            operators.push(Operator::MinusEquals);
+            slice = &slice[2..];
+        }
+        else if slice.starts_with("*=") {
+            operators.push(Operator::TimesEquals);
+            slice = &slice[2..];
+        }
+        else if slice.starts_with("/=") {
+            operators.push(Operator::DivideEquals);
+            slice = &slice[2..];
+        }
         else if slice.starts_with('<') {
             operators.push(Operator::Less);
             slice = &slice[1..];
@@ -424,6 +444,10 @@ impl parsley::Token for Token {
             "GreaterEquals"  => matches!(token, T { body: TB::Operator(O::GreaterEquals) }),
             "Less"           => matches!(token, T { body: TB::Operator(O::Less) }),
             "Greater"        => matches!(token, T { body: TB::Operator(O::Greater) }),
+            "PlusEquals"     => matches!(token, T { body: TB::Operator(O::PlusEquals) }),
+            "MinusEquals"     => matches!(token, T { body: TB::Operator(O::MinusEquals) }),
+            "TimesEquals"     => matches!(token, T { body: TB::Operator(O::TimesEquals) }),
+            "DivideEquals"     => matches!(token, T { body: TB::Operator(O::DivideEquals) }),
 
             "Var" => matches!(token, T { body: TB::Keyword(K::Var) }),
             "Val" => matches!(token, T { body: TB::Keyword(K::Val) }),

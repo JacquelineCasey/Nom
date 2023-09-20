@@ -21,11 +21,13 @@ pub struct ASTNodeData {
 }
 
 impl ASTNodeData {
-    fn new() -> ASTNodeData {
+    pub fn new() -> ASTNodeData {
         ASTNodeData { id: crate::util::next_id() }
     }
 }
 
+// Note - explicitly not Clone. Any "clone" should have new node_data, so if you
+// need to clone these structs you should use a different method (duplicate).
 #[derive(Debug)]
 pub enum DeclarationAST {
     // The parameters are pairs of names and type ascriptions
@@ -33,11 +35,52 @@ pub enum DeclarationAST {
     Variable { mutability: Mutability, name: String, expr: ExprAST, type_ascription: Option<String> , node_data: ASTNodeData }
 }
 
+impl DeclarationAST {
+    // Creates an identical copy, except for the node_data which is intended to be unique.
+    pub fn duplicate(&self) -> DeclarationAST {
+        match self {
+            DeclarationAST::Function { name, params, block, return_type, .. } =>
+                DeclarationAST::Function {
+                    name: name.clone(), 
+                    params: params.clone(), 
+                    block: block.duplicate(), 
+                    return_type: return_type.clone(), 
+                    node_data: ASTNodeData::new(),
+                },
+            DeclarationAST::Variable { mutability, name, expr, type_ascription, .. } => 
+                DeclarationAST::Variable { 
+                    mutability: mutability.clone(), 
+                    name: name.clone(), 
+                    expr: expr.duplicate(), 
+                    type_ascription: type_ascription.clone(), 
+                    node_data: ASTNodeData::new(), 
+                },
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum StatementAST {
     ExpressionStatement (ExprAST, ASTNodeData),  // A expression executed for its side effects
     Assignment (ExprAST, ExprAST, ASTNodeData),  // There are restrictions on wbat goes on the left, but it is ultimately an expression too.
+    CompoundAssignment (ExprAST, ExprAST, MathOperation, ASTNodeData),
     Declaration (DeclarationAST, ASTNodeData),  // Any declaration will be allowed, but for now only variable declarations work.
+}
+
+impl StatementAST {
+    // Creates an identical copy, except for the node_data which is intended to be unique.
+    pub fn duplicate(&self) -> StatementAST {
+        match self {
+            StatementAST::ExpressionStatement(expr, _) => 
+                StatementAST::ExpressionStatement(expr.duplicate(), ASTNodeData::new()),
+            StatementAST::Assignment(left, right, _) =>
+                StatementAST::Assignment(left.duplicate(), right.duplicate(), ASTNodeData::new()),
+            StatementAST::CompoundAssignment(left, right, op, _) => 
+                StatementAST::CompoundAssignment(left.duplicate(), right.duplicate(), op.clone(), ASTNodeData::new()),
+            StatementAST::Declaration(decl, _) =>   
+                StatementAST::Declaration(decl.duplicate(), ASTNodeData::new())
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -86,15 +129,73 @@ impl ExprAST {
             ExprAST::Moved => panic!("ExprAST was moved"),
         }
     }
+
+    // Creates an identical copy, except for the node_data which is intended to be unique.
+    pub fn duplicate(&self) -> ExprAST {
+        match self {
+            ExprAST::Add(left, right, _) => 
+                ExprAST::Add(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+            ExprAST::Subtract(left, right, _) => 
+                ExprAST::Subtract(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+            ExprAST::Multiply(left, right, _) => 
+                ExprAST::Multiply(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+            ExprAST::Divide(left, right, _) => 
+                ExprAST::Divide(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+            ExprAST::Comparison(left, right, comp, _) => 
+                ExprAST::Comparison(Box::new(left.duplicate()), Box::new(right.duplicate()), comp.clone(), ASTNodeData::new()),
+            ExprAST::Or(left, right, _) => 
+                ExprAST::Or(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+            ExprAST::And(left, right, _) => 
+                ExprAST::And(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+            ExprAST::Not(inner, _) => 
+                ExprAST::Not(Box::new(inner.duplicate()), ASTNodeData::new()),
+            ExprAST::IntegerLiteral(num, _) => 
+                ExprAST::IntegerLiteral(*num, ASTNodeData::new()),
+            ExprAST::BooleanLiteral(bool, _) => 
+                ExprAST::BooleanLiteral(*bool, ASTNodeData::new()),
+            ExprAST::Variable(name, _) => 
+                ExprAST::Variable(name.clone(), ASTNodeData::new()),
+            ExprAST::FunctionCall(name, exprs, _) => 
+                ExprAST::FunctionCall(name.clone(), exprs.iter().map(ExprAST::duplicate).collect(), ASTNodeData::new()),
+            ExprAST::Block(statements, final_expr, _) => 
+                ExprAST::Block(
+                    statements.iter().map(StatementAST::duplicate).collect(), 
+                    final_expr.as_ref().map(|expr| Box::new(ExprAST::duplicate(expr.as_ref()))), 
+                    ASTNodeData::new()
+                ),
+            ExprAST::If { condition, block, else_branch, .. } => 
+                ExprAST::If { 
+                    condition: Box::new(condition.as_ref().duplicate()),
+                    block: Box::new(block.as_ref().duplicate()),
+                    else_branch: else_branch.as_ref().map(|expr| Box::new(ExprAST::duplicate(expr.as_ref()))),
+                    data: ASTNodeData::new(),
+                },
+            ExprAST::While { condition, block, .. } => 
+                ExprAST::While {
+                    condition: Box::new(condition.as_ref().duplicate()),
+                    block: Box::new(block.as_ref().duplicate()),
+                    data: ASTNodeData::new(),
+                },
+            ExprAST::Moved => panic!("ExprAST moved"),
+        }
+    }
 }
 
 
 /* Related Types */
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Mutability {
     Var, 
     Val
+}
+
+#[derive(Debug, Clone)]
+pub enum MathOperation {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
 }
 
 
@@ -118,14 +219,14 @@ fn build_declaration_ast(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
     let children = assert_rule_get_children(tree, "Declaration")?;
         
     match children {
-        [ ST::RuleNode { rule_name, ..  } ] if rule_name == "FunctionDeclaration" => {
-            build_function_declaration(&children[0])
-        },
+        [ ST::RuleNode { rule_name, ..  } ] if rule_name == "FunctionDeclaration" =>
+            build_function_declaration(&children[0]),
+
         [ decl @ ST::RuleNode { rule_name, .. }
         , ST::TokenNode(Token { body: TB::Punctuation(Punc::Semicolon) })
-        ] if rule_name == "VariableDeclaration" => {
-            build_variable_declaration(decl)
-        },
+        ] if rule_name == "VariableDeclaration" => 
+            build_variable_declaration(decl),
+            
         _ => Err("Failed to build Declaration AST".into())
     }
 }
@@ -143,6 +244,11 @@ fn build_statement_ast(tree: &ST<Token>) -> Result<StatementAST, ASTError> {
         , ST::TokenNode (Token { body: TB::Punctuation(Punc::Semicolon)})
         ] if rule_name == "AssignmentStatement" => 
             build_assignment_statement(stmt),
+
+        [ stmt @ ST::RuleNode { rule_name, .. }
+        , ST::TokenNode (Token { body: TB::Punctuation(Punc::Semicolon)})
+        ] if rule_name == "CompoundAssignmentStatement" => 
+            build_compound_assignment_statement(stmt),
         
         [ stmt @ ST::RuleNode { rule_name, .. } ] if rule_name == "Declaration" => 
             Ok(StatementAST::Declaration(build_declaration_ast(stmt)?, ASTNodeData::new())),
@@ -298,6 +404,36 @@ fn build_assignment_statement(tree: &ST<Token>) -> Result<StatementAST, ASTError
             Ok(StatementAST::Assignment(left, right, ASTNodeData::new()))
         },
         _ => Err("Failed to build AssignmentStatement".into())
+    }
+}
+
+fn build_compound_assignment_statement(tree: &ST<Token>) -> Result<StatementAST, ASTError> {
+    let children = assert_rule_get_children(tree, "CompoundAssignmentStatement")?;
+
+    match children {
+        [ ST::RuleNode { rule_name: rule_1, subexpressions: ref sub_expr_1 }
+        , ST::TokenNode (Token { body: TB::Operator(op) })
+        , ST::RuleNode { rule_name: rule_2, subexpressions: ref sub_expr_2 }
+        ] if rule_1 == "Expression" 
+        && rule_2 == "Expression" 
+        && sub_expr_1.len() == 1 
+        && sub_expr_2.len() == 1 => {
+            let left = build_expr_ast(&sub_expr_1[0])?;
+            let right = build_expr_ast(&sub_expr_2[0])?;
+
+            let math_op = match op {
+                Op::PlusEquals => MathOperation::Add,
+                Op::MinusEquals => MathOperation::Subtract,
+                Op::TimesEquals => MathOperation::Multiply,
+                Op::DivideEquals => MathOperation::Divide,
+                _ => return Err("ajkngkajng".into()),
+            };
+
+            // This will turn into an assignment and an operation at a later
+            // desugar stage.
+            Ok(StatementAST::CompoundAssignment(left, right, math_op, ASTNodeData::new()))
+        },
+        _ => Err("Failed to build CompoundAssignmentStatement".into())
     }
 }
 

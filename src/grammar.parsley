@@ -100,12 +100,17 @@ Statement
     : Expression _Semicolon
     | Declaration  # Semicolon included
     | AssignmentStatement _Semicolon
+    | CompoundAssignmentStatement _Semicolon
     ;
 
 AssignmentStatement
     : Expression _Equals Expression
-    # | CompoundAssignmentStatement
     ;
+
+CompoundAssignmentStatement
+    : Expression (_PlusEquals | _MinusEquals | _TimesEquals | _DivideEquals) Expression
+    ;
+
 
 
 # Literals - Currently just positive integers

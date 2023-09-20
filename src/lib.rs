@@ -87,7 +87,8 @@ impl CompilationEnvironment {
         let tokens = token::tokenize(&input)?;
 
         let syntax_tree = self.parser.parse_tokens(&tokens, "Program")?;
-        let ast = ast::build_ast(&syntax_tree)?;
+        let mut ast = ast::build_ast(&syntax_tree)?;
+        analysis::desugar(&mut ast);
 
         for decl in ast.declarations {
             match decl {

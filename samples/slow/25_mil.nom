@@ -1,0 +1,14 @@
+//! 25000000
+
+fn main() -> i32 {
+    var a: i32 = 0;
+
+    while a < 25000000 {
+        a += 1;
+    };
+
+    a
+}
+
+// *just barely* faster than python here. This takes ~1 second to compile and run
+// on release mode, of course.

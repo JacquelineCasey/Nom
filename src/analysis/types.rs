@@ -27,7 +27,8 @@ pub enum BuiltIn {
     I32, 
     I64,
     Unit,
-    Boolean
+    Boolean,
+    Bottom,  // The type of return expressions - this type is uninhabitted.
 }
 
 // Sometimes, with int types in particular, we need to decide what types a certain
@@ -47,6 +48,10 @@ pub fn upper_bound_type(left: &Type, right: &Type) -> Option<Type> {
 }
 
 fn type_fits(source: &BuiltIn, target: &BuiltIn) -> bool {
+    if *source == BuiltIn::Bottom {
+        return true;
+    }
+
     match source {
         source if source.is_signed() => {
             target.is_signed() 
@@ -129,6 +134,8 @@ pub fn get_default_types() -> HashMap<Type, TypeInfo> {
     map.insert(Type::BuiltIn(BuiltIn::Boolean), TypeInfo { size: 1, alignment: 1 });
 
     map.insert(Type::BuiltIn(BuiltIn::Unit), TypeInfo { size: 0, alignment: 1 });  // Not sure if this should have an alignment
+
+    map.insert(Type::BuiltIn(BuiltIn::Bottom), TypeInfo { size: 0, alignment: 1 });
 
     map
 }

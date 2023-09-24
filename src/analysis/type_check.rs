@@ -193,7 +193,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                 else {
                     let Some(bound) = upper_bound_type(&if_type, &else_type)
                         else { return Err("Types don't match".into()); };
-
+                    
                     // TODO: This repeat definitely could cause some efficiency issues. 
                     // We need a smarter unification algorithm perhaps...
 
@@ -206,16 +206,28 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             }
         },
         ExprAST::Return(expr, _) => {
-            todo!();
+            let return_type = env.functions.get(function_name).expect("Function exists").return_type.clone();
+
+            if let Some(inner) = expr {
+                type_check_expression(env, inner, function_name, &Some(return_type))?;
+            }
+            else if return_type != Type::BuiltIn(BuiltIn::Unit) {
+                return Err("Expected unit type".into())
+            }
+
+            Type::BuiltIn(BuiltIn::Bottom)
         },
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 
-    if let Some(inner) = expected {
-        if *inner != expr_type {
-            return Err("Type did not matched expected".into());
+    if expr_type != Type::BuiltIn(BuiltIn::Bottom) {
+        if let Some(inner) = expected {
+            if *inner != expr_type {
+                return Err("Type did not matched expected".into());
+            }
         }
     }
+
 
     env.type_index.insert(expr.get_node_data().id, expr_type.clone());
     Ok(expr_type)

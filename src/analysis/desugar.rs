@@ -91,3 +91,5 @@ fn desugar_expression(expr: &mut crate::ast::ExprAST) {
         ExprAST::Moved => panic!("ExprAST moved"),
     }
 }
+
+// TODO: Desugar final while

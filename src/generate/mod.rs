@@ -203,7 +203,7 @@ impl CodeGenerator {
 
         instructions.append(&mut self.generate_expression(env, subtree, function_info, depth)?);  // TODO: Should this be zero or function_info.top. Can we call it depth?
 
-        instructions.append(&mut Self::generate_return(function_info)?);
+        instructions.append(&mut Self::generate_return(function_info)?); //
 
         let instructions = optimize(instructions);
         let instructions = Self::resolve_jumps(instructions)?;
@@ -486,9 +486,26 @@ impl CodeGenerator {
 
                 instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
             },
-            E::Return(expr, _) => {
-                todo!(); // See generate_return...
+            E::Return(Some(expr), _) => {
+                let expr_type = &env.type_index[&expr.get_node_data().id];
+                let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+                
+                let align_shift = get_align_shift(depth, expr_type_info.alignment);
+
+                // Align
+                instructions.push(PseudoInstruction::Actual(
+                    Instruction::AdvanceStackPtr(align_shift)
+                ));
+    
+                instructions.append(&mut self.generate_expression(env, expr, function_info, depth + align_shift)?);
+                
+                // Everything above can be its own function, see Statement::Expression too
+
+                instructions.append(&mut Self::generate_return(function_info)?); //
             },
+            E::Return(None, _) => {
+                instructions.append(&mut Self::generate_return(function_info)?); //
+            }
             E::Moved => panic!("ExprAST Moved"),
         }
 

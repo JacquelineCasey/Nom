@@ -1,0 +1,49 @@
+//! 100
+
+fn main() -> i32 {
+    var tests: i32 = 0;
+
+    if 37 % 10 == 7 {
+        tests += 1;
+    };
+
+    {
+        var a: i32 = 137;
+        a %= 100;
+
+        if a == 37 {
+            tests += 1;
+        };
+
+        a %= 10;
+
+        if a == 7 {
+            tests += 1;
+        };
+    }
+
+    // We have an actual modulo operator, not a remainder operator. This means a 
+    // the result has the same sign as the divisor. We do what python does, not 
+    // what Rust does.
+
+    if (0 - 13) % 10 == 7 {
+        tests += 1;
+    };
+
+    if 13 % (0 - 10) == (0 - 7) {
+        tests += 1;
+    };
+
+    if (0 - 13) % (0 - 10) == (0 - 3) {
+        tests += 1;
+    }
+
+    // See also, the mod by zero tests in runtime-panic
+
+    if tests == 6 {
+        100
+    }
+    else {
+        -100
+    };
+}

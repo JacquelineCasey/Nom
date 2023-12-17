@@ -22,15 +22,14 @@ fn main() -> i32 {
         };
     };
 
-    // We have an actual modulo operator, not a remainder operator. This means a 
-    // the result has the same sign as the divisor. We do what python does, not 
-    // what Rust does.
+    // This is just Rust's remainder operator. It seems like most languages use this 
+    // instead of a true mod operator (like python), so I defer to the majority.
 
-    if (0 - 13) % 10 == 7 {
+    if (0 - 13) % 10 == (0 - 3) {
         tests += 1;
     };
 
-    if 13 % (0 - 10) == (0 - 7) {
+    if 13 % (0 - 10) == 3 {
         tests += 1;
     };
 

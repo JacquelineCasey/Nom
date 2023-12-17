@@ -281,8 +281,8 @@ impl CodeGenerator {
                             E::Multiply(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedMultiplication,
                             E::Divide(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedDivision,
                             E::Divide(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedDivision,
-                            E::Modulus(..) if curr_type.is_unsigned() => todo!(),
-                            E::Modulus(..) if curr_type.is_signed() => todo!(),
+                            E::Modulus(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedSubtraction,
+                            E::Modulus(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedModulus,
                             _ => panic!("Known unreachable")
                         }, 
                         arg_size)));

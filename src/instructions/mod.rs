@@ -160,6 +160,8 @@ pub enum IntegerBinaryOperation {
     SignedMultiplication,
     UnsignedDivision,
     SignedDivision,
+    UnsignedModulus,
+    SignedModulus,
 }
 
 #[derive(Clone, Copy, Debug)]

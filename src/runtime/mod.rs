@@ -343,6 +343,19 @@ impl Runtime {
 
                 reinterpret::<S, U>(s_left / s_right)
             }
+            IntegerBinaryOperation::UnsignedModulus => {
+                assert!(right != U::zero(), "Critical Runtime Error: Modulus by Zero");
+
+                left % right
+            }
+            IntegerBinaryOperation::SignedModulus => {
+                let s_left = reinterpret::<U, S>(left);
+                let s_right = reinterpret::<U, S>(right);
+
+                assert!(s_right != S::zero(), "Critical Runtime Error: Modulus by Zero");
+
+                reinterpret::<S, U>(s_left % s_right)
+            }
         };
 
         U::push(result, self);
@@ -526,6 +539,7 @@ trait RuntimeInt :
     + std::ops::Sub<Output = Self> 
     + std::ops::Mul<Output = Self> 
     + std::ops::Div<Output = Self> 
+    + std::ops::Rem<Output = Self>
     + Copy
     + std::fmt::Display
     + Stackable

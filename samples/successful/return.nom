@@ -11,7 +11,7 @@ fn main() -> i32 {
     };
 
     val c: u8 = if 4 == 2 + 2 {
-        return 2 * a  // Expression mode
+        return 2 * a  // Expression mode - coerces to anything?
     }
     else {
         a += 1;

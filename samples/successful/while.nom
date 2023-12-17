@@ -4,7 +4,8 @@ fn main() -> i32 {
     var sum: i32 = 0;
     var count: i32 = 1;
 
-    while sum < 50 {
+    // Technically a unit typed expression
+    val v: unit = while sum < 50 {
         sum = sum + count;
         count = count + 1;
     };

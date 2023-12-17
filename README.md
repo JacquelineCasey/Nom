@@ -34,11 +34,23 @@ its runtime efficiency much lower than ideal.
   - Blocks are expressions, which evaluates to the final expression in the block.
     Note that, like in Rust, you must not place a semicolon in order for the final
     line to be considered an expression instead of a statement.
-  - Similiarly, functions implicitely return the final expression. At time of writing,
-    there is no explicit return statement.
-- If statements with Rusty syntax. Else blocks are not here yet, but when complete,
-  an if-else block will act like an expression, yielding the final value of whichever
-  block was chosen.
+    - Unfortunately, at time of writing, the grammar is set up so that even blocks
+      need the terminating semicolon. Except for functions. Basically, statements need
+      the semicolon, so when a statement has a block (e.g. an if), you need the final
+      semicolon.
+  - Similiarly, functions implicitely return the final expression. The `return` keyword
+    is also available. It too is an expression, which actually coerces to anything, since
+    return never *actually* evaluates to anything. This is sometimes slightly convenient,
+    e.g. in an if/else that should either return or evaluate to a value. Rust has this.
+- If statements with Rusty syntax. Else and else-if are also available. When the blocks
+  are values (meaning they have a final expression), then the if-else as a whole evaluate
+  to the final value of the selected block. Technically speaking, a lone if statement also
+  evaluates to a value, but that value must be the unit value, which is the default. This
+  also means that an if with an else need not evaluate to anything (beyond the unit type).
+- While loops. They have Rusty syntax. At time of writing these parsed like expressions, but
+  they always evaluate to unit. In the future we could add support for Zig style `break`
+  that cause the block to evaluate to the value in the break expression. That being said,
+  this seems fairly daunting for a feature that is ultimately not that useful.
 - Simple, Rust / Zig like primitive types.
   - Signed and unsigned integer types, from `u8` and `i8` up to `u64` and `i64`.
     (There is currently no plan to add larger primitives, which would require higher

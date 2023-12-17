@@ -330,10 +330,19 @@ impl Runtime {
                 left * right,
             IntegerBinaryOperation::SignedMultiplication => 
                 reinterpret::<S, U>(reinterpret::<U, S>(left) * reinterpret::<U, S>(right)),
-            IntegerBinaryOperation::UnsignedDivision => 
-                left / right,
-            IntegerBinaryOperation::SignedDivision => 
-                reinterpret::<S, U>(reinterpret::<U, S>(left) / reinterpret::<U, S>(right)),
+            IntegerBinaryOperation::UnsignedDivision => {
+                assert!(right != U::zero(), "Critical Runtime Error: Division by Zero");
+
+                left / right
+            }
+            IntegerBinaryOperation::SignedDivision => {
+                let s_left = reinterpret::<U, S>(left);
+                let s_right = reinterpret::<U, S>(right);
+
+                assert!(s_right != S::zero(), "Critical Runtime Error: Division by Zero");
+
+                reinterpret::<S, U>(s_left / s_right)
+            }
         };
 
         U::push(result, self);
@@ -411,7 +420,7 @@ impl Stackable for u8 {
         // pointer::offset is UB if it goes outside of the allocation though, hence
         // the checks above being done in usize.
 
-        assert!(runtime.stack_pointer as usize + 1 <= runtime.stack_bottom as usize + STACK_SIZE, "Out of stack memory");
+        assert!(runtime.stack_pointer as usize + 1 <= runtime.stack_bottom as usize + STACK_SIZE, "Critical Runtime Error: Stack Overflow");
 
         // Skip alignment check.
 
@@ -437,7 +446,7 @@ impl Stackable for u8 {
 impl Stackable for u16 {
     #[allow(clippy::cast_ptr_alignment)]
     fn push(val: Self, runtime: &mut Runtime) {
-        assert!(runtime.stack_pointer as usize + 2 <= runtime.stack_bottom as usize + STACK_SIZE, "Out of stack memory");
+        assert!(runtime.stack_pointer as usize + 2 <= runtime.stack_bottom as usize + STACK_SIZE, "Critical Runtime Error: Stack Overflow");
         
         assert!(runtime.stack_pointer as usize % 2 == 0, "Stack pointer misaligned");
 
@@ -463,7 +472,7 @@ impl Stackable for u16 {
 impl Stackable for u32 {
     #[allow(clippy::cast_ptr_alignment)]
     fn push(val: Self, runtime: &mut Runtime) {
-        assert!(runtime.stack_pointer as usize + 4 <= runtime.stack_bottom as usize + STACK_SIZE, "Out of stack memory");
+        assert!(runtime.stack_pointer as usize + 4 <= runtime.stack_bottom as usize + STACK_SIZE, "Critical Runtime Error: Stack Overflow");
         
         assert!(runtime.stack_pointer as usize % 4 == 0, "Stack pointer misaligned");
 
@@ -489,7 +498,7 @@ impl Stackable for u32 {
 impl Stackable for u64 {
     #[allow(clippy::cast_ptr_alignment)]
     fn push(val: Self, runtime: &mut Runtime) {
-        assert!(runtime.stack_pointer as usize + 8 <= runtime.stack_bottom as usize + STACK_SIZE, "Out of stack memory");
+        assert!(runtime.stack_pointer as usize + 8 <= runtime.stack_bottom as usize + STACK_SIZE, "Critical Runtime Error: Stack Overflow");
         
         assert!(runtime.stack_pointer as usize % 8 == 0, "Stack pointer misaligned");
 
@@ -525,6 +534,7 @@ trait RuntimeInt :
 { 
     fn as_i128(self) -> i128;
     fn from_i128(val: i128) -> Self;
+    fn zero() -> Self;
 } 
 
 trait Signed : RuntimeInt + std::ops::Neg<Output = Self> { }
@@ -532,34 +542,42 @@ trait Signed : RuntimeInt + std::ops::Neg<Output = Self> { }
 impl RuntimeInt for u8 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
+    fn zero() -> u8 { 0 }
 }
 impl RuntimeInt for u16 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
+    fn zero() -> u16 { 0 }
 }
 impl RuntimeInt for u32 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
+    fn zero() -> u32 { 0 }
 }
 impl RuntimeInt for u64 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
+    fn zero() -> u64 { 0 }
 }
 impl RuntimeInt for i8 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
+    fn zero() -> i8 { 0 }
 }
 impl RuntimeInt for i16 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
+    fn zero() -> i16 { 0 }
 }
 impl RuntimeInt for i32 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
+    fn zero() -> i32 { 0 }
 }
 impl RuntimeInt for i64 { 
     fn as_i128(self) -> i128 { i128::from(self) }
     fn from_i128(val: i128) -> Self { val as Self }
+    fn zero() -> i64 { 0 }
 }
 
 impl Stackable for i8 {

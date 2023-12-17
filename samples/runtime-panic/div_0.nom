@@ -1,4 +1,4 @@
-//! Division by Zero
+//! Critical Runtime Error: Division by Zero
 
 fn main() -> i32 {
     val a: i32 = 100 / 0;

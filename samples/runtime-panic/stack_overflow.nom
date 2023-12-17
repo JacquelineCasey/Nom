@@ -1,4 +1,4 @@
-//! Out of stack memory
+//! Critical Runtime Error: Stack Overflow
 
 fn kaboom() -> i32 {
     val a: i32 = kaboom();

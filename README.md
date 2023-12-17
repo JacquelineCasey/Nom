@@ -29,6 +29,9 @@ its runtime efficiency much lower than ideal.
   - At time of writing, all variables must be provided a type explicitely. In the
     future, we hope that a (simple) type inference algorithm can make this more 
     ergonomic.
+  - The math all follows Rust rules. We have +, -, *, /, and %, where % is actually
+    remainder, not modulus (following Rust when arguments are negative, not python).
+    We also have compound assignment operators combining these five and =.
 - Expression focused syntax. Most code constructs will be some kind of expression, with
   the primary exception being assignment.
   - Blocks are expressions, which evaluates to the final expression in the block.

@@ -111,7 +111,7 @@ AssignmentStatement
     ;
 
 CompoundAssignmentStatement
-    : Expression (_PlusEquals | _MinusEquals | _TimesEquals | _DivideEquals) Expression
+    : Expression (_PlusEquals | _MinusEquals | _TimesEquals | _DivideEquals | _ModulusEquals) Expression
     ;
 
 

@@ -210,6 +210,7 @@ pub enum MathOperation {
     Subtract,
     Multiply,
     Divide,
+    Modulus,
 }
 
 
@@ -442,7 +443,8 @@ fn build_compound_assignment_statement(tree: &ST<Token>) -> Result<StatementAST,
                 Op::MinusEquals => MathOperation::Subtract,
                 Op::TimesEquals => MathOperation::Multiply,
                 Op::DivideEquals => MathOperation::Divide,
-                _ => return Err("ajkngkajng".into()),
+                Op::ModulusEquals => MathOperation::Modulus,
+                _ => return Err("Expected Compound Assignment Operator".into()),
             };
 
             // This will turn into an assignment and an operation at a later

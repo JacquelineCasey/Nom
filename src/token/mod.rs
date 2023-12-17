@@ -444,6 +444,7 @@ impl parsley::Token for Token {
             "MinusEquals"     => matches!(token, T { body: TB::Operator(O::MinusEquals) }),
             "TimesEquals"     => matches!(token, T { body: TB::Operator(O::TimesEquals) }),
             "DivideEquals"     => matches!(token, T { body: TB::Operator(O::DivideEquals) }),
+            "ModulusEquals"     => matches!(token, T { body: TB::Operator(O::ModulusEquals) }),
 
             "Var" => matches!(token, T { body: TB::Keyword(K::Var) }),
             "Val" => matches!(token, T { body: TB::Keyword(K::Val) }),

@@ -37,6 +37,7 @@ fn desugar_statement(statement: &mut StatementAST) {
                 crate::ast::MathOperation::Subtract => ExprAST::Subtract(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new()),
                 crate::ast::MathOperation::Multiply => ExprAST::Multiply(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new()),
                 crate::ast::MathOperation::Divide => ExprAST::Divide(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new()),
+                crate::ast::MathOperation::Modulus => ExprAST::Modulus(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new()),
             };
 
             _ = std::mem::replace(statement, StatementAST::Assignment(left, operation, ASTNodeData::new()))

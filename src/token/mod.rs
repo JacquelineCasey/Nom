@@ -1,10 +1,23 @@
 
 // use parsley::ParseError;
 
+use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::error::TokenError;
 
+
+/* Spans describe contiguous groups of characters in a specific source file (or
+ * pseudo source file). Each span represents a half open interval. */
+
+#[derive(Debug, Clone)]
+pub struct Span {
+    file: Rc<String>,
+    start_line: usize,  // 1 based
+    end_line: usize,
+    start_col: usize,  // 1 based
+    end_col: usize
+}
 
 /* Token Definitions */
 
@@ -125,13 +138,39 @@ impl TryFrom<char> for Punctuation {
     }
 }
 
+fn add_span_info<'a>(input: &'a str, file: Rc<String>) -> impl std::iter::Iterator<Item = (char, Span)> + 'a {
+    let mut line_num = 1;
+    let mut col_num = 1;
+    
+    input.chars().map(move |ch| {
+        let ret_val = (ch, Span { 
+            file: Rc::clone(&file), 
+            start_line: line_num,
+            end_line: line_num,
+            start_col: col_num,
+            end_col: col_num + 1,
+        });
+
+        col_num += 1;
+
+        if ch == '\n' {
+            line_num += 1;
+            col_num = 1;
+        }
+
+        ret_val
+    })
+}  
+
 /* Tokenization Algorithm */
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
     let mut tokens: Vec<Token> = vec![];
 
-    let mut iter = input.chars().peekable();
-    while let Some(ch) = iter.peek() {
+    let fake_file = Rc::new("<Add A File Arg>".to_owned());
+
+    let mut iter = add_span_info(input, fake_file).peekable();
+    while let Some((ch, _)) = iter.peek() {
         if *ch == '\"' {
             let token = take_string_literal(&mut iter)?;
             tokens.push(Token { body: token });
@@ -170,15 +209,15 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
 }
 
 
-fn take_string_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
-    let first = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+fn take_string_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>) -> Result<TokenBody, TokenError> {
+    let (first, _) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
     if first != '\"' {
         return Err("Expected character '\"'.".into());
     }
 
     let mut string = String::new();
 
-    for ch in iter {
+    for (ch, _) in iter {
         // TODO: Allow [\"] to escape the double quote
         
         if ch == '\"' {
@@ -191,15 +230,15 @@ fn take_string_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> R
     Err("Expected character '\"'. String literal does not terminate.".into())
 }
 
-fn take_char_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
-    let first = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+fn take_char_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>) -> Result<TokenBody, TokenError> {
+    let (first, _) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
     if first != '\'' {
         return Err("Expected character '\''.".into());
     }
 
     let mut string = String::new();
 
-    for ch in iter {
+    for (ch, _) in iter {
         // TODO: Allow [\'] to escape the single quote
         
         if ch == '\'' {
@@ -212,33 +251,37 @@ fn take_char_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Res
     Err("Expected character '\''. Char literal does not terminate.".into())
 }
 
-fn take_numeric_literal(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
-    if !matches!(iter.peek(), Some(ch) if ch.is_ascii_digit()) {
+fn take_numeric_literal(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>) 
+        -> Result<TokenBody, TokenError> {
+    
+    if !matches!(iter.peek(), Some((ch, _)) if ch.is_ascii_digit()) {
         return Err("Expected Digit.".into())
     }
 
     let mut string = String::new();
-    while let Some(ch) = iter.peek() {
+    while let Some((ch, _)) = iter.peek() {
         if is_numeric_literal_char(*ch) {
-            string.push(iter.next().expect("Known to exist"));
+            string.push(iter.next().expect("Known to exist").0);
         }
         else {
             break
-        }
+        }   
     }
 
     Ok(TokenBody::NumericLiteral(string))
 }
 
-fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<TokenBody, TokenError> {
-    if !matches!(iter.peek(), Some(ch) if is_identifier_char(*ch)) {
+fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>) 
+        -> Result<TokenBody, TokenError> {
+        
+    if !matches!(iter.peek(), Some((ch, _)) if is_identifier_char(*ch)) {
         return Err("Expected Identifier character.".into())
     }
 
     let mut string = String::new();
-    while let Some(ch) = iter.peek() {
+    while let Some((ch, _)) = iter.peek() {
         if is_identifier_char(*ch) {
-            string.push(iter.next().expect("Known to exist"));
+            string.push(iter.next().expect("Known to exist").0);
         }
         else {
             break
@@ -253,15 +296,17 @@ fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<std::str::Chars<'_>
 
 // A / looks like an operator, but if it is followed by another slash then we discard the whole
 // line.
-fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result<Vec<Operator>, TokenError> {
-    if !matches!(iter.peek(), Some(ch) if is_operator_char(*ch)) {
+fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>) 
+        -> Result<Vec<Operator>, TokenError> {
+    
+    if !matches!(iter.peek(), Some((ch, _)) if is_operator_char(*ch)) {
         return Err("Expected operator character.".into())
     }
 
     let mut string = String::new();
-    while let Some(ch) = iter.peek() {
+    while let Some((ch, _)) = iter.peek() {
         if is_operator_char(*ch) {
-            string.push(iter.next().expect("Known to exist"));
+            string.push(iter.next().expect("Known to exist").0);
         }
         else {
             break
@@ -277,7 +322,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
     while !slice.is_empty() {
         if slice.starts_with("//") {
             // Discard comment
-            for ch in iter.by_ref() {
+            for (ch, _) in iter.by_ref() {
                 if ch == '\n' {
                     break;
                 }

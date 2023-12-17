@@ -64,7 +64,7 @@ AdditiveExpression
     ;
 
 MultiplicativeExpression 
-    : PrimaryExpression ((_Times | _Divide) PrimaryExpression)* 
+    : PrimaryExpression ((_Times | _Divide | _Modulus) PrimaryExpression)* 
     ;
 
 PrimaryExpression 

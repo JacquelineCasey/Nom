@@ -35,6 +35,7 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
         | ExprAST::Subtract(left, right, _)
         | ExprAST::Multiply(left, right, _)
         | ExprAST::Divide(left, right, _) 
+        | ExprAST::Modulus(left, right, _)
         | ExprAST::Comparison(left, right, _, _)
         | ExprAST::Or(left, right, _)
         | ExprAST::And(left, right, _) => {

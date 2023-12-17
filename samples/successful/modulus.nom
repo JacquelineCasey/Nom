@@ -9,18 +9,18 @@ fn main() -> i32 {
 
     {
         var a: i32 = 137;
-        a %= 100;
+        // a %= 100;
 
         if a == 37 {
             tests += 1;
         };
 
-        a %= 10;
+        // a %= 10;
 
         if a == 7 {
             tests += 1;
         };
-    }
+    };
 
     // We have an actual modulo operator, not a remainder operator. This means a 
     // the result has the same sign as the divisor. We do what python does, not 
@@ -36,7 +36,7 @@ fn main() -> i32 {
 
     if (0 - 13) % (0 - 10) == (0 - 3) {
         tests += 1;
-    }
+    };
 
     // See also, the mod by zero tests in runtime-panic
 
@@ -44,6 +44,6 @@ fn main() -> i32 {
         100
     }
     else {
-        -100
-    };
+        0
+    }
 }

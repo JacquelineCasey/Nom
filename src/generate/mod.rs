@@ -255,7 +255,8 @@ impl CodeGenerator {
             E::Add(left, right, ..)
             | E::Subtract(left, right, ..)
             | E::Multiply(left, right, ..)
-            | E::Divide(left, right, ..) => {
+            | E::Divide(left, right, ..)
+            | E::Modulus(left, right, ..) => {
                 let subtree_type = &env.type_index[&subtree.get_node_data().id];
                 let left_type = &env.type_index[&left.get_node_data().id];
                 let right_type = &env.type_index[&right.get_node_data().id];
@@ -280,6 +281,8 @@ impl CodeGenerator {
                             E::Multiply(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedMultiplication,
                             E::Divide(..) if curr_type.is_unsigned() => IntegerBinaryOperation::UnsignedDivision,
                             E::Divide(..) if curr_type.is_signed() => IntegerBinaryOperation::SignedDivision,
+                            E::Modulus(..) if curr_type.is_unsigned() => todo!(),
+                            E::Modulus(..) if curr_type.is_signed() => todo!(),
                             _ => panic!("Known unreachable")
                         }, 
                         arg_size)));

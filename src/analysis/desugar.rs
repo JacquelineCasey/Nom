@@ -50,6 +50,7 @@ fn desugar_expression(expr: &mut crate::ast::ExprAST) {
         | ExprAST::Subtract(a, b, _)
         | ExprAST::Multiply(a, b, _)
         | ExprAST::Divide(a, b, _)
+        | ExprAST::Modulus(a, b, _)
         | ExprAST::Comparison(a, b, _, _)
         | ExprAST::Or(a, b, _) 
         | ExprAST::And(a, b, _)

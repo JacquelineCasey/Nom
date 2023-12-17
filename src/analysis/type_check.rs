@@ -36,7 +36,8 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
         ExprAST::Add(left, right, _)
         | ExprAST::Subtract(left, right, _)
         | ExprAST::Multiply(left, right, _)
-        | ExprAST::Divide(left, right, _) => {
+        | ExprAST::Divide(left, right, _)
+        | ExprAST::Modulus(left, right, _) => {
             let left_type = type_check_expression(env, left, function_name, expected)?;
             let right_type = type_check_expression(env, right, function_name, expected)?;
 
@@ -248,6 +249,7 @@ fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut Expr
         | ExprAST::Subtract(a, b, _)
         | ExprAST::Multiply(a, b, _)
         | ExprAST::Divide(a, b, _)
+        | ExprAST::Modulus(a, b, _)
         | ExprAST::Comparison(a, b, _, _)
         | ExprAST::Or(a, b, _)
         | ExprAST::And(a, b, _)

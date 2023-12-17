@@ -89,6 +89,7 @@ pub enum ExprAST {
     Subtract (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Multiply (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Divide (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
+    Modulus (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Comparison (Box<ExprAST>, Box<ExprAST>, Comparison, ASTNodeData),
     Or (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     And (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
@@ -116,6 +117,7 @@ impl ExprAST {
             | ExprAST::Subtract(_, _, data)
             | ExprAST::Multiply(_, _, data)
             | ExprAST::Divide(_, _, data)
+            | ExprAST::Modulus(_, _, data)
             | ExprAST::Comparison(_, _, _, data)
             | ExprAST::Or(_, _, data)
             | ExprAST::And(_, _, data)
@@ -143,6 +145,8 @@ impl ExprAST {
                 ExprAST::Multiply(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
             ExprAST::Divide(left, right, _) => 
                 ExprAST::Divide(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+            ExprAST::Modulus(left, right, _) => 
+                ExprAST::Modulus(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
             ExprAST::Comparison(left, right, comp, _) => 
                 ExprAST::Comparison(Box::new(left.duplicate()), Box::new(right.duplicate()), comp.clone(), ASTNodeData::new()),
             ExprAST::Or(left, right, _) => 
@@ -472,7 +476,9 @@ fn build_multiplicative_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
                 => Ok(ExprAST::Multiply(Box::new(left), Box::new(right), ASTNodeData::new())),
             ST::TokenNode(Token { body: TB::Operator(Op::Divide) }) 
                 => Ok(ExprAST::Divide(Box::new(left), Box::new(right), ASTNodeData::new())),
-            _ => Err("Expected * or /".into())
+            ST::TokenNode(Token { body: TB::Operator(Op::Modulus) }) 
+                => Ok(ExprAST::Modulus(Box::new(left), Box::new(right), ASTNodeData::new())),
+            _ => Err("Expected *, /, or %".into())
         }
     })
 }

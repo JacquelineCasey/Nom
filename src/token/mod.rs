@@ -74,11 +74,13 @@ pub enum Operator {  // Operators currently accepted greedily
     Minus,
     Times, 
     Divide,
+    Modulus, 
     Equals,
     PlusEquals,
     MinusEquals,
     TimesEquals,
     DivideEquals,
+    ModulusEquals,
     ThinRightArrow,
     DoubleEquals,
     NotEquals,
@@ -86,23 +88,6 @@ pub enum Operator {  // Operators currently accepted greedily
     GreaterEquals,
     Less,
     Greater,
-}
-
-impl FromStr for Operator {
-    type Err = ();  // Likely ignored by algorithm.
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use Operator as O;
-
-        match s {
-            "+" => Ok(O::Plus),
-            "-" => Ok(O::Minus),
-            "*" => Ok(O::Times),
-            "/" => Ok(O::Divide),           
-            "=" => Ok(O::Equals),
-            _ => Err(())
-        }
-    }
 }
 
 // All punctuation is a single character that cannot be part of another token.
@@ -337,6 +322,10 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
             operators.push(Operator::DivideEquals);
             slice = &slice[2..];
         }
+        else if slice.starts_with("%=") {
+            operators.push(Operator::ModulusEquals);
+            slice = &slice[2..];
+        }
         else if slice.starts_with('<') {
             operators.push(Operator::Less);
             slice = &slice[1..];
@@ -361,6 +350,10 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
             operators.push(Operator::Divide);
             slice = &slice[1..];
         }
+        else if slice.starts_with('%') {
+            operators.push(Operator::Modulus);
+            slice = &slice[1..];
+        }
         else if slice.starts_with('=') {
             operators.push(Operator::Equals);
             slice = &slice[1..];
@@ -375,7 +368,7 @@ fn take_operators(iter: &mut std::iter::Peekable<std::str::Chars<'_>>) -> Result
 
 
 fn is_operator_char(ch: char) -> bool {
-    let operators = ['+', '-', '*', '/', '=', '>', '<', '!'];
+    let operators = ['+', '-', '*', '/', '=', '>', '<', '!', '%'];
 
     operators.contains(&ch)
 }
@@ -438,6 +431,7 @@ impl parsley::Token for Token {
             "Minus"          => matches!(token, T { body: TB::Operator(O::Minus) }),
             "Times"          => matches!(token, T { body: TB::Operator(O::Times) }), 
             "Divide"         => matches!(token, T { body: TB::Operator(O::Divide) }),
+            "Modulus"        => matches!(token, T { body: TB::Operator(O::Modulus)}),
             "Equals"         => matches!(token, T { body: TB::Operator(O::Equals) }),
             "ThinRightArrow" => matches!(token, T { body: TB::Operator(O::ThinRightArrow) }),
             "DoubleEquals"   => matches!(token, T { body: TB::Operator(O::DoubleEquals) }),

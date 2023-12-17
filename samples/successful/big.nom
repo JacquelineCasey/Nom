@@ -8,11 +8,15 @@
 // Now it looks like the problem is stack space. To go further, we'd want to use the
 // stacker library to make the recursive calls safe. This has already been done in
 // Parsley, where it matters most.
-// We have a lot of recursive functions here. Maybe a macro would help?
+// We have a lot of recursive functions here too. Maybe a macro would help?
 
-//! 40
+//! 80
 
 fn main() -> i32 {
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
+    1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
     1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
     1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
     1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + {1 + { 1 + {
@@ -20,6 +24,10 @@ fn main() -> i32 {
 
         0
 
+    }}}}}}}}}}
+    }}}}}}}}}}
+    }}}}}}}}}}
+    }}}}}}}}}}
     }}}}}}}}}}
     }}}}}}}}}}
     }}}}}}}}}}

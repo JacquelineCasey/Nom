@@ -71,13 +71,14 @@ version = "0.1.0"
 dependencies = [
  "build-deps",
  "parsley",
+ "stacker",
  "test-generator",
 ]
 
 [[package]]
 name = "parsley"
 version = "0.1.0"
-source = "git+https://github.com/jackcasey067/Parsley.git#217fa8ce0c6bf3f3ebe5606a8dd82a6b96d7e840"
+source = "git+https://github.com/jackcasey067/Parsley.git#beb70bfb5ccf52ffe298e376a9f5da892fdb44eb"
 dependencies = [
  "by_address",
  "indoc",

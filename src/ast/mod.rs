@@ -1,4 +1,5 @@
 
+use std::rc::Rc;
 use std::vec;
 
 use parsley::SyntaxTree as ST;
@@ -8,7 +9,7 @@ mod tests;
 
 use crate::error::ASTError;
 use crate::instructions::Comparison;
-use crate::token::{Token, TokenBody as TB, Operator as Op, Punctuation as Punc, Keyword as Kw};
+use crate::token::{Token, TokenBody as TB, Operator as Op, Punctuation as Punc, Keyword as Kw, Span};
 
 
 // ---- AST Definitions ---- //
@@ -23,11 +24,22 @@ pub struct AST {
 #[derive(Debug)]
 pub struct ASTNodeData {
     pub id: u32, // Unique id
+    pub span: Span,  // Location in a source file.
 }
 
 impl ASTNodeData {
-    pub fn new() -> ASTNodeData {
-        ASTNodeData { id: crate::util::next_id() }
+    pub fn new(span: Span) -> ASTNodeData {
+        ASTNodeData { id: crate::util::next_id(), span }
+    }
+}
+
+fn tmp_span() -> Span {
+    Span {
+        file: Rc::new("<Replace Me>".into()),
+        start_line: 0,
+        end_line: 0,
+        start_col: 0,
+        end_col: 0,
     }
 }
 
@@ -50,7 +62,7 @@ impl DeclarationAST {
                     params: params.clone(), 
                     block: block.duplicate(), 
                     return_type: return_type.clone(), 
-                    node_data: ASTNodeData::new(),
+                    node_data: ASTNodeData::new(tmp_span()),
                 },
             DeclarationAST::Variable { mutability, name, expr, type_ascription, .. } => 
                 DeclarationAST::Variable { 
@@ -58,7 +70,7 @@ impl DeclarationAST {
                     name: name.clone(), 
                     expr: expr.duplicate(), 
                     type_ascription: type_ascription.clone(), 
-                    node_data: ASTNodeData::new(), 
+                    node_data: ASTNodeData::new(tmp_span()), 
                 },
         }
     }
@@ -77,13 +89,13 @@ impl StatementAST {
     pub fn duplicate(&self) -> StatementAST {
         match self {
             StatementAST::ExpressionStatement(expr, _) => 
-                StatementAST::ExpressionStatement(expr.duplicate(), ASTNodeData::new()),
+                StatementAST::ExpressionStatement(expr.duplicate(), ASTNodeData::new(tmp_span())),
             StatementAST::Assignment(left, right, _) =>
-                StatementAST::Assignment(left.duplicate(), right.duplicate(), ASTNodeData::new()),
+                StatementAST::Assignment(left.duplicate(), right.duplicate(), ASTNodeData::new(tmp_span())),
             StatementAST::CompoundAssignment(left, right, op, _) => 
-                StatementAST::CompoundAssignment(left.duplicate(), right.duplicate(), op.clone(), ASTNodeData::new()),
+                StatementAST::CompoundAssignment(left.duplicate(), right.duplicate(), op.clone(), ASTNodeData::new(tmp_span())),
             StatementAST::Declaration(decl, _) =>   
-                StatementAST::Declaration(decl.duplicate(), ASTNodeData::new())
+                StatementAST::Declaration(decl.duplicate(), ASTNodeData::new(tmp_span()))
         }
     }
 }
@@ -143,56 +155,56 @@ impl ExprAST {
     pub fn duplicate(&self) -> ExprAST {
         match self {
             ExprAST::Add(left, right, _) => 
-                ExprAST::Add(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+                ExprAST::Add(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new(tmp_span())),
             ExprAST::Subtract(left, right, _) => 
-                ExprAST::Subtract(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+                ExprAST::Subtract(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new(tmp_span())),
             ExprAST::Multiply(left, right, _) => 
-                ExprAST::Multiply(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+                ExprAST::Multiply(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new(tmp_span())),
             ExprAST::Divide(left, right, _) => 
-                ExprAST::Divide(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+                ExprAST::Divide(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new(tmp_span())),
             ExprAST::Modulus(left, right, _) => 
-                ExprAST::Modulus(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+                ExprAST::Modulus(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new(tmp_span())),
             ExprAST::Comparison(left, right, comp, _) => 
-                ExprAST::Comparison(Box::new(left.duplicate()), Box::new(right.duplicate()), comp.clone(), ASTNodeData::new()),
+                ExprAST::Comparison(Box::new(left.duplicate()), Box::new(right.duplicate()), comp.clone(), ASTNodeData::new(tmp_span())),
             ExprAST::Or(left, right, _) => 
-                ExprAST::Or(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+                ExprAST::Or(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new(tmp_span())),
             ExprAST::And(left, right, _) => 
-                ExprAST::And(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new()),
+                ExprAST::And(Box::new(left.duplicate()), Box::new(right.duplicate()), ASTNodeData::new(tmp_span())),
             ExprAST::Not(inner, _) => 
-                ExprAST::Not(Box::new(inner.duplicate()), ASTNodeData::new()),
+                ExprAST::Not(Box::new(inner.duplicate()), ASTNodeData::new(tmp_span())),
             ExprAST::IntegerLiteral(num, _) => 
-                ExprAST::IntegerLiteral(*num, ASTNodeData::new()),
+                ExprAST::IntegerLiteral(*num, ASTNodeData::new(tmp_span())),
             ExprAST::BooleanLiteral(bool, _) => 
-                ExprAST::BooleanLiteral(*bool, ASTNodeData::new()),
+                ExprAST::BooleanLiteral(*bool, ASTNodeData::new(tmp_span())),
             ExprAST::Variable(name, _) => 
-                ExprAST::Variable(name.clone(), ASTNodeData::new()),
+                ExprAST::Variable(name.clone(), ASTNodeData::new(tmp_span())),
             ExprAST::FunctionCall(name, exprs, _) => 
-                ExprAST::FunctionCall(name.clone(), exprs.iter().map(ExprAST::duplicate).collect(), ASTNodeData::new()),
+                ExprAST::FunctionCall(name.clone(), exprs.iter().map(ExprAST::duplicate).collect(), ASTNodeData::new(tmp_span())),
             ExprAST::Block(statements, final_expr, _) => 
                 ExprAST::Block(
                     statements.iter().map(StatementAST::duplicate).collect(), 
                     final_expr.as_ref().map(|expr| Box::new(ExprAST::duplicate(expr.as_ref()))), 
-                    ASTNodeData::new()
+                    ASTNodeData::new(tmp_span())
                 ),
             ExprAST::If { condition, block, else_branch, .. } => 
                 ExprAST::If { 
                     condition: Box::new(condition.as_ref().duplicate()),
                     block: Box::new(block.as_ref().duplicate()),
                     else_branch: else_branch.as_ref().map(|expr| Box::new(ExprAST::duplicate(expr.as_ref()))),
-                    data: ASTNodeData::new(),
+                    data: ASTNodeData::new(tmp_span()),
                 },
             ExprAST::While { condition, block, .. } => 
                 ExprAST::While {
                     condition: Box::new(condition.as_ref().duplicate()),
                     block: Box::new(block.as_ref().duplicate()),
-                    data: ASTNodeData::new(),
+                    data: ASTNodeData::new(tmp_span()),
                 },
             ExprAST::Return(expr, _) => {
                 if let Some(expr) = expr {
-                    ExprAST::Return(Some(Box::new(expr.duplicate())), ASTNodeData::new())
+                    ExprAST::Return(Some(Box::new(expr.duplicate())), ASTNodeData::new(tmp_span()))
                 }
                 else {
-                    ExprAST::Return(None, ASTNodeData::new())
+                    ExprAST::Return(None, ASTNodeData::new(tmp_span()))
                 }
             }
             ExprAST::Moved => panic!("ExprAST moved"),
@@ -202,6 +214,7 @@ impl ExprAST {
 
 /* Visitor Pattern */
 
+#[derive(Debug)]
 pub enum AnyAST<'a> {
     File (&'a mut AST),
     Declaration (&'a mut DeclarationAST),
@@ -210,7 +223,12 @@ pub enum AnyAST<'a> {
 }
 
 impl<'a> AnyAST<'a> {
-    pub fn children(self) -> Vec<AnyAST<'a>> {
+
+    /* This function permits recursion over the tree without inspecting the structure.
+     * Most methods that want to crawl the whole tree will use this, check to see if
+     * it is at a specific type of node, then recurse in both cases. I anticipate this
+     * being useful for applying optimizations / desugaring stages. */
+    pub fn children(&'a mut self) -> Vec<AnyAST<'a>> {
         use AnyAST as A;
         use DeclarationAST as D;
         use StatementAST as S;
@@ -221,13 +239,16 @@ impl<'a> AnyAST<'a> {
                 declarations.iter_mut().map(|ast| {
                     A::Declaration(ast)
                 }).collect(),
-            A::Declaration(D::Function { block: expr, .. } | D::Variable { expr, .. }) => 
+            A::Declaration(D::Function { block: ref mut expr, .. } | D::Variable { ref mut expr, .. }) => 
                 vec![A::Expression(expr)],
-            A::Statement(S::Assignment(expr_1, expr_2, ..) | S::CompoundAssignment(expr_1, expr_2, ..)) =>
+            A::Statement(
+                S::Assignment(ref mut expr_1, ref mut expr_2, ..) 
+              | S::CompoundAssignment(ref mut expr_1, ref mut expr_2, ..)
+            ) =>
                 vec![A::Expression(expr_1), A::Expression(expr_2)],
-            A::Statement(S::Declaration(dec, ..)) =>
+            A::Statement(S::Declaration(ref mut dec, ..)) =>
                 vec![A::Declaration(dec)],
-            A::Statement(S::ExpressionStatement(expr, ..)) =>
+            A::Statement(S::ExpressionStatement(ref mut expr, ..)) =>
                 vec![A::Expression(expr)],
             A::Expression(
                 E::IntegerLiteral(..)
@@ -272,6 +293,49 @@ impl<'a> AnyAST<'a> {
                 panic!("Expected Unmoved Value")    
         }
     }
+
+    pub fn get_data(&self) -> &ASTNodeData {
+        use AnyAST as A;
+        use DeclarationAST as D;
+        use StatementAST as S;
+        use ExprAST as E;
+
+        match self {
+          | A::File(AST { node_data, .. }) 
+          | A::Declaration(
+              | D::Function { node_data, .. }
+              | D::Variable { node_data, .. }
+            )
+          | A::Statement(
+              | S::Assignment(_, _, node_data)
+              | S::CompoundAssignment(_, _, _, node_data)
+              | S::Declaration(_, node_data)
+              | S::ExpressionStatement(_, node_data)
+            )
+          | A::Expression(
+              | E::Add(_, _, node_data) 
+              | E::And(_, _, node_data)
+              | E::Block(_, _, node_data)
+              | E::BooleanLiteral(_, node_data)
+              | E::Comparison(_, _, _, node_data)
+              | E::Divide(_, _, node_data)
+              | E::FunctionCall(_, _, node_data)
+              | E::If { data: node_data, .. }
+              | E::IntegerLiteral(_, node_data)
+              | E::Modulus(_, _, node_data)
+              | E::Multiply(_, _, node_data)
+              | E::Not(_, node_data)
+              | E::Or(_, _, node_data)
+              | E::Return(_, node_data)
+              | E::Subtract(_, _, node_data)
+              | E::Variable(_, node_data)
+              | E::While { data: node_data, .. }
+            ) => 
+                node_data,
+            A::Expression(E::Moved) =>
+                panic!("Expected Unmoved Value")
+        }
+    }
 }
 
 
@@ -302,7 +366,7 @@ pub fn build_ast(tree: &ST<Token>) -> Result<AST, ASTError> {
                 declarations: subexpressions.iter()
                     .map(build_declaration_ast)
                     .collect::<Result<Vec<_>, _>>()?,
-                node_data: ASTNodeData::new() 
+                node_data: ASTNodeData::new(tmp_span()) 
             })
         }
         _ => Err("Failed to build Program AST".into()),
@@ -332,7 +396,7 @@ fn build_statement_ast(tree: &ST<Token>) -> Result<StatementAST, ASTError> {
         [ ST::RuleNode { rule_name, subexpressions }
         , ST::TokenNode (Token { body: TB::Punctuation(Punc::Semicolon), .. })
         ] if rule_name == "Expression" => 
-            Ok(StatementAST::ExpressionStatement(build_expr_ast(&subexpressions[0])?, ASTNodeData::new())),
+            Ok(StatementAST::ExpressionStatement(build_expr_ast(&subexpressions[0])?, ASTNodeData::new(tmp_span()))),
         
         [ stmt @ ST::RuleNode { rule_name, .. }
         , ST::TokenNode (Token { body: TB::Punctuation(Punc::Semicolon), ..})
@@ -345,71 +409,75 @@ fn build_statement_ast(tree: &ST<Token>) -> Result<StatementAST, ASTError> {
             build_compound_assignment_statement(stmt),
         
         [ stmt @ ST::RuleNode { rule_name, .. } ] if rule_name == "Declaration" => 
-            Ok(StatementAST::Declaration(build_declaration_ast(stmt)?, ASTNodeData::new())),
+            Ok(StatementAST::Declaration(build_declaration_ast(stmt)?, ASTNodeData::new(tmp_span()))),
         
         _ => Err("Failed to build Statement AST".into())
     }
 }
 
 fn build_expr_ast(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    match tree {
-        ST::RuleNode { rule_name, subexpressions } if rule_name == "Expression" => {
-            if subexpressions.len() == 1 {
-                build_expr_ast(&subexpressions[0])
-            }
-            else {
-                Err("Expected exactly on child of Expression node".into())
-            }
-        },
-        ST::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {            
-            if subexpressions.len() == 1 {  // Literal, Variable, or Block
-                build_expr_ast(subexpressions.iter().next().expect("Known to exist"))
-            }
-            else if subexpressions.len() == 3 {
-                if !matches!(&subexpressions[0], ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftParenthesis), ..}))
-                    || !matches!(&subexpressions[2], ST::TokenNode(Token { body: TB::Punctuation(Punc::RightParenthesis), ..})) {
-                    
-                    Err("Expected parentheses".into())
+    // Prevent stack overflow by allocating additional stack as required.
+    stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+
+        match tree {
+            ST::RuleNode { rule_name, subexpressions } if rule_name == "Expression" => {
+                if subexpressions.len() == 1 {
+                    build_expr_ast(&subexpressions[0])
                 }
                 else {
-                    build_expr_ast(&subexpressions[1])
+                    Err("Expected exactly on child of Expression node".into())
                 }
-            }
-            else {
-                Err("Wrong number of subtrees at PrimaryExpression".into())
-            }
-        },
-        ST::RuleNode { rule_name, .. } if rule_name == "AdditiveExpression" => 
-            build_additive_expr(tree),
-        ST::RuleNode { rule_name, .. } if rule_name == "MultiplicativeExpression" =>
-            build_multiplicative_expr(tree),
-        ST::RuleNode { rule_name, .. } if rule_name == "ComparisonExpression" => 
-            build_comparision_expr(tree),
-        ST::RuleNode { rule_name, .. } if rule_name == "OrExpression" =>
-            build_or_expr(tree),
-        ST::RuleNode { rule_name, .. } if rule_name == "AndExpression" =>
-            build_and_expr(tree),
-        ST::RuleNode { rule_name, .. } if rule_name == "NotExpression" =>
-            build_not_expr(tree),
-        ST::RuleNode { ref rule_name, .. } if rule_name == "Literal" =>
-            build_literal_expr(tree),
-        ST::RuleNode { ref rule_name, .. } if rule_name == "FunctionCall" => 
-            build_function_call_expr(tree),
-        ST::RuleNode { ref rule_name, .. } if rule_name == "BlockExpression" =>
-            build_block_expr(tree),
-        ST::RuleNode { ref rule_name, .. } if rule_name == "IfExpression" => 
-            build_if_expr(tree),
-        ST::RuleNode { ref rule_name, .. } if rule_name == "WhileExpression" =>
-            build_while_expr(tree),
-        ST::RuleNode { ref rule_name, .. } if rule_name == "ReturnExpression" =>
-            build_return_expr(tree),
-        ST::RuleNode { rule_name, subexpressions: _ } => 
-            Err(format!("Expected Expression. Unknown expression node name: {rule_name}").into()),
-        ST::TokenNode (Token { body: TB::Identifier(name), .. }) =>
-            Ok(ExprAST::Variable(name.clone(), ASTNodeData::new() )),
-        ST::TokenNode (tok) => 
-            Err(format!("Expected expression, found token {tok}").into())
-    }
+            },
+            ST::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {            
+                if subexpressions.len() == 1 {  // Literal, Variable, or Block
+                    build_expr_ast(subexpressions.iter().next().expect("Known to exist"))
+                }
+                else if subexpressions.len() == 3 {
+                    if !matches!(&subexpressions[0], ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftParenthesis), ..}))
+                        || !matches!(&subexpressions[2], ST::TokenNode(Token { body: TB::Punctuation(Punc::RightParenthesis), ..})) {
+                        
+                        Err("Expected parentheses".into())
+                    }
+                    else {
+                        build_expr_ast(&subexpressions[1])
+                    }
+                }
+                else {
+                    Err("Wrong number of subtrees at PrimaryExpression".into())
+                }
+            },
+            ST::RuleNode { rule_name, .. } if rule_name == "AdditiveExpression" => 
+                build_additive_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "MultiplicativeExpression" =>
+                build_multiplicative_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "ComparisonExpression" => 
+                build_comparision_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "OrExpression" =>
+                build_or_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "AndExpression" =>
+                build_and_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "NotExpression" =>
+                build_not_expr(tree),
+            ST::RuleNode { ref rule_name, .. } if rule_name == "Literal" =>
+                build_literal_expr(tree),
+            ST::RuleNode { ref rule_name, .. } if rule_name == "FunctionCall" => 
+                build_function_call_expr(tree),
+            ST::RuleNode { ref rule_name, .. } if rule_name == "BlockExpression" =>
+                build_block_expr(tree),
+            ST::RuleNode { ref rule_name, .. } if rule_name == "IfExpression" => 
+                build_if_expr(tree),
+            ST::RuleNode { ref rule_name, .. } if rule_name == "WhileExpression" =>
+                build_while_expr(tree),
+            ST::RuleNode { ref rule_name, .. } if rule_name == "ReturnExpression" =>
+                build_return_expr(tree),
+            ST::RuleNode { rule_name, subexpressions: _ } => 
+                Err(format!("Expected Expression. Unknown expression node name: {rule_name}").into()),
+            ST::TokenNode (Token { body: TB::Identifier(name), .. }) =>
+                Ok(ExprAST::Variable(name.clone(), ASTNodeData::new(tmp_span()))),
+            ST::TokenNode (tok) => 
+                Err(format!("Expected expression, found token {tok}").into())
+        }
+    })
 }
 
 
@@ -442,7 +510,7 @@ fn build_function_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTErr
     let params = build_parameter_list(&children[2])?;
     let block = build_expr_ast(&children[5])?;
 
-    Ok(DeclarationAST::Function { name, params, block, node_data: ASTNodeData::new(), return_type })
+    Ok(DeclarationAST::Function { name, params, block, node_data: ASTNodeData::new(tmp_span()), return_type })
 }
 
 fn build_variable_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
@@ -475,7 +543,7 @@ fn build_variable_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTErr
                 mutability,
                 name: name.clone(), 
                 expr: build_expr_ast(expr_node)?,
-                node_data: ASTNodeData::new(),
+                node_data: ASTNodeData::new(tmp_span()),
                 type_ascription,
             })
         }
@@ -497,7 +565,7 @@ fn build_assignment_statement(tree: &ST<Token>) -> Result<StatementAST, ASTError
             let left = build_expr_ast(&sub_expr_1[0])?;
             let right = build_expr_ast(&sub_expr_2[0])?;
 
-            Ok(StatementAST::Assignment(left, right, ASTNodeData::new()))
+            Ok(StatementAST::Assignment(left, right, ASTNodeData::new(tmp_span())))
         },
         _ => Err("Failed to build AssignmentStatement".into())
     }
@@ -528,7 +596,7 @@ fn build_compound_assignment_statement(tree: &ST<Token>) -> Result<StatementAST,
 
             // This will turn into an assignment and an operation at a later
             // desugar stage.
-            Ok(StatementAST::CompoundAssignment(left, right, math_op, ASTNodeData::new()))
+            Ok(StatementAST::CompoundAssignment(left, right, math_op, ASTNodeData::new(tmp_span())))
         },
         _ => Err("Failed to build CompoundAssignmentStatement".into())
     }
@@ -540,9 +608,9 @@ fn build_additive_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     combine_binary_ops(children, true, |left, op, right| {
         match op {
             ST::TokenNode(Token { body: TB::Operator(Op::Plus), .. }) => 
-                Ok(ExprAST::Add(Box::new(left), Box::new(right), ASTNodeData::new())),
+                Ok(ExprAST::Add(Box::new(left), Box::new(right), ASTNodeData::new(tmp_span()))),
             ST::TokenNode(Token { body: TB::Operator(Op::Minus), .. }) => 
-                Ok(ExprAST::Subtract(Box::new(left), Box::new(right), ASTNodeData::new())),
+                Ok(ExprAST::Subtract(Box::new(left), Box::new(right), ASTNodeData::new(tmp_span()))),
             _ => Err("Expected + or -".into())
         }
     })
@@ -554,11 +622,11 @@ fn build_multiplicative_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     combine_binary_ops(children, true, |left, op, right| {
         match op {
             ST::TokenNode(Token { body: TB::Operator(Op::Times), .. }) 
-                => Ok(ExprAST::Multiply(Box::new(left), Box::new(right), ASTNodeData::new())),
+                => Ok(ExprAST::Multiply(Box::new(left), Box::new(right), ASTNodeData::new(tmp_span()))),
             ST::TokenNode(Token { body: TB::Operator(Op::Divide), .. }) 
-                => Ok(ExprAST::Divide(Box::new(left), Box::new(right), ASTNodeData::new())),
+                => Ok(ExprAST::Divide(Box::new(left), Box::new(right), ASTNodeData::new(tmp_span()))),
             ST::TokenNode(Token { body: TB::Operator(Op::Modulus), .. }) 
-                => Ok(ExprAST::Modulus(Box::new(left), Box::new(right), ASTNodeData::new())),
+                => Ok(ExprAST::Modulus(Box::new(left), Box::new(right), ASTNodeData::new(tmp_span()))),
             _ => Err("Expected *, /, or %".into())
         }
     })
@@ -584,7 +652,7 @@ fn build_comparision_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         let left = Box::new(build_expr_ast(&children[0])?);
         let right = Box::new(build_expr_ast(&children[2])?);
 
-        Ok(ExprAST::Comparison(left, right, comparison, ASTNodeData::new()))
+        Ok(ExprAST::Comparison(left, right, comparison, ASTNodeData::new(tmp_span())))
     }
     else {
         Err("Unexpected number of subexpression under ComparisonExpression".into())
@@ -597,7 +665,7 @@ fn build_or_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     combine_binary_ops(children, true, |left, op, right| {
         match op {
             ST::TokenNode(Token { body: TB::Keyword(Kw::Or), .. }) => 
-                Ok(ExprAST::Or(Box::new(left), Box::new(right), ASTNodeData::new())),
+                Ok(ExprAST::Or(Box::new(left), Box::new(right), ASTNodeData::new(tmp_span()))),
             _ => Err("Expected 'or'".into())
         }
     })
@@ -609,7 +677,7 @@ fn build_and_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     combine_binary_ops(children, true, |left, op, right| {
         match op {
             ST::TokenNode(Token { body: TB::Keyword(Kw::And), .. }) => 
-                Ok(ExprAST::And(Box::new(left), Box::new(right), ASTNodeData::new())),
+                Ok(ExprAST::And(Box::new(left), Box::new(right), ASTNodeData::new(tmp_span()))),
             _ => Err("Expected 'and'".into())
         }
     })
@@ -623,7 +691,7 @@ fn build_not_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
             else { return Err("...".into()) };
 
         let inner = build_expr_ast(&children[1])?;
-        Ok(ExprAST::Not(Box::new(inner), ASTNodeData::new()))
+        Ok(ExprAST::Not(Box::new(inner), ASTNodeData::new(tmp_span())))
     }
     else {
         build_expr_ast(&children[0])
@@ -643,9 +711,9 @@ fn build_literal_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         ST::RuleNode { rule_name, subexpressions } if rule_name == "BooleanLiteral" => {
             match subexpressions.as_slice() {
                 [ST::TokenNode(Token { body: TB::Keyword(Kw::True), .. })] => 
-                    Ok(ExprAST::BooleanLiteral(true, ASTNodeData::new())),
+                    Ok(ExprAST::BooleanLiteral(true, ASTNodeData::new(tmp_span()))),
                 [ST::TokenNode(Token { body: TB::Keyword(Kw::False), .. })] => 
-                    Ok(ExprAST::BooleanLiteral(false, ASTNodeData::new())),
+                    Ok(ExprAST::BooleanLiteral(false, ASTNodeData::new(tmp_span()))),
                 _ => Err("Expected true or false under BooleanLiteral node".into()),
             }
         },
@@ -655,7 +723,7 @@ fn build_literal_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
             let num = str.parse()
                 .map_err(|_| ASTError("Integer parse failed. Literals must fit in i128".to_string()))?;
 
-            Ok(ExprAST::IntegerLiteral(num, ASTNodeData::new()))
+            Ok(ExprAST::IntegerLiteral(num, ASTNodeData::new(tmp_span())))
         },
         ST::TokenNode(_) => Err("Non numeric literal under Literal node".into())
     }
@@ -688,7 +756,7 @@ fn build_function_call_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         }
     }
 
-    Ok(ExprAST::FunctionCall(name.clone(), expressions, ASTNodeData::new()))
+    Ok(ExprAST::FunctionCall(name.clone(), expressions, ASTNodeData::new(tmp_span())))
 }
 
 fn build_block_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
@@ -706,7 +774,7 @@ fn build_block_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     subexpressions.remove(subexpressions.len()-1); // Discard last_brace
 
     if subexpressions.is_empty() {
-        return Ok(ExprAST::Block(vec![], None, ASTNodeData::new()));
+        return Ok(ExprAST::Block(vec![], None, ASTNodeData::new(tmp_span())));
     }
 
     let opt_expr = if let ST::RuleNode { rule_name, subexpressions: _ } = &subexpressions[subexpressions.len() - 1] {
@@ -723,7 +791,7 @@ fn build_block_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         .map(build_statement_ast)
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(ExprAST::Block(statements, opt_expr, ASTNodeData::new()))
+    Ok(ExprAST::Block(statements, opt_expr, ASTNodeData::new(tmp_span())))
 }
 
 fn build_if_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
@@ -752,7 +820,7 @@ fn build_if_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         None
     };
 
-    Ok(ExprAST::If { condition, block, else_branch, data: ASTNodeData::new() })
+    Ok(ExprAST::If { condition, block, else_branch, data: ASTNodeData::new(tmp_span()) })
 }
 
 fn build_while_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
@@ -770,7 +838,7 @@ fn build_while_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 
     let block = Box::new(build_block_expr(&children[2])?);
 
-    Ok(ExprAST::While { condition, block, data: ASTNodeData::new() })
+    Ok(ExprAST::While { condition, block, data: ASTNodeData::new(tmp_span()) })
 }
 
 fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
@@ -787,7 +855,7 @@ fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         None
     };
 
-    Ok(ExprAST::Return(expr, ASTNodeData::new()))
+    Ok(ExprAST::Return(expr, ASTNodeData::new(tmp_span())))
 }
 
 

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 parsley = { git = "https://github.com/jackcasey067/Parsley.git" }
 test-generator = "0.3.1"
+stacker = "0.1.15"
 
 [build-dependencies]
 build-deps = "^0.1"

@@ -1,4 +1,6 @@
 
+use std::vec;
+
 use parsley::SyntaxTree as ST;
 
 #[cfg(test)]
@@ -194,6 +196,80 @@ impl ExprAST {
                 }
             }
             ExprAST::Moved => panic!("ExprAST moved"),
+        }
+    }
+}
+
+/* Visitor Pattern */
+
+pub enum AnyAST<'a> {
+    File (&'a mut AST),
+    Declaration (&'a mut DeclarationAST),
+    Statement (&'a mut StatementAST),
+    Expression (&'a mut ExprAST)
+}
+
+impl<'a> AnyAST<'a> {
+    pub fn children(self) -> Vec<AnyAST<'a>> {
+        use AnyAST as A;
+        use DeclarationAST as D;
+        use StatementAST as S;
+        use ExprAST as E;
+
+        match self {
+            A::File(AST { declarations, .. }) =>
+                declarations.iter_mut().map(|ast| {
+                    A::Declaration(ast)
+                }).collect(),
+            A::Declaration(D::Function { block: expr, .. } | D::Variable { expr, .. }) => 
+                vec![A::Expression(expr)],
+            A::Statement(S::Assignment(expr_1, expr_2, ..) | S::CompoundAssignment(expr_1, expr_2, ..)) =>
+                vec![A::Expression(expr_1), A::Expression(expr_2)],
+            A::Statement(S::Declaration(dec, ..)) =>
+                vec![A::Declaration(dec)],
+            A::Statement(S::ExpressionStatement(expr, ..)) =>
+                vec![A::Expression(expr)],
+            A::Expression(
+                E::IntegerLiteral(..)
+                | E::BooleanLiteral(..)
+                | E::Variable(..)
+                | E::Return(None, ..)
+            ) => 
+                vec![],
+            A::Expression(
+                E::Not(expr, ..)
+              | E::Return(Some(expr), ..)
+            ) => 
+                vec![A::Expression(expr.as_mut())],
+            A::Expression(
+                E::Add(expr_1, expr_2, ..)
+              | E::Subtract(expr_1, expr_2, ..)
+              | E::Multiply(expr_1, expr_2, ..)
+              | E::Divide(expr_1, expr_2, ..)
+              | E::Modulus(expr_1, expr_2, ..)
+              | E::Comparison(expr_1, expr_2, ..)
+              | E::Or(expr_1, expr_2, ..)
+              | E::And(expr_1, expr_2, ..)
+              | E::If { condition: expr_1, block: expr_2, else_branch: None, .. }
+              | E::While { condition: expr_1, block: expr_2, .. }
+            ) =>
+                vec![A::Expression(expr_1.as_mut()), A::Expression(expr_2.as_mut())],
+            A::Expression(E::If { condition: expr_1, block: expr_2, else_branch: Some(expr_3), .. }) => 
+                vec![A::Expression(expr_1.as_mut()), A::Expression(expr_2.as_mut()), A::Expression(expr_3.as_mut())],
+            A::Expression(E::FunctionCall(_, exprs, _)) => {
+                exprs.iter_mut().map(|expr| A::Expression(expr)).collect()
+            }     
+            A::Expression(E::Block(stmts, maybe_expr, ..)) => {
+                let mut vec: Vec<_> = stmts.iter_mut().map(|stmt| A::Statement(stmt)).collect();
+
+                if let Some(expr) = maybe_expr {
+                    vec.push(A::Expression(expr.as_mut()))
+                }
+
+                vec
+            }
+            A::Expression(E::Moved) =>
+                panic!("Expected Unmoved Value")    
         }
     }
 }

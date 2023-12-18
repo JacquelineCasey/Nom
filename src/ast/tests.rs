@@ -15,9 +15,7 @@ fn read_file(resource: &str) -> String {
 }
 
 fn validate_spans<'a>(ast: &'a mut AnyAST<'a>) {
-    println!("{:?}\n", ast);
-
-    let span = &ast.get_data().span;
+    let span = &ast.get_node_data().span;
 
     assert!(*span.file == "<test-input>");
     assert!(span.start_line <= span.end_line);

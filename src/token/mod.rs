@@ -37,7 +37,7 @@ impl Span {
     }
 
     pub fn combine_all(spans: &[Span]) -> Span {
-        assert!(spans.len() != 0);
+        assert!(!spans.is_empty());
 
         let mut final_span = spans[0].clone();
 
@@ -169,7 +169,7 @@ impl TryFrom<char> for Punctuation {
     }
 }
 
-fn add_span_info<'a>(input: &'a str, file: Rc<String>) -> impl std::iter::Iterator<Item = (char, Span)> + 'a {
+fn add_span_info(input: &str, file: Rc<String>) -> impl std::iter::Iterator<Item = (char, Span)> + '_ {
     let mut line_num = 1;
     let mut col_num = 1;
     

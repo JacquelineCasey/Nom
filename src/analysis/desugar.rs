@@ -2,8 +2,6 @@
 // early so that later analysis steps can take place with a somewhat normalized
 // format.
 
-use std::rc::Rc;
-
 use crate::{ast::{AST, ExprAST, StatementAST, ASTNodeData, AnyAST}, token::Span};
 
 
@@ -23,15 +21,17 @@ fn desugar_ast<'a>(ast: &'a mut AnyAST<'a>) {
             let left = std::mem::take(left);
             let right = std::mem::take(right);
 
+            let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+
             let operation = match op {
-                crate::ast::MathOperation::Add => ExprAST::Add(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(tmp_span())),
-                crate::ast::MathOperation::Subtract => ExprAST::Subtract(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(tmp_span())),
-                crate::ast::MathOperation::Multiply => ExprAST::Multiply(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(tmp_span())),
-                crate::ast::MathOperation::Divide => ExprAST::Divide(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(tmp_span())),
-                crate::ast::MathOperation::Modulus => ExprAST::Modulus(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(tmp_span())),
+                crate::ast::MathOperation::Add => ExprAST::Add(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
+                crate::ast::MathOperation::Subtract => ExprAST::Subtract(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
+                crate::ast::MathOperation::Multiply => ExprAST::Multiply(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
+                crate::ast::MathOperation::Divide => ExprAST::Divide(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
+                crate::ast::MathOperation::Modulus => ExprAST::Modulus(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
             };
             
-            _ = std::mem::replace(*statement, StatementAST::Assignment(left, operation, ASTNodeData::new(tmp_span())));
+            _ = std::mem::replace(*statement, StatementAST::Assignment(left, operation, ASTNodeData::new(span)));
 
             desugar_ast(&mut AnyAST::Statement(statement))
         }
@@ -40,17 +40,6 @@ fn desugar_ast<'a>(ast: &'a mut AnyAST<'a>) {
                 desugar_ast(&mut child)
             }
         }
-    }
-}
-
-// TODO: Remove
-fn tmp_span() -> Span {
-    Span {
-        file: Rc::new("<Replace Me>".into()),
-        start_line: 0,
-        end_line: 0,
-        start_col: 0,
-        end_col: 0,
     }
 }
 

@@ -170,6 +170,8 @@ fn function_call() {
 
 #[test]
 fn conversion() {
+
+
     // 40 - (2 + 3 * 8 / 2) = 26
     let lines = run_collecting_output(vec![
         I::PushConstant(Constant::OneByte(10)),

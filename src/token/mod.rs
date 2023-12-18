@@ -1,6 +1,9 @@
 
 // use parsley::ParseError;
 
+#[cfg(test)]
+mod tests;
+
 use std::cmp::{min, max};
 use std::rc::Rc;
 use std::str::FromStr;
@@ -191,10 +194,13 @@ fn tmp_span() -> Span {
 
 /* Tokenization Algorithm */
 
-pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenError> {
+/* Accepts the input as a string, and a file path for bookeeping (spans). The file
+ * path may also be a pseudo file path, if there is no actual backing file (e.g. 
+ * REPL mode). */
+pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> {
     let mut tokens: Vec<Token> = vec![];
 
-    let fake_file = Rc::new("<Add A File Arg>".to_owned());
+    let fake_file = Rc::new(file_path.to_owned());
 
     let mut iter = add_span_info(input, fake_file).peekable();
     while let Some((ch, _)) = iter.peek() {

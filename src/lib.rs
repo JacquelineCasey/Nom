@@ -77,14 +77,14 @@ impl CompilationEnvironment {
     // but definitions may or may not be created depending on if they are needed.
     // If define_all is true, goals will be added to define every declaration.
     fn import_file(&mut self, file: &FileOrString, define_all: bool) -> Result<(), CompileError> {
-        let (_path, input) = match file {
+        let (path, input) = match file {
             FileOrString::File(path) => 
                 (path, std::fs::read_to_string(path).map_err(|_| "Could not open file")?),
             FileOrString::String(path, data) => 
                 (path, data.clone()),
         };
 
-        let tokens = token::tokenize(&input)?;
+        let tokens = token::tokenize(&input, path)?;
 
         let syntax_tree = self.parser.parse_tokens(&tokens, "Program")?;
         let mut ast = ast::build_ast(&syntax_tree)?;

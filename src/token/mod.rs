@@ -357,7 +357,7 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
 
     let mut slice = &string[..];
     while !slice.is_empty() {
-        if slice.starts_with("//") {
+        let (op, advance) = if slice.starts_with("//") {
             // Discard comment
             for (ch, _) in iter.by_ref() {
                 if ch == '\n' {
@@ -369,80 +369,65 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
         }
         // This is an operator for lexical reasons. Punctuation has to be single characters.
         else if slice.starts_with("->") {
-            operators.push(Operator::ThinRightArrow);
-            slice = &slice[2..];
+            (Operator::ThinRightArrow, 2)
         }
         else if slice.starts_with("==") {
-            operators.push(Operator::DoubleEquals);
-            slice = &slice[2..];
+            (Operator::DoubleEquals, 2)
         }
         else if slice.starts_with("!=") {
-            operators.push(Operator::NotEquals);
-            slice = &slice[2..];
+            (Operator::NotEquals, 2)
         }
         else if slice.starts_with("<=") {
-            operators.push(Operator::LessEquals);
-            slice = &slice[2..];
+            (Operator::LessEquals, 2)
         }
         else if slice.starts_with(">=") {
-            operators.push(Operator::GreaterEquals);
-            slice = &slice[2..];
+            (Operator::GreaterEquals, 2)
         }
         else if slice.starts_with("+=") {
-            operators.push(Operator::PlusEquals);
-            slice = &slice[2..];
+            (Operator::PlusEquals, 2)
         }
         else if slice.starts_with("-=") {
-            operators.push(Operator::MinusEquals);
-            slice = &slice[2..];
+            (Operator::MinusEquals, 2)
         }
         else if slice.starts_with("*=") {
-            operators.push(Operator::TimesEquals);
-            slice = &slice[2..];
+            (Operator::TimesEquals, 2)
         }
         else if slice.starts_with("/=") {
-            operators.push(Operator::DivideEquals);
-            slice = &slice[2..];
+            (Operator::DivideEquals, 2)
         }
         else if slice.starts_with("%=") {
-            operators.push(Operator::ModulusEquals);
-            slice = &slice[2..];
+            (Operator::ModulusEquals, 2)
         }
         else if slice.starts_with('<') {
-            operators.push(Operator::Less);
-            slice = &slice[1..];
+            (Operator::Less, 1)
         }
         else if slice.starts_with('>') {
-            operators.push(Operator::Greater);
-            slice = &slice[1..];
+            (Operator::Greater, 1)
         }
         else if slice.starts_with('+') {
-            operators.push(Operator::Plus);
-            slice = &slice[1..];
+            (Operator::Plus, 1)
         }
         else if slice.starts_with('-') {
-            operators.push(Operator::Minus);
-            slice = &slice[1..];
+            (Operator::Minus, 1)
         }
         else if slice.starts_with('*') {
-            operators.push(Operator::Times);
-            slice = &slice[1..];
+            (Operator::Times, 1)
         }
         else if slice.starts_with('/') {
-            operators.push(Operator::Divide);
-            slice = &slice[1..];
+            (Operator::Divide, 1)
         }
         else if slice.starts_with('%') {
-            operators.push(Operator::Modulus);
-            slice = &slice[1..];
+            (Operator::Modulus, 1)
         }
         else if slice.starts_with('=') {
-            operators.push(Operator::Equals);
-            slice = &slice[1..];
+            (Operator::Equals, 1)
         }
         else {
             return Err(format!("Could not split operators: {slice}").into());
-        }
+        };
+
+        operators.push((op, tmp_span()));
+        slice = &slice[advance..];
     }
 
     Ok(operators)

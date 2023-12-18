@@ -322,9 +322,16 @@ fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<impl std::iter::Ite
     }
 
     let mut string = String::new();
+    let mut span: Option<Span> = None;
     while let Some((ch, _)) = iter.peek() {
         if is_identifier_char(*ch) {
-            string.push(iter.next().expect("Known to exist").0);
+            let (ch, ch_span) = iter.next().expect("Known to exist");
+
+            string.push(ch);
+            span = match span {
+                Some(old) => Some(Span::combine(&old, &ch_span)),
+                None => Some(ch_span),
+            }
         }
         else {
             break
@@ -332,8 +339,8 @@ fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<impl std::iter::Ite
     }
 
     match Keyword::from_str(&string) {
-        Ok(keyword) => Ok((TokenBody::Keyword(keyword), tmp_span())),
-        Err(_) => Ok((TokenBody::Identifier(string), tmp_span()))
+        Ok(keyword) => Ok((TokenBody::Keyword(keyword), span.expect("Known to exist"))),
+        Err(_) => Ok((TokenBody::Identifier(string), span.expect("Known to exist")))
     }
 }
 

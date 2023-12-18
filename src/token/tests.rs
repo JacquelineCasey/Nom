@@ -23,6 +23,8 @@ fn tokens_have_spans(resource: &str) {
     let tokens = tokenize(&input, "<test-input>").unwrap();
 
     for token in tokens {
+        println!("{:?}", token);
+
         assert!(*token.span.file == "<test-input>");
         assert!(token.span.start_line <= token.span.end_line);
         assert!(token.span.start_col < token.span.end_col);

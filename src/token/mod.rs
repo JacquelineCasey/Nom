@@ -35,6 +35,18 @@ impl Span {
             end_col: max(a.end_col, b.end_col)
         }
     }
+
+    pub fn combine_all(spans: &[Span]) -> Span {
+        assert!(spans.len() != 0);
+
+        let mut final_span = spans[0].clone();
+
+        for span in &spans[1..] {
+            final_span = Span::combine(&final_span, span);
+        }
+
+        final_span
+    }
 }
 
 /* Token Definitions */
@@ -181,16 +193,6 @@ fn add_span_info<'a>(input: &'a str, file: Rc<String>) -> impl std::iter::Iterat
     })
 }  
 
-// TODO! Delete
-fn tmp_span() -> Span {
-    Span {
-        file: Rc::new("<Replace Me!>".to_owned()),
-        start_line: 0,
-        end_line: 0,
-        start_col: 0,
-        end_col: 0,
-    }
-}
 
 /* Tokenization Algorithm */
 
@@ -223,8 +225,8 @@ pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> 
             tokens.push(Token { body: token, span });
         }
         else if let Ok(punct) = Punctuation::try_from(*ch) {
-            _ = iter.next();
-            tokens.push(Token { body: TokenBody::Punctuation (punct), span: tmp_span() });
+            let (_, span) = iter.next().expect("Known to exist.");
+            tokens.push(Token { body: TokenBody::Punctuation (punct), span });
         }
         else if is_identifier_char(*ch) {
             let (token, span) = take_identifier_or_keyword(&mut iter)?;
@@ -245,20 +247,25 @@ pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> 
 fn take_string_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>) 
         -> Result<(TokenBody, Span), TokenError> {
     
-    let (first, _) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let mut spans = vec![];
+    let (first, first_span) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    spans.push(first_span);
+
     if first != '\"' {
         return Err("Expected character '\"'.".into());
     }
 
     let mut string = String::new();
 
-    for (ch, _) in iter {
+    for (ch, ch_span) in iter {
         // TODO: Allow [\"] to escape the double quote
+
+        spans.push(ch_span);
         
         if ch == '\"' {
             return Ok(
                 (TokenBody::StringLiteral(deliteralize(string)?),
-                tmp_span(),
+                Span::combine_all(&spans),
             ));
         }
 
@@ -271,20 +278,26 @@ fn take_string_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>)
 fn take_char_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>) 
         -> Result<(TokenBody, Span), TokenError> {
     
-    let (first, _) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let mut spans = vec![];
+    let (first, first_span) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    spans.push(first_span);
+
     if first != '\'' {
         return Err("Expected character '\''.".into());
     }
 
     let mut string = String::new();
 
-    for (ch, _) in iter {
+    for (ch, ch_span) in iter {
         // TODO: Allow [\'] to escape the single quote
         
+        spans.push(ch_span);
+
+
         if ch == '\'' {
             return Ok((
                 TokenBody::CharLiteral(literal_to_char(&string)?),
-                tmp_span()
+                Span::combine_all(&spans)
             ));
         }
 
@@ -302,16 +315,21 @@ fn take_numeric_literal(iter: &mut std::iter::Peekable<impl std::iter::Iterator<
     }
 
     let mut string = String::new();
+    let mut spans = vec![];
+    
     while let Some((ch, _)) = iter.peek() {
         if is_numeric_literal_char(*ch) {
-            string.push(iter.next().expect("Known to exist").0);
+            let (ch, ch_span) = iter.next().expect("Known to exist");
+
+            string.push(ch);
+            spans.push(ch_span);
         }
         else {
             break
         }   
     }
 
-    Ok((TokenBody::NumericLiteral(string), tmp_span()))
+    Ok((TokenBody::NumericLiteral(string), Span::combine_all(&spans)))
 }
 
 fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>) 
@@ -354,9 +372,12 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
     }
 
     let mut string = String::new();
+    let mut spans = vec![];
     while let Some((ch, _)) = iter.peek() {
         if is_operator_char(*ch) {
-            string.push(iter.next().expect("Known to exist").0);
+            let (ch, ch_span) = iter.next().expect("Known to exist");
+            string.push(ch);
+            spans.push(ch_span);
         }
         else {
             break
@@ -369,6 +390,7 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
     let mut operators = vec![];
 
     let mut slice = &string[..];
+    let mut span_slice = &spans[..];
     while !slice.is_empty() {
         let (op, advance) = if slice.starts_with("//") {
             // Discard comment
@@ -439,7 +461,9 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
             return Err(format!("Could not split operators: {slice}").into());
         };
 
-        operators.push((op, tmp_span()));
+        operators.push((op, Span::combine_all(&span_slice[..advance])));
+
+        span_slice = &span_slice[advance..];
         slice = &slice[advance..];
     }
 

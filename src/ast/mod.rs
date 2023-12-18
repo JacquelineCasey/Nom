@@ -1,6 +1,9 @@
 
 use parsley::SyntaxTree as ST;
 
+#[cfg(test)]
+mod tests;
+
 use crate::error::ASTError;
 use crate::instructions::Comparison;
 use crate::token::{Token, TokenBody as TB, Operator as Op, Punctuation as Punc, Keyword as Kw};

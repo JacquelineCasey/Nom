@@ -16,11 +16,11 @@ use crate::error::TokenError;
 
 #[derive(Debug, Clone)]
 pub struct Span {
-    file: Rc<String>,
-    start_line: usize,  // 1 based
-    end_line: usize,
-    start_col: usize,  // 1 based
-    end_col: usize
+    pub file: Rc<String>,
+    pub start_line: usize,  // 1 based
+    pub end_line: usize,
+    pub start_col: usize,  // 1 based
+    pub end_col: usize
 }
 
 impl Span {

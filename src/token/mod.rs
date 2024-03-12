@@ -86,6 +86,7 @@ pub enum Keyword {
     Or,
     While,
     Return,
+    Struct,
 }
 
 impl FromStr for Keyword {
@@ -107,6 +108,7 @@ impl FromStr for Keyword {
             "or" => K::Or,
             "while" => K::While,
             "return" => K::Return,
+            "struct" => K::Struct,
             _ => Err(TokenError("Not a keyword".to_string()))?
         })
     }
@@ -562,7 +564,8 @@ impl parsley::Token for Token {
             "Or" => matches!(token, T { body: TB::Keyword(K::Or), .. }),
             "While" => matches!(token, T { body: TB::Keyword(K::While), .. }),
             "Return" => matches!(token, T { body: TB::Keyword(K::Return), .. }),
-            
+            "Struct" => matches!(token, T { body: TB::Keyword(K::Struct), .. }),
+
             _ => return Err(format!("Bad token type: \"{token_type}\"").into())
         })
     }

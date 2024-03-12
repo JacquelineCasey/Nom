@@ -11,6 +11,7 @@ Program
 # Declarations - top level declarations in the program
 Declaration
     : FunctionDeclaration 
+    | TypeDeclaration
     | VariableDeclaration _Semicolon
     ;
 
@@ -26,6 +27,26 @@ ParameterList
 
 VariableDeclaration
     : (_Var | _Val) _Identifier (_Colon Type)? _Equals Expression 
+    ;
+
+TypeDeclaration
+    : StructDeclaration
+    # EnumDeclaration, etc.
+    ;
+
+
+# Types
+
+StructDeclaration
+    : _Struct _Identifier _LeftCurlyBrace StructMemberList _RightCurlyBrace
+    ;
+
+StructMemberList
+    : (StructMemberListEntry (_Comma StructMemberListEntry)* _Comma?)?
+    ;
+
+StructMemberListEntry
+    : _Identifier _Colon Type
     ;
 
 

@@ -558,6 +558,8 @@ impl CodeGenerator {
                 match decl {
                     DeclarationAST::Function { .. } => 
                         return Err("Tried to build function in function".into()),  // Lambdas?
+                    DeclarationAST::Struct { .. } => 
+                        return Err("Tried to build struct in function".into()),  // Lambdas?
                     DeclarationAST::Variable { name, expr, .. } => {
                         instructions.append(&mut self.generate_assignment(env, name, expr, function_info, depth)?);
                     }

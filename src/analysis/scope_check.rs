@@ -57,7 +57,10 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
                     StatementAST::Declaration(decl, _) => {
                         match decl {
                             DeclarationAST::Function { .. } => {
-                                return Err("Did not expect function".into());
+                                return Err("Did not expect function declaration".into());
+                            }
+                            DeclarationAST::Struct { .. } => {
+                                return Err("Did not expect struct declaration".into());
                             }
                             DeclarationAST::Variable { name, expr, .. } => {
                                 if local_types.contains_key(name) {

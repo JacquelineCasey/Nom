@@ -46,7 +46,8 @@ impl ASTNodeData {
 pub enum DeclarationAST {
     // The parameters are pairs of names and type ascriptions
     Function { name: String, params: Vec<(String, String)>, block: ExprAST, return_type: String, node_data: ASTNodeData },
-    Variable { mutability: Mutability, name: String, expr: ExprAST, type_ascription: Option<String> , node_data: ASTNodeData }
+    Variable { mutability: Mutability, name: String, expr: ExprAST, type_ascription: Option<String> , node_data: ASTNodeData },
+    Struct { name: String, members: Vec<(String, String)>, node_data: ASTNodeData }  // Someday members should probably be (String, Type)
 }
 
 impl DeclarationAST {
@@ -69,13 +70,20 @@ impl DeclarationAST {
                     type_ascription: type_ascription.clone(), 
                     node_data: node_data.relabel()
                 },
+            DeclarationAST::Struct { name, members, node_data } => 
+                DeclarationAST::Struct { 
+                    name: name.clone(), 
+                    members: members.clone(),
+                    node_data: node_data.relabel()
+                }
         }
     }
 
     pub fn get_node_data(&self) -> &ASTNodeData {
         match self {
             | DeclarationAST::Function { node_data, .. } 
-            | DeclarationAST::Variable { node_data, .. } => node_data
+            | DeclarationAST::Variable { node_data, .. } 
+            | DeclarationAST::Struct {node_data, .. } => node_data
         }
     }
 }
@@ -245,6 +253,8 @@ impl<'a> AnyAST<'a> {
                 }).collect(),
             A::Declaration(D::Function { block: ref mut expr, .. } | D::Variable { ref mut expr, .. }) => 
                 vec![A::Expression(expr)],
+            A::Declaration(D::Struct { .. }) =>
+                vec![],
             A::Statement(
                 S::Assignment(ref mut expr_1, ref mut expr_2, ..) 
               | S::CompoundAssignment(ref mut expr_1, ref mut expr_2, ..)
@@ -310,6 +320,7 @@ impl<'a> AnyAST<'a> {
           | A::Declaration(
               | D::Function { node_data, .. }
               | D::Variable { node_data, .. }
+              | D::Struct { node_data, .. }
             )
           | A::Statement(
               | S::Assignment(_, _, node_data)
@@ -392,6 +403,9 @@ fn build_declaration_ast(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
     match children {
         [ ST::RuleNode { rule_name, ..  } ] if rule_name == "FunctionDeclaration" =>
             build_function_declaration(&children[0]),
+
+        [ ST::RuleNode { rule_name, .. }] if rule_name == "TypeDeclaration" =>
+            build_type_declaration(&children[0]),
 
         [ decl @ ST::RuleNode { rule_name, .. }
         , ST::TokenNode(Token { body: TB::Punctuation(Punc::Semicolon), .. })
@@ -532,6 +546,42 @@ fn build_function_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTErr
     let span = Span::combine(first_span, &block.get_node_data().span);
 
     Ok(DeclarationAST::Function { name, params, block, node_data: ASTNodeData::new(span), return_type })
+}
+
+fn build_type_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
+    let children = assert_rule_get_children(tree, "TypeDeclaration")?;
+
+    match children {
+        [ ST::RuleNode { rule_name, .. }] if rule_name == "StructDeclaration" =>
+            build_struct_declaration(&children[0]),
+        
+        _ => Err("Incorrect number of subnodes to type node".into())
+    }    
+}
+
+fn build_struct_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
+    let children = assert_rule_get_children(tree, "StructDeclaration")?;
+
+    match children {
+        [ 
+            ST::TokenNode(Token {body: TB::Keyword(Kw::Struct), span: first_span}),
+            ST::TokenNode(Token {body: TB::Identifier(name), ..}),
+            ST::TokenNode(Token {body: TB::Punctuation(Punc::LeftCurlyBrace), ..}),
+            list_node @ ST::RuleNode { rule_name, .. },
+            ST::TokenNode(Token {body: TB::Punctuation(Punc::RightCurlyBrace), span: last_span})           
+        ] if rule_name == "StructMemberList" => {
+            let members = build_struct_member_list(list_node)?;
+
+            let span = Span::combine(first_span, last_span);
+
+            Ok(DeclarationAST::Struct { 
+                name: name.clone(), 
+                members, 
+                node_data: ASTNodeData::new(span) 
+            })
+        }
+        _ => Err("Failed to parse struct declaration".into())
+    }
 }
 
 fn build_variable_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
@@ -914,6 +964,49 @@ fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 
 
 /* Functions that build components of AST Nodes */
+
+fn build_struct_member_list(tree: &ST<Token>) -> Result<Vec<(String, String)>, ASTError> {
+    let children = assert_rule_get_children(tree, "StructMemberList")?;
+
+    if children.len() == 0 {
+        return Ok(vec![]);
+    }
+
+    let mut iter = children.iter();
+    let mut entries = vec![];
+
+    while let Some(node) = iter.next() {
+        match node {
+            ST::RuleNode { rule_name, .. } if rule_name == "StructMemberListEntry" => 
+                entries.push(build_struct_member_list_entry(node)?),
+            _ => return Err("Expected struct member".into()),
+        }
+
+        if let Some(node) = iter.next() {
+            match node {
+                ST::TokenNode(Token { body: TB::Punctuation(Punc::Comma), .. }) => (),
+                _ => return Err("Expected comma".into()),
+            }
+        }
+    }
+
+    Ok(entries)
+}
+
+fn build_struct_member_list_entry(tree: &ST<Token>) -> Result<(String, String), ASTError> {
+    let children = assert_rule_get_children(tree, "StructMemberListEntry")?;
+
+    match children {
+        [
+            ST::TokenNode(Token { body: TB::Identifier(name), .. }),
+            ST::TokenNode(Token { body: TB::Punctuation(Punc::Colon), .. }),
+            type_node @ ST::RuleNode { rule_name, .. }
+        ] if rule_name == "Type" => {
+            Ok((name.clone(), build_type(type_node)?))
+        }
+        _ => { Err("Could not parse struct member".into())}
+    }
+}
 
 fn build_parameter_list(node: &ST<Token>) -> Result<Vec<(String, String)>, ASTError> {
     let ST::RuleNode { rule_name, subexpressions } = node

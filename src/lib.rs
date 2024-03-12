@@ -92,6 +92,9 @@ impl CompilationEnvironment {
 
         for decl in ast.declarations {
             match decl {
+                ast::DeclarationAST::Variable { .. } => {
+                    return Err("Cannot yet process global variables".into());
+                }
                 ast::DeclarationAST::Function { name, params, block, node_data: _, return_type } => {
                     if self.functions.contains_key(&name) {
                         return Err("Double declaration".into());
@@ -104,8 +107,8 @@ impl CompilationEnvironment {
                         self.queue.add_goal(CompilationGoal::ScopeCheck(name));
                     }
                 }
-                ast::DeclarationAST::Variable { .. } => {
-                    return Err("Cannot yet process global variables".into());
+                ast::DeclarationAST::Struct { .. } => {
+                    todo!("Processing structs is not yet implemented")
                 }
             }
         }

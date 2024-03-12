@@ -118,7 +118,9 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                         }
                     }
                     StatementAST::Declaration(DeclarationAST::Function { .. }, _) => 
-                        return Err("Can not process function definition here".into()),
+                        return Err("Can not process function declaration here".into()),
+                    StatementAST::Declaration(DeclarationAST::Struct { .. }, _) => 
+                        return Err("Can not process struct declaration here".into()),
                     
                 }
             }
@@ -281,6 +283,9 @@ fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut Expr
                         return Err("Expected Compound Assignment to have been desugared".into()),
                     StatementAST::Declaration(DeclarationAST::Function { .. }, _) => {
                         panic!("Cannot yet handle functions in functions");
+                    }
+                    StatementAST::Declaration(DeclarationAST::Struct { .. }, _) => {
+                        panic!("Cannot yet handle types in functions");
                     }
                     StatementAST::Declaration(DeclarationAST::Variable { expr, ..  }, _) => {
                         // TODO - type inference here?, use func_name field

@@ -31,7 +31,9 @@ pub enum BuiltIn {
     Bottom,  // The type of return expressions - this type is uninhabitted.
 }
 
-// Sometimes, with int types in particular, we need to decide what types a certain
+// Sometimes, with int types in particular, we need to decide what type is the smallest
+// upper bound of two types. For instance, if we add an i8 and an i16, then the result
+// is an i16.
 pub fn upper_bound_type(left: &Type, right: &Type) -> Option<Type> {
     let (Type::BuiltIn(left), Type::BuiltIn(right)) = (left, right)
         else { return None; }; // Cannot unify non builtin.

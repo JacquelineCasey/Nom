@@ -61,7 +61,7 @@ impl CompilationEnvironment {
             let goal = self.queue.next_goal().expect("known exists");
 
             match &goal {
-                CompilationGoal::ImportFile { file, define_all } => self.import_file(file, *define_all)?,
+                CompilationGoal::ImportFile(file) => self.import_file(file)?,
                 CompilationGoal::ScopeCheck(function_name) => self.scope_check(function_name)?,
                 CompilationGoal::TypeCheck(function_name) => self.type_check(function_name)?,
             }
@@ -75,8 +75,7 @@ impl CompilationEnvironment {
     // Locates data associated with the file, tokenizes and parses it, and generates
     // data about the declarations in the file. All declarations are parsed and stored, 
     // but definitions may or may not be created depending on if they are needed.
-    // If define_all is true, goals will be added to define every declaration.
-    fn import_file(&mut self, file: &FileOrString, define_all: bool) -> Result<(), CompileError> {
+    fn import_file(&mut self, file: &FileOrString) -> Result<(), CompileError> {
         let (path, input) = match file {
             FileOrString::File(path) => 
                 (path, std::fs::read_to_string(path).map_err(|_| "Could not open file")?),
@@ -103,9 +102,7 @@ impl CompilationEnvironment {
                     // Expects all types in the file to be processed first.
                     self.functions.insert(name.clone(), analysis::Function::new(self, block, params, return_type));
 
-                    if define_all {
-                        self.queue.add_goal(CompilationGoal::ScopeCheck(name));
-                    }
+                    self.queue.add_goal(CompilationGoal::ScopeCheck(name));
                 }
                 ast::DeclarationAST::Struct { .. } => {
                     todo!("Processing structs is not yet implemented")
@@ -204,8 +201,8 @@ impl CompilationQueue {
 // See the functions that implement each goal for detailed documentation.
 #[derive(PartialEq, Eq, Hash, Debug)]
 enum CompilationGoal {
-    ImportFile {file: FileOrString, define_all: bool},  // Depending on define_all, may start definition of these declarations.
-    ScopeCheck (String),  // Upon completion, always enques type check. Should enqueue dependencies first (e.g. called functions in other files).
+    ImportFile (FileOrString),  // Imports a file, and defines all declared items.
+    ScopeCheck (String),  // Upon completion, always enqueues type check. Should enqueue dependencies first (e.g. called functions in other files).
     TypeCheck (String),  // Upon completion, the function is ready to be passed to the code generator.
 }
 
@@ -218,7 +215,7 @@ enum FileOrString {
 
 fn compile(file: FileOrString) -> Vec<instructions::Instruction> {
     let mut env = CompilationEnvironment::new();
-    env.queue.add_goal(CompilationGoal::ImportFile { file, define_all: true });
+    env.queue.add_goal(CompilationGoal::ImportFile(file));
     env.process_goals().expect("Goals should complete");
 
     let generator = generate::CodeGenerator::new();

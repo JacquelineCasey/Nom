@@ -78,7 +78,7 @@ dependencies = [
 [[package]]
 name = "parsley"
 version = "0.1.0"
-source = "git+https://github.com/jackcasey067/Parsley.git#beb70bfb5ccf52ffe298e376a9f5da892fdb44eb"
+source = "git+https://github.com/JacquelineCasey/Parsley.git#beb70bfb5ccf52ffe298e376a9f5da892fdb44eb"
 dependencies = [
  "by_address",
  "indoc",

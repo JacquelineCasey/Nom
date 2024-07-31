@@ -21,7 +21,7 @@ fn main() -> i32 {
             count_2 = count_2 + 1;
         };
 
-        count = count + 1;
+        count += 1;
     };
 
     // sum = 55 + 45

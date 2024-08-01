@@ -883,7 +883,7 @@ fn build_block_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         else { return Err("Expected open bracket before block".into()) };
 
     let ST::TokenNode(Token {body: TB::Punctuation(Punc::RightCurlyBrace), span: ref last_span }) = children[children.len() - 1]
-        else { return Err("Expected closed bracket before block".into()) };
+        else { return Err("Expected closed bracket after block".into()) };
 
     // &Vec<...> -> Vec<&...>
     let mut subexpressions: Vec<&ST<Token>> = children.iter().collect();
@@ -964,7 +964,7 @@ fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     let children = assert_rule_get_children(tree, "ReturnExpression")?;
 
     let ST::TokenNode(Token {body: TB::Keyword(Kw::Return), span: ref return_span }) = children[0] 
-    else { return Err("Expected keyword Return".into()) };
+        else { return Err("Expected keyword Return".into()) };
 
     let mut span = return_span.clone();
 
@@ -985,7 +985,48 @@ fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     let children = assert_rule_get_children(tree, "StructExpression")?;
 
-    todo!()
+    let ST::TokenNode(Token {body: TB::Identifier(ref name), span: ref first_span}) = children[0]
+        else { return Err("Expected struct name".into()) };
+
+    let ST::TokenNode(Token {body: TB::Punctuation(Punc::LeftCurlyBrace), .. }) = children[1]
+        else { return Err("Expected open bracket before struct expression".into()) };
+
+    let arg_list = assert_rule_get_children(&children[2], "StructExpressionMemberList")?;
+
+    let ST::TokenNode(Token {body: TB::Punctuation(Punc::RightCurlyBrace), span: ref last_span }) = children[3]
+        else { return Err("Expected closed bracket after struct expression".into()) };
+
+    let mut iter = arg_list.iter();
+
+    let mut members = vec![];
+    while let Some(member_name_tree) = iter.next() {
+        let member_name = match member_name_tree {
+            ST::TokenNode(Token { body: TB::Identifier(member_name), .. }) => member_name,
+            _ => return Err("Expected identifier".into())
+        };
+
+        match iter.next() {
+            Some(ST::TokenNode (Token {body: TB::Punctuation(Punc::Colon), .. })) => (),
+            _ => return Err("Expected colon".into()),
+        }
+
+        let Some(member_expression) = iter.next()
+            else { return Err("Expected expression".into()) };
+
+        members.push((member_name.clone(), build_expr_ast(member_expression)?));
+
+        match iter.next() {
+            Some(ST::TokenNode (Token {body: TB::Punctuation(Punc::Comma), .. })) => (),
+            Some(_) => return Err("Expected comma".into()),
+            None => break
+        }
+    }
+
+    Ok(ExprAST::StructExpression {
+        name: name.clone(), 
+        members, 
+        data: ASTNodeData::new(Span::combine(&first_span, &last_span))
+    })
 }
 
 

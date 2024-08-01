@@ -123,11 +123,7 @@ StructExpression
     ;
 
 StructExpressionMemberList
-    : (StructExpressionMemberListEntry (_Comma StructExpressionMemberListEntry)* _Comma?)?
-    ;
-
-StructExpressionMemberListEntry
-    : _Identifier _Colon Expression
+    : (_Identifier _Colon Expression (_Comma _Identifier _Colon Expression)* _Comma?)?
     ;
 
 

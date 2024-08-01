@@ -1,0 +1,35 @@
+//! 1
+
+// Nom has just a bit of type inference
+
+// This is the simplest form of inference. We infer the type of the literal at the
+// end of the function
+fn f() -> u8 {
+    2
+}
+
+// We can infer literals in some other places.
+fn g() -> i32 {
+    // Likewise, we infer the type of the 2 here by comparing it to f.
+    if f() == 2 {
+        return 1;
+    };
+    0
+}
+
+// Note for instance this would fail if we replaced the 2 with something of known,
+// different types.
+
+// This does not compile, since the u16 and u8 comparison is illegal (for now)
+// fn h() -> i32 {
+//     val fail: u16 = 2;
+//     
+//     if f() == fail {
+//         return 1;
+//     };
+//     0
+// }
+
+fn main() -> i32 {
+    g()
+}

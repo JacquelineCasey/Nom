@@ -5,4 +5,6 @@ The shortest of short term items (i.e, tasks necessary to complete the next goal
 can go here:
 
 == Immediate TODO ==
-... 
+
+- [] Define struct member access syntax
+  - [] Implement syntax

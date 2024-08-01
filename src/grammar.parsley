@@ -96,6 +96,7 @@ PrimaryExpression
     | FunctionCall
     | IfExpression
     | WhileExpression  # Always returns unit for now, but someday might be more expression-y.
+    | StructExpression
     ; 
 
 FunctionCall
@@ -116,6 +117,20 @@ WhileExpression
 BlockExpression
     : _LeftCurlyBrace (Statement)* (Expression)? _RightCurlyBrace
     ;
+
+StructExpression
+    : _Identifier _LeftCurlyBrace StructExpressionMemberList _RightCurlyBrace
+    ;
+
+StructExpressionMemberList
+    : (StructExpressionMemberListEntry (_Comma StructExpressionMemberListEntry)* _Comma?)?
+    ;
+
+StructExpressionMemberListEntry
+    : _Identifier _Colon Expression
+    ;
+
+
 
 # Statements - These constructs do not yield any value, not even unit. They can be
 # nested in an expression only by way of a BlockExpression.

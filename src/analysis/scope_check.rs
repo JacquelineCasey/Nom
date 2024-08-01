@@ -16,7 +16,7 @@ pub(crate) fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Resul
     }
 
     scope_check_expression(
-        &env.functions,
+        env,
         &mut local_types, 
         &block
     )?;
@@ -29,7 +29,7 @@ pub(crate) fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Resul
     Ok(())
 }
 
-fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &mut HashMap<String, Option<Type>>, expr: &ExprAST) -> Result<(), AnalysisError> {
+fn scope_check_expression(env: &CompilationEnvironment, local_types: &mut HashMap<String, Option<Type>>, expr: &ExprAST) -> Result<(), AnalysisError> {
     match expr {
         ExprAST::Add(left, right, _) 
         | ExprAST::Subtract(left, right, _)
@@ -39,20 +39,20 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
         | ExprAST::Comparison(left, right, _, _)
         | ExprAST::Or(left, right, _)
         | ExprAST::And(left, right, _) => {
-            scope_check_expression(functions, local_types, left)?;
-            scope_check_expression(functions, local_types, right)?;
+            scope_check_expression(env, local_types, left)?;
+            scope_check_expression(env, local_types, right)?;
         },
         ExprAST::Not(inner, _) => {
-            scope_check_expression(functions, local_types, inner)?;
+            scope_check_expression(env, local_types, inner)?;
         }
         ExprAST::Block(statements, final_expr, _) => {
             for statement in statements {
                 match statement {
                     StatementAST::ExpressionStatement(expr, _) => 
-                        scope_check_expression(functions, local_types, expr)?,
+                        scope_check_expression(env, local_types, expr)?,
                     StatementAST::Assignment(left, right, _) => {
-                        scope_check_expression(functions, local_types, left)?;
-                        scope_check_expression(functions, local_types, right)?;
+                        scope_check_expression(env, local_types, left)?;
+                        scope_check_expression(env, local_types, right)?;
                     },
                     StatementAST::Declaration(decl, _) => {
                         match decl {
@@ -69,7 +69,7 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
 
                                 local_types.insert(name.clone(), None);
 
-                                scope_check_expression(functions, local_types, expr)?;
+                                scope_check_expression(env, local_types, expr)?;
                             }
                         }
                     },
@@ -79,16 +79,16 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
             }
 
             if let Some(expr) = final_expr {
-                scope_check_expression(functions, local_types, expr)?;
+                scope_check_expression(env, local_types, expr)?;
             }
         },
         ExprAST::FunctionCall(name, subexprs, ..) => {
-            if !functions.contains_key(name) {
+            if !env.functions.contains_key(name) {
                 return Err("Could not find function".into());
             }
             
             for subexpr in subexprs {
-                scope_check_expression(functions, local_types, subexpr)?;
+                scope_check_expression(env, local_types, subexpr)?;
             }
         }
         ExprAST::Variable(name, ..) => {
@@ -98,22 +98,28 @@ fn scope_check_expression(functions: &HashMap<String, Function>, local_types: &m
         }, 
         ExprAST::IntegerLiteral(..) | ExprAST::BooleanLiteral(..) => (),
         ExprAST::If { condition, block, else_branch, .. } => {
-            scope_check_expression(functions, local_types, condition)?;
-            scope_check_expression(functions, local_types, block)?;
+            scope_check_expression(env, local_types, condition)?;
+            scope_check_expression(env, local_types, block)?;
 
             if let Some(branch) = else_branch {
-                scope_check_expression(functions, local_types, branch)?;
+                scope_check_expression(env, local_types, branch)?;
             }
         },
         ExprAST::While { condition, block, .. } => {
-            scope_check_expression(functions, local_types, condition)?;
-            scope_check_expression(functions, local_types, block)?;
+            scope_check_expression(env, local_types, condition)?;
+            scope_check_expression(env, local_types, block)?;
         },
         ExprAST::Return(expr, ..) => {
             if let Some(expr) = expr {
-                scope_check_expression(functions, local_types, expr)?;
+                scope_check_expression(env, local_types, expr)?;
             }
         },
+        ExprAST::StructExpression { name, members, .. } => {
+            let Some(type_info) = env.types.get(&name.clone().into())
+            else { return Err(format!("Could not find a type called {name}").into()) };
+
+            todo!();
+        }
         ExprAST::Moved => panic!("ExprAST was moved"),
     }
 

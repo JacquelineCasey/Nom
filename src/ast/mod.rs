@@ -134,6 +134,8 @@ pub enum ExprAST {
     While { condition: Box<ExprAST>, block: Box<ExprAST>, data: ASTNodeData },
     Return (Option<Box<ExprAST>>, ASTNodeData),
     
+    StructExpression { name: String, members: Vec<(String, ExprAST)>, data: ASTNodeData },
+
     // This is a hack that allows us to remove an AST, operate on it, and put it back. (Blame the borrow checker for this.)
     #[default] 
     Moved,  
@@ -159,6 +161,7 @@ impl ExprAST {
             | ExprAST::If { data, .. }
             | ExprAST::While { data, .. }
             | ExprAST::Return(_, data) => data,
+            | ExprAST::StructExpression { data, .. } => data,
             ExprAST::Moved => panic!("ExprAST was moved"),
         }
     }
@@ -218,7 +221,16 @@ impl ExprAST {
                 else {
                     ExprAST::Return(None, node_data.relabel())
                 }
-            }
+            },
+            ExprAST::StructExpression { name, members, data } => {
+                ExprAST::StructExpression { 
+                    name: name.clone(), 
+                    members: members.iter().map(|(field_name, field_expr)| {
+                        (field_name.clone(), field_expr.duplicate())
+                    }).collect(),
+                    data: data.relabel() 
+                }
+            },
             ExprAST::Moved => panic!("ExprAST moved"),
         }
     }
@@ -302,6 +314,11 @@ impl<'a> AnyAST<'a> {
                 }
 
                 vec
+            },
+            A::Expression(E::StructExpression { members, .. }) => {
+                members.iter_mut().map(|(_, field_expr)| {
+                    A::Expression(field_expr)
+                }).collect()
             }
             A::Expression(E::Moved) =>
                 panic!("Expected Unmoved Value")    
@@ -346,6 +363,7 @@ impl<'a> AnyAST<'a> {
               | E::Subtract(_, _, node_data)
               | E::Variable(_, node_data)
               | E::While { data: node_data, .. }
+              | E::StructExpression { data: node_data, .. }
             ) => 
                 node_data,
             A::Expression(E::Moved) =>
@@ -504,6 +522,8 @@ fn build_expr_ast(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
                 build_while_expr(tree),
             ST::RuleNode { ref rule_name, .. } if rule_name == "ReturnExpression" =>
                 build_return_expr(tree),
+            ST::RuleNode { ref rule_name, .. } if rule_name == "StructExpression" =>
+                build_struct_expr(tree),
             ST::RuleNode { rule_name, subexpressions: _ } => 
                 Err(format!("Expected Expression. Unknown expression node name: {rule_name}").into()),
             ST::TokenNode (Token { body: TB::Identifier(name), span }) =>
@@ -960,6 +980,12 @@ fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     };
 
     Ok(ExprAST::Return(expr, ASTNodeData::new(span)))
+}
+
+fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
+    let children = assert_rule_get_children(tree, "StructExpression")?;
+
+    todo!()
 }
 
 

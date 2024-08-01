@@ -509,6 +509,9 @@ impl CodeGenerator {
             E::Return(None, _) => {
                 instructions.append(&mut Self::generate_return(function_info)?); //
             }
+            E::StructExpression { .. } => {
+                todo!("How are we gonna do this???")
+            }
             E::Moved => panic!("ExprAST Moved"),
         }
 
@@ -590,7 +593,7 @@ impl CodeGenerator {
         let (offset, size) = function_info.variable_info_by_name(var_name)
             .ok_or(GenerateError("Could not find local variable".to_string()))?;
     
-        // Store generated expression
+        // Store generated value
         if size != 0 {
             instructions.push(PseudoInstruction::Actual(
                 Instruction::WriteBase(offset, size.try_into()?)

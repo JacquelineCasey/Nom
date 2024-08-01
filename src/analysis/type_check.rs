@@ -220,6 +220,9 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
 
             Type::BuiltIn(BuiltIn::Bottom)
         },
+        ExprAST::StructExpression { name, members, .. } => {
+            todo!("Type Check??")
+        },
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 
@@ -312,6 +315,9 @@ fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut Expr
         | ExprAST::BooleanLiteral(_, _)
         | ExprAST::Variable(_, _) => 
             (),
+        | ExprAST::StructExpression { name, members, data } => {
+            todo!("TODO: Type Check This.")
+        }
         ExprAST::Moved => panic!("AST moved"),
     }
 

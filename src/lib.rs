@@ -28,7 +28,6 @@ mod error;  // Error types
 
 use std::collections::{VecDeque, HashSet, HashMap};
 
-use analysis::types::Type;
 use error::CompileError;
 pub use instructions::Instruction;
 

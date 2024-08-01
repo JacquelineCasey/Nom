@@ -968,7 +968,7 @@ fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 fn build_struct_member_list(tree: &ST<Token>) -> Result<Vec<(String, String)>, ASTError> {
     let children = assert_rule_get_children(tree, "StructMemberList")?;
 
-    if children.len() == 0 {
+    if children.is_empty() {
         return Ok(vec![]);
     }
 

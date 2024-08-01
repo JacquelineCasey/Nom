@@ -124,7 +124,7 @@ pub struct TypeInfo {
 #[derive(Debug)]
 pub enum KindData {
     BuiltIn,
-    Struct { members: HashMap<String, (usize, Type)> }  // members maps name to (offset, type)
+    Struct { members: HashMap<String, (Type, usize)> }  // members maps name to (offset, type)
 }
 
 pub fn get_default_types() -> HashMap<Type, TypeInfo> {
@@ -149,33 +149,50 @@ pub fn get_default_types() -> HashMap<Type, TypeInfo> {
 }
 
 pub fn add_struct_type(env: &mut CompilationEnvironment, name: String, members: Vec<(String, String)> ) -> Result<(), CompileError> {
-    let mut processed_members: Vec<(String, Type)> = vec![];
-    let mut alignment: usize = 8;
-
-    if members.len() == 0 {
+    if members.is_empty() {
         return Err("Structs with no members are not implemented. Consider `unit` instead.".into());
     }
 
-    for (member_name, member_type_name) in members {
-        let member_type = member_type_name.into();
+    let mut alignment: usize = 8;
+
+    /* Check type validity, determine overall struct alignment. */
+
+    for (_, member_type_name) in &members {
+        let member_type = member_type_name.clone().into();
         
         let Some(TypeInfo { alignment: member_alignment, .. }) = env.types.get(&member_type)
         else { return Err("Bad Member Type. (Make sure to declare structs in right order.)".into()) };
 
-        processed_members.push((member_name, member_type));
         alignment = std::cmp::min(alignment, *member_alignment);
     }
 
-    todo!("Get back here and finish this. You need to align the fields.");
+    /* Compute offsets, ensure fields respect alignment. */
+    let mut processed_members: HashMap<String, (Type, usize)> = HashMap::new();  // usize is offset.
+    let mut curr_offset = 0;
 
-    /* Figure out alignment */
-    
-    // env.types.insert(
-    //     Type::UserDefined(name.clone()),
-    //     TypeInfo {
+    for (member_name, member_type_name) in members { 
+        let member_type = member_type_name.clone().into();
+        let TypeInfo {alignment: member_alignment, size: member_size, ..}
+            = env.types.get(&member_type).expect("Known to Exist");
 
-    //     }
-    // );
+        if curr_offset % member_alignment != 0 {
+            curr_offset += member_alignment - (curr_offset % member_alignment);
+        }
+
+        println!("{}", curr_offset);
+
+        processed_members.insert(member_name, (member_type, curr_offset));
+        curr_offset += member_size;
+    }
+
+    env.types.insert(
+        Type::UserDefined(name.clone()),
+        TypeInfo {
+            size: curr_offset,
+            alignment,
+            kind: KindData::Struct { members: processed_members }
+        }
+    );
 
     Ok(())
 }

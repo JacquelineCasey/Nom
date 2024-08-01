@@ -28,6 +28,7 @@ mod error;  // Error types
 
 use std::collections::{VecDeque, HashSet, HashMap};
 
+use analysis::types::Type;
 use error::CompileError;
 pub use instructions::Instruction;
 
@@ -104,8 +105,8 @@ impl CompilationEnvironment {
 
                     self.queue.add_goal(CompilationGoal::ScopeCheck(name));
                 }
-                ast::DeclarationAST::Struct { .. } => {
-                    todo!("Processing structs is not yet implemented")
+                ast::DeclarationAST::Struct { name, members, .. } => {
+                    analysis::types::add_struct_type(self, name, members)?;
                 }
             }
         }

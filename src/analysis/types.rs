@@ -1,19 +1,14 @@
 
 use std::collections::HashMap;
 
-use crate::instructions::IntSize;
+use crate::{instructions::IntSize, CompilationEnvironment, CompileError};
 
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum Type {
+pub(crate) enum Type {
     BuiltIn (BuiltIn),
-    
+    UserDefined (String),
     PartiallyKnown (PartialType),
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum PartialType {
-    IntLiteral,  // The type of int literals. Will decay into i32 if nothing comes along to override it.
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -29,6 +24,11 @@ pub enum BuiltIn {
     Unit,
     Boolean,
     Bottom,  // The type of return expressions - this type is uninhabitted.
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub enum PartialType {
+    IntLiteral,  // The type of int literals. Will decay into i32 if nothing comes along to override it.
 }
 
 // Sometimes, with int types in particular, we need to decide what type is the smallest
@@ -109,7 +109,7 @@ impl From<String> for Type {
             "u64" => Type::BuiltIn(BuiltIn::U64),
             "unit" => Type::BuiltIn(BuiltIn::Unit),
             "bool" => Type::BuiltIn(BuiltIn::Boolean),
-            _ => panic!("User defined type not yet implemented"),
+            other => Type::UserDefined(other.to_string()),
         }
     }
 }
@@ -118,26 +118,64 @@ impl From<String> for Type {
 pub struct TypeInfo {
     pub size: usize,  // Number of bytes the types takes on the stack.
     pub alignment: usize,  // In bytes
+    pub kind: KindData,  // I'm gonna call the "type" of a type a "kind". So there's BuiltIn, Struct, etc.
 }
 
+#[derive(Debug)]
+pub enum KindData {
+    BuiltIn,
+    Struct { members: HashMap<String, (usize, Type)> }  // members maps name to (offset, type)
+}
 
 pub fn get_default_types() -> HashMap<Type, TypeInfo> {
     let mut map = HashMap::new();
 
-    map.insert(Type::BuiltIn(BuiltIn::U8) , TypeInfo { size: 1, alignment: 1 });
-    map.insert(Type::BuiltIn(BuiltIn::U16), TypeInfo { size: 2, alignment: 2 });
-    map.insert(Type::BuiltIn(BuiltIn::U32), TypeInfo { size: 4, alignment: 4 });
-    map.insert(Type::BuiltIn(BuiltIn::U64), TypeInfo { size: 8, alignment: 8 });
-    map.insert(Type::BuiltIn(BuiltIn::I8) , TypeInfo { size: 1, alignment: 1 });
-    map.insert(Type::BuiltIn(BuiltIn::I16), TypeInfo { size: 2, alignment: 2 });
-    map.insert(Type::BuiltIn(BuiltIn::I32), TypeInfo { size: 4, alignment: 4 });
-    map.insert(Type::BuiltIn(BuiltIn::I64), TypeInfo { size: 8, alignment: 8 });
+    map.insert(Type::BuiltIn(BuiltIn::U8) , TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::U16), TypeInfo { size: 2, alignment: 2, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::U32), TypeInfo { size: 4, alignment: 4, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::U64), TypeInfo { size: 8, alignment: 8, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::I8) , TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::I16), TypeInfo { size: 2, alignment: 2, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::I32), TypeInfo { size: 4, alignment: 4, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::I64), TypeInfo { size: 8, alignment: 8, kind: KindData::BuiltIn });
     
-    map.insert(Type::BuiltIn(BuiltIn::Boolean), TypeInfo { size: 1, alignment: 1 });
+    map.insert(Type::BuiltIn(BuiltIn::Boolean), TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
 
-    map.insert(Type::BuiltIn(BuiltIn::Unit), TypeInfo { size: 0, alignment: 1 });  // Not sure if this should have an alignment
+    map.insert(Type::BuiltIn(BuiltIn::Unit), TypeInfo { size: 0, alignment: 1, kind: KindData::BuiltIn });  // Not sure if this should have an alignment
 
-    map.insert(Type::BuiltIn(BuiltIn::Bottom), TypeInfo { size: 0, alignment: 1 });
+    map.insert(Type::BuiltIn(BuiltIn::Bottom), TypeInfo { size: 0, alignment: 1, kind: KindData::BuiltIn });
 
     map
+}
+
+pub fn add_struct_type(env: &mut CompilationEnvironment, name: String, members: Vec<(String, String)> ) -> Result<(), CompileError> {
+    let mut processed_members: Vec<(String, Type)> = vec![];
+    let mut alignment: usize = 8;
+
+    if members.len() == 0 {
+        return Err("Structs with no members are not implemented. Consider `unit` instead.".into());
+    }
+
+    for (member_name, member_type_name) in members {
+        let member_type = member_type_name.into();
+        
+        let Some(TypeInfo { alignment: member_alignment, .. }) = env.types.get(&member_type)
+        else { return Err("Bad Member Type. (Make sure to declare structs in right order.)".into()) };
+
+        processed_members.push((member_name, member_type));
+        alignment = std::cmp::min(alignment, *member_alignment);
+    }
+
+    todo!("Get back here and finish this. You need to align the fields.");
+
+    /* Figure out alignment */
+    
+    // env.types.insert(
+    //     Type::UserDefined(name.clone()),
+    //     TypeInfo {
+
+    //     }
+    // );
+
+    Ok(())
 }

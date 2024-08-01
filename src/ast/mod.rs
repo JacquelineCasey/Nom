@@ -47,7 +47,7 @@ pub enum DeclarationAST {
     // The parameters are pairs of names and type ascriptions
     Function { name: String, params: Vec<(String, String)>, block: ExprAST, return_type: String, node_data: ASTNodeData },
     Variable { mutability: Mutability, name: String, expr: ExprAST, type_ascription: Option<String> , node_data: ASTNodeData },
-    Struct { name: String, members: Vec<(String, String)>, node_data: ASTNodeData }  // Someday members should probably be (String, Type)
+    Struct { name: String, members: Vec<(String, String)>, node_data: ASTNodeData }
 }
 
 impl DeclarationAST {

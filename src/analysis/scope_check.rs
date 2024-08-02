@@ -1,8 +1,8 @@
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{CompilationEnvironment, error::AnalysisError, ast::{ExprAST, StatementAST, DeclarationAST}};
-use super::{Function, types::Type};
+use super::{types::{KindData, Type, TypeInfo}, Function};
 
 
 // Checks the scope (as well as const-ness) rules, and builds a table of local variables.
@@ -114,11 +114,26 @@ fn scope_check_expression(env: &CompilationEnvironment, local_types: &mut HashMa
                 scope_check_expression(env, local_types, expr)?;
             }
         },
-        ExprAST::StructExpression { name, members, .. } => {
+        ExprAST::StructExpression { name, members: expr_members, .. } => {
             let Some(type_info) = env.types.get(&name.clone().into())
-            else { return Err(format!("Could not find a type called {name}").into()) };
+                else { return Err(format!("Could not find a type called {name}").into()) };
 
-            todo!();
+            let KindData::Struct { members: ref type_members } = type_info.kind
+                else { return Err(format!("{name} is a type, but not a Struct type").into()) }; 
+
+            let mut seen_members = HashSet::<String>::new();
+
+            for (member_name, member_expr) in expr_members {
+                if !type_members.contains_key(member_name) {
+                    return Err(format!("{member_name} is not a member of struct {name}").into())
+                }
+
+                seen_members.insert(member_name.clone());
+
+                todo!("A bit more here I think, like count the members...");
+                
+                scope_check_expression(env, local_types, member_expr)?;
+            }
         }
         ExprAST::Moved => panic!("ExprAST was moved"),
     }

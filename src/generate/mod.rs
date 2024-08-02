@@ -7,7 +7,7 @@ use std::hash::Hash;
 
 use crate::{CompilationEnvironment, util};
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
-use crate::analysis::types::Type;
+use crate::analysis::types::{Type, TypeInfo};
 use crate::instructions::{Instruction, IntSize, IntegerBinaryOperation, Constant};
 use crate::util::reinterpret;
 use crate::error::GenerateError;
@@ -203,7 +203,7 @@ impl CodeGenerator {
 
         instructions.append(&mut self.generate_expression(env, subtree, function_info, depth)?);  // TODO: Should this be zero or function_info.top. Can we call it depth?
 
-        instructions.append(&mut Self::generate_return(function_info)?); //
+        instructions.append(&mut self.generate_return(env, function_info)?); //
 
         let instructions = optimize(instructions);
         let instructions = Self::resolve_jumps(instructions)?;
@@ -212,25 +212,29 @@ impl CodeGenerator {
     
     // Precondition: stack pointer is byte above return value.
     // Postcondition: return value moved to final destination. Function returns.
-    fn generate_return(function_info: &FunctionInfo) -> Result<Vec<PseudoInstruction>, GenerateError> {
+    fn generate_return(&self, env: &CompilationEnvironment, function_info: &FunctionInfo) -> Result<Vec<PseudoInstruction>, GenerateError> {
         let mut instructions = vec![];
-
+        
         // If we ever add special move semantics beyond shallow copy...
         // We might need to invoke them here. Hard to say...
         
-        let (return_location, size) = function_info.variables.get(&Variable::Return)
+        let (return_location, size, return_type) = function_info.variables.get(&Variable::Return)
             .ok_or(GenerateError("Return type not analyzed".to_string()))?;
+
+        let TypeInfo { alignment, .. } = env.types[return_type];
         
-        match size {
-            0 => (),
-            1 | 2 | 4 | 8 => {
-                let int_size: IntSize = (*size).try_into()?;
-                instructions.push(PseudoInstruction::Actual(Instruction::WriteBase(*return_location, int_size)));
-            } 
-            _ => {
-                return Err("Not yet implemented: Moving types with weird sizes".into());
-            }
-        }
+        instructions.append(&mut self.generate_move_to_base(*return_location, *size, alignment)?);
+
+        // match size {
+        //     0 => (),
+        //     1 | 2 | 4 | 8 => {
+        //         let int_size: IntSize = (*size).try_into()?;
+        //         instructions.push(PseudoInstruction::Actual(Instruction::WriteBase(*return_location, int_size)));
+        //     } 
+        //     _ => {
+        //         return Err("Not yet implemented: Moving types with weird sizes".into());
+        //     }
+        // }
 
         instructions.push(PseudoInstruction::Actual(Instruction::Return));
 
@@ -376,9 +380,9 @@ impl CodeGenerator {
                 // a variable.
 
                 // TODO: Shadowing...
-                if let Some((offset, size)) = function_info.variable_info_by_name(name) {
-                    if size != 0 {
-                        instructions.push(PI::Actual(I::ReadBase(offset, IntSize::try_from(size)?)));
+                if let Some((offset, size, _)) = function_info.variable_info_by_name(name) {
+                    if *size != 0 {
+                        instructions.push(PI::Actual(I::ReadBase(*offset, IntSize::try_from(*size)?)));
                     }
                 }
             }
@@ -403,7 +407,7 @@ impl CodeGenerator {
 
                 instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
                 
-                let (relative_return_loc, return_size) = info.variables.get(&Variable::Return).expect("Known exists");
+                let (relative_return_loc, return_size, _) = info.variables.get(&Variable::Return).expect("Known exists");
                 // So relative position is how far below the function we currently are.
                 
                 // Skip past the 
@@ -418,7 +422,7 @@ impl CodeGenerator {
                 }
 
                 for (expr, param) in subexprs.iter().zip(&info.parameters) {
-                    let (param_loc, size) = info.variables.get(param).expect("Known exists");
+                    let (param_loc, size, _) = info.variables.get(param).expect("Known exists");
 
                     instructions.push(PI::Actual(I::AdvanceStackPtr((param_loc - relative_position) as usize)));
                     relative_position = *param_loc;
@@ -504,10 +508,10 @@ impl CodeGenerator {
                 
                 // Everything above can be its own function, see Statement::Expression too
 
-                instructions.append(&mut Self::generate_return(function_info)?); //
+                instructions.append(&mut self.generate_return(env, function_info)?); //
             },
             E::Return(None, _) => {
-                instructions.append(&mut Self::generate_return(function_info)?); //
+                instructions.append(&mut self.generate_return(env, function_info)?); //
             }
             E::StructExpression { .. } => {
                 todo!("How are we gonna do this???")
@@ -590,20 +594,49 @@ impl CodeGenerator {
 
         instructions.append(&mut self.generate_expression(env, expr, function_info, depth + align_shift)?);
 
-        let (offset, size) = function_info.variable_info_by_name(var_name)
+        let (offset, size, _) = function_info.variable_info_by_name(var_name)
             .ok_or(GenerateError("Could not find local variable".to_string()))?;
     
         // Store generated value
-        if size != 0 {
-            instructions.push(PseudoInstruction::Actual(
-                Instruction::WriteBase(offset, size.try_into()?)
-            ));
-        }
+        instructions.append(&mut self.generate_move_to_base(*offset, *size, expr_type_info.alignment)?);
 
         // Remove alignment
         instructions.push(PseudoInstruction::Actual(
             Instruction::RetractStackPtr(align_shift)
         ));
+
+        Ok(instructions)
+    }
+
+    /// Generates code to move a value (with given size and alignment) to some
+    /// location given as an offset from the base pointer (e.g. a local, a return value, a
+    /// mutable argument).
+    /// 
+    /// base_offset is the location of the target. val_size is the size of the value
+    /// (and implicitely, the target). alignment is the alignment of the type.
+    fn generate_move_to_base(&self, base_offset: isize, val_size: usize, alignment: usize) -> Result<Vec<PseudoInstruction>, GenerateError>  {
+        let mut bytes_remaining = val_size;
+        let mut instructions = vec![];
+
+        while bytes_remaining != 0 {
+            for int_size in [8, 4, 2, 1] {
+                if int_size > alignment || int_size > bytes_remaining { 
+                    continue; 
+                }
+
+                if (bytes_remaining - int_size) % int_size != 0 {
+                    continue;
+                }
+
+                bytes_remaining -= int_size;
+                instructions.push(PseudoInstruction::Actual(Instruction::WriteBase(
+                    base_offset + isize::try_from(bytes_remaining).expect("small enough"), 
+                    int_size.try_into().expect("8, 4, 2, 1 are valid")
+                )));
+
+                break;
+            }
+        }
 
         Ok(instructions)
     }
@@ -622,7 +655,7 @@ fn get_align_shift(depth: usize, alignment: usize) -> usize {
 // the fields are optional.
 #[derive(Debug)]
 struct FunctionInfo {
-    variables: HashMap<Variable, (isize, usize)>, // maps parameters, locals, and the return value to their position and sizes in memory.  
+    variables: HashMap<Variable, (isize, usize, Type)>, // maps parameters, locals, and the return value to their position and sizes in memory.  
     top: usize,  // Points to byte one past the topmost local variable
     initial_code: Vec<PseudoInstruction>, // Not optimized, and not linked
     parameters: Vec<Variable>,
@@ -648,20 +681,20 @@ impl FunctionInfo {
             .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
     
-        info.add_variable(Variable::Return, return_type_info.size, return_type_info.alignment);
+        info.add_variable(Variable::Return, return_type_info.size, return_type_info.alignment, analysis_info.return_type.clone());
 
         for (name, param_type) in &analysis_info.parameter_types {
             let param_type_info = env.types.get(param_type)
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
-            info.add_variable(Variable::Parameter(name.clone()), param_type_info.size, param_type_info.alignment);
+            info.add_variable(Variable::Parameter(name.clone()), param_type_info.size, param_type_info.alignment, param_type.clone());
             info.parameters.push(Variable::Parameter(name.clone()));
         }
 
         info.top += get_align_shift(info.top, 8);
 
         // Bump everything added so far below the base pointer
-        for (offset, _) in info.variables.values_mut() {
+        for (offset, _, _) in info.variables.values_mut() {
             *offset -= info.top as isize;
         }
 
@@ -677,27 +710,27 @@ impl FunctionInfo {
             let local_type_info = env.types.get(&local_type)
                 .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
-            info.add_variable(Variable::Local(name.clone()), local_type_info.size, local_type_info.alignment);
+            info.add_variable(Variable::Local(name.clone()), local_type_info.size, local_type_info.alignment, local_type);
         }
 
         Ok(info)
     }
 
     // Ensures correct alignment
-    fn add_variable(&mut self, variable: Variable, size: usize, alignment: usize) {
+    fn add_variable(&mut self, variable: Variable, size: usize, alignment: usize, var_type: Type) {
         self.top += get_align_shift(self.top, alignment);
 
-        self.variables.insert(variable, (self.top as isize, size));
+        self.variables.insert(variable, (self.top as isize, size, var_type));
         self.top += size;
     }
 
     // Checks arguments and locals
-    fn variable_info_by_name(&self, name: &str) -> Option<(isize, usize)> {
+    fn variable_info_by_name(&self, name: &str) -> Option<&(isize, usize, Type)> {
         if let Some(info) = self.variables.get(&Variable::Local(name.to_string())) {
-            Some(*info)
+            Some(info)
         }
         else {
-            self.variables.get(&Variable::Parameter(name.to_string())).copied()
+            self.variables.get(&Variable::Parameter(name.to_string()))
         }
     }
 }

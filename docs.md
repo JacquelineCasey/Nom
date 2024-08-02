@@ -1,4 +1,6 @@
 
+# This is Hopelessly Out of Date
+
 Right now, the "documentation" for the language is really justs a list of features.
 I'll definitely want to organize documentation better later on.
 

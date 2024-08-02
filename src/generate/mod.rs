@@ -658,7 +658,7 @@ impl FunctionInfo {
             info.parameters.push(Variable::Parameter(name.clone()));
         }
 
-        info.align_variables(8);
+        info.top += get_align_shift(info.top, 8);
 
         // Bump everything added so far below the base pointer
         for (offset, _) in info.variables.values_mut() {
@@ -685,14 +685,10 @@ impl FunctionInfo {
 
     // Ensures correct alignment
     fn add_variable(&mut self, variable: Variable, size: usize, alignment: usize) {
-        self.align_variables(alignment);
+        self.top += get_align_shift(self.top, alignment);
 
         self.variables.insert(variable, (self.top as isize, size));
         self.top += size;
-    }
-
-    fn align_variables(&mut self, alignment: usize) {
-        self.top += get_align_shift(self.top, alignment);
     }
 
     // Checks arguments and locals

@@ -1025,7 +1025,7 @@ fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     Ok(ExprAST::StructExpression {
         name: name.clone(), 
         members, 
-        data: ASTNodeData::new(Span::combine(&first_span, &last_span))
+        data: ASTNodeData::new(Span::combine(first_span, last_span))
     })
 }
 

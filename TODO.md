@@ -6,5 +6,7 @@ can go here:
 
 == Immediate TODO ==
 
+-[] Update generation code to do struct expressions (and assignment for non-int sized types)
+
 - [] Define struct member access syntax
   - [] Implement syntax

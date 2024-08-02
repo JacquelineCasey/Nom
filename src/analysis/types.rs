@@ -179,8 +179,6 @@ pub fn add_struct_type(env: &mut CompilationEnvironment, name: String, members: 
             curr_offset += member_alignment - (curr_offset % member_alignment);
         }
 
-        println!("{}", curr_offset);
-
         processed_members.insert(member_name, (member_type, curr_offset));
         curr_offset += member_size;
     }

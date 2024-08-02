@@ -138,7 +138,7 @@ fn scope_check_expression(env: &CompilationEnvironment, local_types: &mut HashMa
             }
 
             if seen_members.len() != type_members.len() {
-                return Err(format!("Struct expression does not define all members.").into())
+                return Err("Struct expression does not define all members.".into())
             }
         }
         ExprAST::Moved => panic!("ExprAST was moved"),

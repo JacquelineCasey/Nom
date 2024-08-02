@@ -223,18 +223,7 @@ impl CodeGenerator {
 
         let TypeInfo { alignment, .. } = env.types[return_type];
         
-        instructions.append(&mut self.generate_move_to_base(*return_location, *size, alignment)?);
-
-        // match size {
-        //     0 => (),
-        //     1 | 2 | 4 | 8 => {
-        //         let int_size: IntSize = (*size).try_into()?;
-        //         instructions.push(PseudoInstruction::Actual(Instruction::WriteBase(*return_location, int_size)));
-        //     } 
-        //     _ => {
-        //         return Err("Not yet implemented: Moving types with weird sizes".into());
-        //     }
-        // }
+        instructions.append(&mut self.generate_write_to_base(*return_location, *size, alignment)?);
 
         instructions.push(PseudoInstruction::Actual(Instruction::Return));
 
@@ -380,11 +369,8 @@ impl CodeGenerator {
                 // a variable.
 
                 // TODO: Shadowing...
-                if let Some((offset, size, _)) = function_info.variable_info_by_name(name) {
-                    if *size != 0 {
-                        instructions.push(PI::Actual(I::ReadBase(*offset, IntSize::try_from(*size)?)));
-                    }
-                }
+                let (offset, size, val_type) = function_info.variable_info_by_name(name).expect("known to exist");
+                instructions.append(&mut self.generate_read_from_base(*offset, *size, env.types[val_type].alignment)?);
             }
             E::Block(statements, expr, ..) => {
                 for statement in statements {
@@ -598,7 +584,7 @@ impl CodeGenerator {
             .ok_or(GenerateError("Could not find local variable".to_string()))?;
     
         // Store generated value
-        instructions.append(&mut self.generate_move_to_base(*offset, *size, expr_type_info.alignment)?);
+        instructions.append(&mut self.generate_write_to_base(*offset, *size, expr_type_info.alignment)?);
 
         // Remove alignment
         instructions.push(PseudoInstruction::Actual(
@@ -614,7 +600,7 @@ impl CodeGenerator {
     /// 
     /// base_offset is the location of the target. val_size is the size of the value
     /// (and implicitely, the target). alignment is the alignment of the type.
-    fn generate_move_to_base(&self, base_offset: isize, val_size: usize, alignment: usize) -> Result<Vec<PseudoInstruction>, GenerateError>  {
+    fn generate_write_to_base(&self, base_offset: isize, val_size: usize, alignment: usize) -> Result<Vec<PseudoInstruction>, GenerateError>  {
         let mut bytes_remaining = val_size;
         let mut instructions = vec![];
 
@@ -633,6 +619,38 @@ impl CodeGenerator {
                     base_offset + isize::try_from(bytes_remaining).expect("small enough"), 
                     int_size.try_into().expect("8, 4, 2, 1 are valid")
                 )));
+
+                break;
+            }
+        }
+
+        Ok(instructions)
+    }
+
+    /// Generates code to move a value (with given size and alignment) from some
+    /// location given as an offset from the base pointer (e.g. a local, or a
+    /// mutable argument) to the stack.
+    /// 
+    /// base_offset is the location of the target. val_size is the size of the value
+    /// (and implicitely, the target). alignment is the alignment of the type.
+    /// We assume we are already aligned for that type (as is typical).
+    fn generate_read_from_base(&self, base_offset: isize, val_size: usize, alignment: usize) -> Result<Vec<PseudoInstruction>, GenerateError>  {
+        let mut bytes_remaining = val_size;
+        let mut instructions = vec![];
+
+        while bytes_remaining != 0 {
+            for int_size in [8, 4, 2, 1] {
+                if int_size > alignment || int_size > bytes_remaining { 
+                    continue; 
+                }
+
+        
+                instructions.push(PseudoInstruction::Actual(Instruction::ReadBase(
+                    base_offset + isize::try_from(val_size - bytes_remaining).expect("small enough"), 
+                    int_size.try_into().expect("8, 4, 2, 1 are valid")
+                )));
+
+                bytes_remaining -= int_size;
 
                 break;
             }

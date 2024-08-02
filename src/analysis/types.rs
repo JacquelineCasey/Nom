@@ -114,14 +114,14 @@ impl From<String> for Type {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TypeInfo {
     pub size: usize,  // Number of bytes the types takes on the stack.
     pub alignment: usize,  // In bytes
     pub kind: KindData,  // I'm gonna call the "type" of a type a "kind". So there's BuiltIn, Struct, etc.
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum KindData {
     BuiltIn,
     Struct { members: HashMap<String, (Type, usize)> }  // members maps name to (offset, type)

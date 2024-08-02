@@ -1,9 +1,9 @@
 
 use crate::{CompilationEnvironment, ast::StatementAST};
-use crate::ast::{ExprAST, DeclarationAST};
+use crate::ast::{AnyAST, DeclarationAST, ExprAST};
 use crate::error::AnalysisError;
 
-use super::types::{PartialType, Type, upper_bound_type, BuiltIn};
+use super::types::{PartialType, Type, KindData, upper_bound_type, BuiltIn};
 
 
 pub(crate) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
@@ -12,7 +12,7 @@ pub(crate) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result
     let return_type = function.return_type.clone();
 
     type_check_expression(env, &mut block, name, &Some(return_type))?;
-    finalize_partial_types_expr(env, &mut block, name)?;
+    finalize_partial_types_expr(env, &mut AnyAST::Expression (&mut block), name)?;
 
     // We need the old lifetime to die.
     let function = env.functions.get_mut(name).expect("known exists");
@@ -221,7 +221,24 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             Type::BuiltIn(BuiltIn::Bottom)
         },
         ExprAST::StructExpression { name, members, .. } => {
-            todo!("Type Check??")
+            let struct_type: Type = name.clone().into();
+
+            let Some(type_info) = env.types.get(&struct_type)
+                else { return Err(format!("Unknown type {name}").into()) };
+
+            let type_info = type_info.clone();  // Appeases borrow checker.
+
+            let KindData::Struct { members: ref type_members } = type_info.kind
+                else { return Err(format!("Type {name} is not a struct type").into()) };
+
+            for (member_name, member_expr) in members {
+                let Some((member_type, _)) = type_members.get(member_name)
+                    else { todo!() };
+
+                type_check_expression(env, member_expr, function_name, &Some(member_type.clone()))?;
+            }
+
+            struct_type
         },
         ExprAST::Moved => panic!("ExprAST moved"),
     };
@@ -241,84 +258,23 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
 
 // Converts partial types to final types
 #[allow(clippy::only_used_in_recursion)]
-fn finalize_partial_types_expr(env: &mut CompilationEnvironment, expr: &mut ExprAST, func_name: &str) -> Result<(), AnalysisError> {
-    let found_type = &env.type_index[&expr.get_node_data().id];
+fn finalize_partial_types_expr<'a>(env: &mut CompilationEnvironment, ast: &'a mut AnyAST<'a>, func_name: &str) -> Result<(), AnalysisError> {
+    match ast {
+        AnyAST::File(_) => {
+            return Err("File not expected (expecting a function block to start)".into());
+        }
+        AnyAST::Expression(expr) => {
+            let found_type = &env.type_index[&expr.get_node_data().id];
 
-    if let Type::PartiallyKnown(PartialType::IntLiteral) = found_type {
-        env.type_index.insert(expr.get_node_data().id, Type::BuiltIn(BuiltIn::I32));
+            if let Type::PartiallyKnown(PartialType::IntLiteral) = found_type {
+                env.type_index.insert(expr.get_node_data().id, Type::BuiltIn(BuiltIn::I32));
+            }
+        }
+        _ => (),
     }
 
-    // Refactor... some function like all_child_expr...
-    match expr {
-        ExprAST::Add(a, b, _)
-        | ExprAST::Subtract(a, b, _)
-        | ExprAST::Multiply(a, b, _)
-        | ExprAST::Divide(a, b, _)
-        | ExprAST::Modulus(a, b, _)
-        | ExprAST::Comparison(a, b, _, _)
-        | ExprAST::Or(a, b, _)
-        | ExprAST::And(a, b, _)
-        | ExprAST::While { condition: a, block: b, .. } => {
-            finalize_partial_types_expr(env, a, func_name)?;
-            finalize_partial_types_expr(env, b, func_name)?;
-        },
-        ExprAST::If { condition, block, else_branch, .. } => {
-            finalize_partial_types_expr(env, condition, func_name)?;
-            finalize_partial_types_expr(env, block, func_name)?;
-            if let Some(else_branch) = else_branch {
-                finalize_partial_types_expr(env, else_branch, func_name)?;
-            }
-        },
-        ExprAST::Not(a, _) => {
-            finalize_partial_types_expr(env, a, func_name)?;
-        },
-        ExprAST::Block(statements, final_expr, _) => {
-            for stmt in statements {
-                match stmt {
-                    StatementAST::ExpressionStatement(e, _) => {
-                        finalize_partial_types_expr(env, e, func_name)?;
-                    },
-                    StatementAST::Assignment(a, b, _) => {
-                        finalize_partial_types_expr(env, a, func_name)?;
-                        finalize_partial_types_expr(env, b, func_name)?;
-                    },
-                    StatementAST::CompoundAssignment(..) =>
-                        return Err("Expected Compound Assignment to have been desugared".into()),
-                    StatementAST::Declaration(DeclarationAST::Function { .. }, _) => {
-                        panic!("Cannot yet handle functions in functions");
-                    }
-                    StatementAST::Declaration(DeclarationAST::Struct { .. }, _) => {
-                        panic!("Cannot yet handle types in functions");
-                    }
-                    StatementAST::Declaration(DeclarationAST::Variable { expr, ..  }, _) => {
-                        // TODO - type inference here?, use func_name field
-                        finalize_partial_types_expr(env, expr, func_name)?;
-                    }
-                }
-            }
-
-            if let Some(e) =  final_expr {
-                finalize_partial_types_expr(env, e, func_name)?;
-            }
-        },
-        ExprAST::FunctionCall(_, exprs, _) => {
-            for e in exprs {
-                finalize_partial_types_expr(env, e, func_name)?;
-            }
-        },
-        ExprAST::Return(expr, _) => {
-            if let Some(expr) = expr {
-                finalize_partial_types_expr(env, expr, func_name)?;
-            }
-        },
-        ExprAST::IntegerLiteral(_, _)
-        | ExprAST::BooleanLiteral(_, _)
-        | ExprAST::Variable(_, _) => 
-            (),
-        | ExprAST::StructExpression { name, members, data } => {
-            todo!("TODO: Type Check This.")
-        }
-        ExprAST::Moved => panic!("AST moved"),
+    for child in &mut ast.children() {
+        finalize_partial_types_expr(env, child, func_name)?;
     }
 
     Ok(())

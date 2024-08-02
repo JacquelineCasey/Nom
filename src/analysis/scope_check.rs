@@ -2,7 +2,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{CompilationEnvironment, error::AnalysisError, ast::{ExprAST, StatementAST, DeclarationAST}};
-use super::{types::{KindData, Type, TypeInfo}, Function};
+use super::types::{KindData, Type};
 
 
 // Checks the scope (as well as const-ness) rules, and builds a table of local variables.
@@ -124,15 +124,21 @@ fn scope_check_expression(env: &CompilationEnvironment, local_types: &mut HashMa
             let mut seen_members = HashSet::<String>::new();
 
             for (member_name, member_expr) in expr_members {
+                if seen_members.contains(member_name) {
+                    return Err(format!("{member_name} is defined twice in struct expression").into())
+                }
+
                 if !type_members.contains_key(member_name) {
                     return Err(format!("{member_name} is not a member of struct {name}").into())
                 }
 
                 seen_members.insert(member_name.clone());
-
-                todo!("A bit more here I think, like count the members...");
                 
                 scope_check_expression(env, local_types, member_expr)?;
+            }
+
+            if seen_members.len() != type_members.len() {
+                return Err(format!("Struct expression does not define all members.").into())
             }
         }
         ExprAST::Moved => panic!("ExprAST was moved"),

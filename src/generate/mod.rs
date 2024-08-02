@@ -41,7 +41,7 @@ impl CodeGenerator {
         CodeGenerator { functions: HashMap::new() }
     }
 
-    pub(super) fn generate(mut self, env: &CompilationEnvironment) -> Result<Vec<Instruction>, GenerateError> {
+    pub fn generate(mut self, env: &CompilationEnvironment) -> Result<Vec<Instruction>, GenerateError> {
         use PseudoInstruction as PI;
         use Instruction as I;
 

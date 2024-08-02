@@ -5,7 +5,7 @@
 use crate::{ast::{AST, ExprAST, StatementAST, ASTNodeData, AnyAST}, token::Span};
 
 
-pub(crate) fn desugar(ast: &mut AST)  {
+pub fn desugar(ast: &mut AST)  {
     desugar_ast(&mut AnyAST::File(ast))
 }
 

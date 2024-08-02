@@ -2,13 +2,13 @@
 pub mod types;
 
 mod desugar;
-pub(crate) use desugar::desugar;  // Desugaring should happen right after the AST is created.
+pub use desugar::desugar;  // Desugaring should happen right after the AST is created.
 
 mod scope_check;
-pub(crate) use scope_check::scope_check;  // Scope check happens next. This task enters the compilation queue.
+pub use scope_check::scope_check;  // Scope check happens next. This task enters the compilation queue.
 
 mod type_check;
-pub(crate) use type_check::type_check;  // Finally, types are analyzed and decided. This also enters the compilation queue.
+pub use type_check::type_check;  // Finally, types are analyzed and decided. This also enters the compilation queue.
 
 
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ pub struct Function {
 }
 
 impl Function {
-    pub(super) fn new(_env: &CompilationEnvironment, ast: ExprAST, 
+    pub fn new(_env: &CompilationEnvironment, ast: ExprAST, 
         params: Vec<(String, String)>, return_type: String) -> Function { // Could become Result
 
         // TODO: Someday we might want this to add type generation requests to _env

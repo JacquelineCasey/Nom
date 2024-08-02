@@ -1,0 +1,15 @@
+
+fn fib(n: i32) -> i32 {
+    if n >= 3 {
+        return fib(n-1) + fib(n-2);
+    };
+
+    1
+}
+
+fn main() -> i32 {
+    fib(40)
+}
+
+// See fib_40.nom. Since then we've added return statements which perhaps
+// increase the speed?

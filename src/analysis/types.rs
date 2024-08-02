@@ -5,7 +5,7 @@ use crate::{instructions::IntSize, CompilationEnvironment, CompileError};
 
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub(crate) enum Type {
+pub enum Type {
     BuiltIn (BuiltIn),
     UserDefined (String),
     PartiallyKnown (PartialType),

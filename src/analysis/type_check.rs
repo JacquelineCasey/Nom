@@ -6,7 +6,7 @@ use crate::error::AnalysisError;
 use super::types::{PartialType, Type, KindData, upper_bound_type, BuiltIn};
 
 
-pub(crate) fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
+pub fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
     let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
     let mut block = std::mem::take(&mut function.ast);
     let return_type = function.return_type.clone();

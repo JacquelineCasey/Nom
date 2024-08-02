@@ -6,7 +6,7 @@ use crate::instructions::Instruction;
 
 
 /* Optimizes the code of a single function */
-pub(super) fn optimize(instructions: Vec<PseudoInstruction>) -> Vec<PseudoInstruction> {
+pub fn optimize(instructions: Vec<PseudoInstruction>) -> Vec<PseudoInstruction> {
     use PseudoInstruction as PI;
     use Instruction as I;
 

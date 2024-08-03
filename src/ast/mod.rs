@@ -123,7 +123,7 @@ pub enum ExprAST {
     Or (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     And (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Not (Box<ExprAST>, ASTNodeData),
-    MemberAccess (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
+    MemberAccess (Box<ExprAST>, String, ASTNodeData),
 
     // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
     IntegerLiteral(i128, ASTNodeData), 
@@ -187,8 +187,8 @@ impl ExprAST {
                 ExprAST::Or(Box::new(left.duplicate()), Box::new(right.duplicate()), node_data.relabel()),
             ExprAST::And(left, right, node_data) => 
                 ExprAST::And(Box::new(left.duplicate()), Box::new(right.duplicate()), node_data.relabel()),
-            ExprAST::MemberAccess(left, right, node_data) => 
-                ExprAST::MemberAccess(Box::new(left.duplicate()), Box::new(right.duplicate()), node_data.relabel()),
+            ExprAST::MemberAccess(expr, name, node_data) => 
+                ExprAST::MemberAccess(Box::new(expr.duplicate()), name.clone(), node_data.relabel()),
             ExprAST::Not(inner, node_data) => 
                 ExprAST::Not(Box::new(inner.duplicate()), node_data.relabel()),
             ExprAST::IntegerLiteral(num, node_data) => 
@@ -289,7 +289,8 @@ impl<'a> AnyAST<'a> {
                 vec![],
             A::Expression(
                 E::Not(expr, ..)
-              | E::Return(Some(expr), ..)
+                | E::Return(Some(expr), ..)
+                | E::MemberAccess(expr, ..)
             ) => 
                 vec![A::Expression(expr.as_mut())],
             A::Expression(
@@ -298,7 +299,6 @@ impl<'a> AnyAST<'a> {
               | E::Multiply(expr_1, expr_2, ..)
               | E::Divide(expr_1, expr_2, ..)
               | E::Modulus(expr_1, expr_2, ..)
-              | E::MemberAccess(expr_1, expr_2, ..)
               | E::Comparison(expr_1, expr_2, ..)
               | E::Or(expr_1, expr_2, ..)
               | E::And(expr_1, expr_2, ..)
@@ -732,15 +732,25 @@ fn build_multiplicative_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 fn build_member_access_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     let children = assert_rule_get_children(tree, "MemberAccessExpression")?;
     
-    combine_binary_ops(children, true, |left, op, right| {
-        match op {
-            ST::TokenNode(Token { body: TB::Operator(Op::Dot), .. }) => {
-                let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
-                Ok(ExprAST::MemberAccess(Box::new(left), Box::new(right), ASTNodeData::new(span)))
-            },
-            _ => Err("Expected a '.'".into())
-        }
-    })
+    let mut iter = children.iter();
+
+    let mut curr_expr = build_expr_ast(iter.next().ok_or::<ASTError>("akjgbnajgnksajn".into())?)?;
+    let mut curr_span = curr_expr.get_node_data().span.clone();
+
+    while let Some(ST::TokenNode(Token { body: TB::Operator(Op::Dot), .. })) = iter.next() {
+        let Some(ST::TokenNode(Token { body: TB::Identifier(member_name), span: new_span })) = iter.next()
+            else { return Err("Expected identifier in MemberAccessExpression".into()) };
+
+        curr_span = Span::combine(&curr_span, &new_span);
+
+        curr_expr = ExprAST::MemberAccess(
+            Box::new(curr_expr), 
+            member_name.clone(), 
+            ASTNodeData::new(curr_span.clone())
+        );
+    }   
+
+    Ok(curr_expr)
 }
 
 fn build_comparision_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {

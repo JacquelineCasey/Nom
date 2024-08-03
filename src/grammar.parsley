@@ -89,7 +89,7 @@ MultiplicativeExpression
     ;
 
 MemberAccessExpression
-    : PrimaryExpression (_Dot PrimaryExpression)* 
+    : PrimaryExpression (_Dot _Identifier)* 
     ;
 
 PrimaryExpression 

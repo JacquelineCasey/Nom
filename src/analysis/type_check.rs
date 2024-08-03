@@ -240,6 +240,9 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
 
             struct_type
         },
+        ExprAST::MemberAccess(_, _, _) => {
+            todo!("Type Check")
+        }
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 

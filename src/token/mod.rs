@@ -134,6 +134,7 @@ pub enum Operator {  // Operators currently accepted greedily
     GreaterEquals,
     Less,
     Greater,
+    Dot,
 }
 
 // All punctuation is a single character that cannot be part of another token.
@@ -459,6 +460,9 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
         else if slice.starts_with('=') {
             (Operator::Equals, 1)
         }
+        else if slice.starts_with('.') {
+            (Operator::Dot, 1)
+        }
         else {
             return Err(format!("Could not split operators: {slice}").into());
         };
@@ -474,7 +478,7 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
 
 
 fn is_operator_char(ch: char) -> bool {
-    let operators = ['+', '-', '*', '/', '=', '>', '<', '!', '%'];
+    let operators = ['+', '-', '*', '/', '=', '>', '<', '!', '%', '.'];
 
     operators.contains(&ch)
 }
@@ -547,10 +551,11 @@ impl parsley::Token for Token {
             "Less"           => matches!(token, T { body: TB::Operator(O::Less), .. }),
             "Greater"        => matches!(token, T { body: TB::Operator(O::Greater), .. }),
             "PlusEquals"     => matches!(token, T { body: TB::Operator(O::PlusEquals), .. }),
-            "MinusEquals"     => matches!(token, T { body: TB::Operator(O::MinusEquals), .. }),
-            "TimesEquals"     => matches!(token, T { body: TB::Operator(O::TimesEquals), .. }),
-            "DivideEquals"     => matches!(token, T { body: TB::Operator(O::DivideEquals), .. }),
-            "ModulusEquals"     => matches!(token, T { body: TB::Operator(O::ModulusEquals), .. }),
+            "MinusEquals"    => matches!(token, T { body: TB::Operator(O::MinusEquals), .. }),
+            "TimesEquals"    => matches!(token, T { body: TB::Operator(O::TimesEquals), .. }),
+            "DivideEquals"   => matches!(token, T { body: TB::Operator(O::DivideEquals), .. }),
+            "ModulusEquals"  => matches!(token, T { body: TB::Operator(O::ModulusEquals), .. }),
+            "Dot"            => matches!(token, T { body: TB::Operator(O::Dot), .. }),
 
             "Var" => matches!(token, T { body: TB::Keyword(K::Var), .. }),
             "Val" => matches!(token, T { body: TB::Keyword(K::Val), .. }),

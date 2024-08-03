@@ -1,4 +1,4 @@
-//! 20
+//! 8
 
 struct int_pair {
     first: i32,
@@ -12,7 +12,7 @@ fn make_pair(a: i32, b: i32) -> int_pair {
 fn main() -> i32 {
     var sum: i32 = 0;
 
-    val pair: int_pair = make_pair(3, 3);
+    val pair: int_pair = make_pair(3, 5);
 
-    20
+    pair.first + pair.second
 }

@@ -527,6 +527,20 @@ impl CodeGenerator {
                     offset_into_struct = offset + env.types[member_type].size;
                 }           
             }
+            E::MemberAccess(_, _, _) => {
+                todo!("GENERATE (this is gonna hurt...)")
+
+                // Need to carefully work out l vs r value case...
+                // If I remember correctly, at this point we know that we are evaluating
+                // an expression. However, if we want to do so efficiently, we might
+                // treat an lvalue vs rvalue left side differently. For a temporary,
+                // we want to scoop out the value and discard the rest. For a local,
+                // we definitely do not want to evaluate the whole struct, just grab
+                // the value instead.
+
+                // I'm picturing a helper which crawls the tree looking to "lvalue
+                // evaluate" it into a "location" struct.
+            }
             E::Moved => panic!("ExprAST Moved"),
         }
 

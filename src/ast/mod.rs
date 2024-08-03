@@ -123,6 +123,7 @@ pub enum ExprAST {
     Or (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     And (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Not (Box<ExprAST>, ASTNodeData),
+    MemberAccess (Box<ExprAST>, Box<ExprAST>, ASTNodeData),
 
     // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
     IntegerLiteral(i128, ASTNodeData), 
@@ -160,7 +161,8 @@ impl ExprAST {
             | ExprAST::Block(_, _, data)
             | ExprAST::If { data, .. }
             | ExprAST::While { data, .. }
-            | ExprAST::Return(_, data) => data,
+            | ExprAST::Return(_, data)
+            | ExprAST::MemberAccess(_, _, data)
             | ExprAST::StructExpression { data, .. } => data,
             ExprAST::Moved => panic!("ExprAST was moved"),
         }
@@ -185,6 +187,8 @@ impl ExprAST {
                 ExprAST::Or(Box::new(left.duplicate()), Box::new(right.duplicate()), node_data.relabel()),
             ExprAST::And(left, right, node_data) => 
                 ExprAST::And(Box::new(left.duplicate()), Box::new(right.duplicate()), node_data.relabel()),
+            ExprAST::MemberAccess(left, right, node_data) => 
+                ExprAST::MemberAccess(Box::new(left.duplicate()), Box::new(right.duplicate()), node_data.relabel()),
             ExprAST::Not(inner, node_data) => 
                 ExprAST::Not(Box::new(inner.duplicate()), node_data.relabel()),
             ExprAST::IntegerLiteral(num, node_data) => 
@@ -294,6 +298,7 @@ impl<'a> AnyAST<'a> {
               | E::Multiply(expr_1, expr_2, ..)
               | E::Divide(expr_1, expr_2, ..)
               | E::Modulus(expr_1, expr_2, ..)
+              | E::MemberAccess(expr_1, expr_2, ..)
               | E::Comparison(expr_1, expr_2, ..)
               | E::Or(expr_1, expr_2, ..)
               | E::And(expr_1, expr_2, ..)
@@ -333,41 +338,23 @@ impl<'a> AnyAST<'a> {
         use ExprAST as E;
 
         match self {
-          | A::File(AST { node_data, .. }) 
-          | A::Declaration(
-              | D::Function { node_data, .. }
-              | D::Variable { node_data, .. }
-              | D::Struct { node_data, .. }
+            | A::File(AST { node_data, .. }) 
+            | A::Declaration(
+                | D::Function { node_data, .. }
+                | D::Variable { node_data, .. }
+                | D::Struct { node_data, .. }
             )
-          | A::Statement(
-              | S::Assignment(_, _, node_data)
-              | S::CompoundAssignment(_, _, _, node_data)
-              | S::Declaration(_, node_data)
-              | S::ExpressionStatement(_, node_data)
-            )
-          | A::Expression(
-              | E::Add(_, _, node_data) 
-              | E::And(_, _, node_data)
-              | E::Block(_, _, node_data)
-              | E::BooleanLiteral(_, node_data)
-              | E::Comparison(_, _, _, node_data)
-              | E::Divide(_, _, node_data)
-              | E::FunctionCall(_, _, node_data)
-              | E::If { data: node_data, .. }
-              | E::IntegerLiteral(_, node_data)
-              | E::Modulus(_, _, node_data)
-              | E::Multiply(_, _, node_data)
-              | E::Not(_, node_data)
-              | E::Or(_, _, node_data)
-              | E::Return(_, node_data)
-              | E::Subtract(_, _, node_data)
-              | E::Variable(_, node_data)
-              | E::While { data: node_data, .. }
-              | E::StructExpression { data: node_data, .. }
-            ) => 
-                node_data,
+            | A::Statement(
+                | S::Assignment(_, _, node_data)
+                | S::CompoundAssignment(_, _, _, node_data)
+                | S::Declaration(_, node_data)
+                | S::ExpressionStatement(_, node_data)
+            ) => node_data,
+
             A::Expression(E::Moved) =>
-                panic!("Expected Unmoved Value")
+                panic!("Expected Unmoved Value"),
+
+            A::Expression(e) => e.get_node_data()
         }
     }
 }
@@ -502,6 +489,8 @@ fn build_expr_ast(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
                 build_additive_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "MultiplicativeExpression" =>
                 build_multiplicative_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "MemberAccessExpression" =>
+                build_member_access_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "ComparisonExpression" => 
                 build_comparision_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "OrExpression" =>
@@ -736,6 +725,20 @@ fn build_multiplicative_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
                 Ok(ExprAST::Modulus(Box::new(left), Box::new(right), ASTNodeData::new(span)))
             },
             _ => Err("Expected *, /, or %".into())
+        }
+    })
+}
+
+fn build_member_access_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
+    let children = assert_rule_get_children(tree, "MemberAccessExpression")?;
+    
+    combine_binary_ops(children, true, |left, op, right| {
+        match op {
+            ST::TokenNode(Token { body: TB::Operator(Op::Dot), .. }) => {
+                let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+                Ok(ExprAST::MemberAccess(Box::new(left), Box::new(right), ASTNodeData::new(span)))
+            },
+            _ => Err("Expected a '.'".into())
         }
     })
 }

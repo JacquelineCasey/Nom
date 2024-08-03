@@ -85,7 +85,11 @@ AdditiveExpression
     ;
 
 MultiplicativeExpression 
-    : PrimaryExpression ((_Times | _Divide | _Modulus) PrimaryExpression)* 
+    : MemberAccessExpression ((_Times | _Divide | _Modulus) MemberAccessExpression)* 
+    ;
+
+MemberAccessExpression
+    : PrimaryExpression (_Dot PrimaryExpression)* 
     ;
 
 PrimaryExpression 

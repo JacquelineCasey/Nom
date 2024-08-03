@@ -233,6 +233,35 @@ impl Runtime {
                     self.instruction_index = (self.instruction_index as i32 + i) as usize;
                 }
             }
+            // I'd like to clean this up someday...
+            Instruction::WriteStack(src, dest, int_size) => {
+                match int_size {
+                    IntSize::OneByte => {
+                        unsafe {
+                            let val = self.stack_pointer.offset(src).read();
+                            self.stack_pointer.offset(dest).write(val);
+                        }
+                    },
+                    IntSize::TwoByte => {
+                        unsafe {
+                            let val = self.stack_pointer.offset(src).cast::<u16>().read();
+                            self.stack_pointer.offset(dest).cast::<u16>().write(val);
+                        }
+                    },
+                    IntSize::FourByte => {
+                        unsafe {
+                            let val = self.stack_pointer.offset(src).cast::<u32>().read();
+                            self.stack_pointer.offset(dest).cast::<u32>().write(val);
+                        }
+                    },
+                    IntSize::EightByte => {
+                        unsafe {
+                            let val = self.stack_pointer.offset(src).cast::<u64>().read();
+                            self.stack_pointer.offset(dest).cast::<u64>().write(val);
+                        }
+                    },
+                }
+            },
         }
     }
 
@@ -461,7 +490,7 @@ impl Stackable for u16 {
     fn push(val: Self, runtime: &mut Runtime) {
         assert!(runtime.stack_pointer as usize + 2 <= runtime.stack_bottom as usize + STACK_SIZE, "Critical Runtime Error: Stack Overflow");
         
-        assert!(runtime.stack_pointer as usize % 2 == 0, "Stack pointer misaligned");
+        assert!(runtime.stack_pointer as usize % 2 == 0, "[Instruction {}] Stack pointer misaligned", runtime.instruction_index - 1);
 
         unsafe { 
             runtime.stack_pointer.cast::<u16>().write(val); 
@@ -473,7 +502,7 @@ impl Stackable for u16 {
     fn pop(runtime: &mut Runtime) -> Self {
         assert!(runtime.stack_pointer as usize - 2 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
-        assert!(runtime.stack_pointer as usize % 2 == 0, "Stack pointer misaligned");
+        assert!(runtime.stack_pointer as usize % 2 == 0, "[Instruction {}] Stack pointer misaligned", runtime.instruction_index - 1);
 
         unsafe {
             runtime.stack_pointer = runtime.stack_pointer.sub(2);
@@ -487,7 +516,7 @@ impl Stackable for u32 {
     fn push(val: Self, runtime: &mut Runtime) {
         assert!(runtime.stack_pointer as usize + 4 <= runtime.stack_bottom as usize + STACK_SIZE, "Critical Runtime Error: Stack Overflow");
         
-        assert!(runtime.stack_pointer as usize % 4 == 0, "Stack pointer misaligned");
+        assert!(runtime.stack_pointer as usize % 4 == 0, "[Instruction {}] Stack pointer misaligned", runtime.instruction_index - 1);
 
         unsafe { 
             runtime.stack_pointer.cast::<u32>().write(val); 
@@ -499,7 +528,7 @@ impl Stackable for u32 {
     fn pop(runtime: &mut Runtime) -> Self {
         assert!(runtime.stack_pointer as usize - 4 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
-        assert!(runtime.stack_pointer as usize % 4 == 0, "Stack pointer misaligned");
+        assert!(runtime.stack_pointer as usize % 4 == 0, "[Instruction {}] Stack pointer misaligned", runtime.instruction_index - 1);
 
         unsafe {
             runtime.stack_pointer = runtime.stack_pointer.sub(4);
@@ -513,7 +542,7 @@ impl Stackable for u64 {
     fn push(val: Self, runtime: &mut Runtime) {
         assert!(runtime.stack_pointer as usize + 8 <= runtime.stack_bottom as usize + STACK_SIZE, "Critical Runtime Error: Stack Overflow");
         
-        assert!(runtime.stack_pointer as usize % 8 == 0, "Stack pointer misaligned");
+        assert!(runtime.stack_pointer as usize % 8 == 0, "[Instruction {}] Stack pointer misaligned", runtime.instruction_index - 1);
 
         unsafe { 
             runtime.stack_pointer.cast::<u64>().write(val); 
@@ -525,7 +554,7 @@ impl Stackable for u64 {
     fn pop(runtime: &mut Runtime) -> Self {
         assert!(runtime.stack_pointer as usize - 8 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
-        assert!(runtime.stack_pointer as usize % 8 == 0, "Stack pointer misaligned");
+        assert!(runtime.stack_pointer as usize % 8 == 0, "[Instruction {}] Stack pointer misaligned", runtime.instruction_index - 1);
 
         unsafe {
             runtime.stack_pointer = runtime.stack_pointer.sub(8);

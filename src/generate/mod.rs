@@ -7,7 +7,7 @@ use std::hash::Hash;
 
 use crate::{CompilationEnvironment, util};
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
-use crate::analysis::types::{Type, TypeInfo};
+use crate::analysis::types::{KindData, Type, TypeInfo};
 use crate::instructions::{Instruction, IntSize, IntegerBinaryOperation, Constant};
 use crate::util::reinterpret;
 use crate::error::GenerateError;
@@ -143,7 +143,7 @@ impl CodeGenerator {
                         entry.1 = Some(effective_index);
                     }
                     else {
-                        return Err("Two jump sources with same id".into());
+                        return Err("Two jump destinations with same id".into());
                     }
                 },
                 _ => (),
@@ -393,7 +393,8 @@ impl CodeGenerator {
 
                 instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
                 
-                let (relative_return_loc, return_size, _) = info.variables.get(&Variable::Return).expect("Known exists");
+                let (relative_return_loc, return_size, return_type) = info.variables.get(&Variable::Return).expect("Known exists");
+                
                 // So relative position is how far below the function we currently are.
                 
                 // Skip past the 
@@ -432,7 +433,7 @@ impl CodeGenerator {
                 // Retract moving to original expression location
                 match return_size {
                     0 => instructions.push(PI::Actual(I::RetractStackPtr(align_shift))),
-                    _ => instructions.push(PI::Actual(I::RetractMoving(align_shift, (*return_size).try_into()?))),
+                    _ => instructions.append(&mut self.generate_stack_retraction(align_shift, *return_size, env.types[return_type].alignment)?),
                 }
             },
             E::If { condition, block, else_branch: None, .. } => {
@@ -499,8 +500,32 @@ impl CodeGenerator {
             E::Return(None, _) => {
                 instructions.append(&mut self.generate_return(env, function_info)?); //
             }
-            E::StructExpression { .. } => {
-                todo!("How are we gonna do this???")
+            E::StructExpression { name, members, ..  } => {
+                let TypeInfo { kind, .. } = env.types.get(&name.clone().into()).expect("Known exists");
+                
+                let KindData::Struct { members: type_members } = kind
+                    else { panic!("Expected struct type") };
+
+                let mut member_exprs = Vec::<(&ExprAST, &Type, usize)>::new();
+
+                for (member_name, expr) in members {
+                    let (member_type, member_offset) = &type_members[member_name];
+                    member_exprs.push((expr, member_type, *member_offset));
+                }
+
+                member_exprs.sort_by_key(|(_, _, offset)| *offset);
+
+                let mut offset_into_struct = 0;
+
+                for (expr, member_type, offset) in member_exprs {
+                    if offset_into_struct < offset {
+                        instructions.push(PI::Actual(I::AdvanceStackPtr(offset - offset_into_struct)));
+                    }
+
+                    instructions.append(&mut self.generate_expression(env, expr, function_info, depth + offset)?);
+
+                    offset_into_struct = offset + env.types[member_type].size;
+                }           
             }
             E::Moved => panic!("ExprAST Moved"),
         }
@@ -634,7 +659,7 @@ impl CodeGenerator {
     /// base_offset is the location of the target. val_size is the size of the value
     /// (and implicitely, the target). alignment is the alignment of the type.
     /// We assume we are already aligned for that type (as is typical).
-    fn generate_read_from_base(&self, base_offset: isize, val_size: usize, alignment: usize) -> Result<Vec<PseudoInstruction>, GenerateError>  {
+    fn generate_read_from_base(&self, base_offset: isize, val_size: usize, alignment: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
         let mut bytes_remaining = val_size;
         let mut instructions = vec![];
 
@@ -644,7 +669,6 @@ impl CodeGenerator {
                     continue; 
                 }
 
-        
                 instructions.push(PseudoInstruction::Actual(Instruction::ReadBase(
                     base_offset + isize::try_from(val_size - bytes_remaining).expect("small enough"), 
                     int_size.try_into().expect("8, 4, 2, 1 are valid")
@@ -655,6 +679,48 @@ impl CodeGenerator {
                 break;
             }
         }
+
+        Ok(instructions)
+    }
+
+    /// Generates code to move a value that currently exists on the stack down
+    /// some number of bytes (the shift).
+    fn generate_stack_retraction(&self, shift: usize, size: usize, alignment: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {    
+        let mut instructions = vec![];
+        if shift == 0 {
+            return Ok(instructions);
+        }
+
+        if size == alignment {
+            instructions.push(PseudoInstruction::Actual(Instruction::RetractMoving(shift, size.try_into().expect("8, 4, 2, 1"))));
+            return Ok(instructions);
+        }
+
+        let mut bytes_remaining = size;
+
+        while bytes_remaining != 0 {
+            for int_size in [8, 4, 2, 1] {
+                if int_size > alignment || int_size > bytes_remaining {
+                    continue;
+                }
+
+                if (size - bytes_remaining) % int_size != 0 {
+                    continue;
+                }
+
+                instructions.push(PseudoInstruction::Actual(Instruction::WriteStack(
+                    - isize::try_from(bytes_remaining).expect("small"), 
+                    - isize::try_from(bytes_remaining + shift).expect("small"), 
+                    int_size.try_into().expect("8, 4, 2, 1 are valid")
+                )));
+
+                bytes_remaining -= int_size;
+
+                break;
+            }
+        }
+
+        instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(shift)));
 
         Ok(instructions)
     }

@@ -153,7 +153,7 @@ pub fn add_struct_type(env: &mut CompilationEnvironment, name: String, members: 
         return Err("Structs with no members are not implemented. Consider `unit` instead.".into());
     }
 
-    let mut alignment: usize = 8;
+    let mut alignment: usize = 1;
 
     /* Check type validity, determine overall struct alignment. */
 
@@ -163,7 +163,7 @@ pub fn add_struct_type(env: &mut CompilationEnvironment, name: String, members: 
         let Some(TypeInfo { alignment: member_alignment, .. }) = env.types.get(&member_type)
         else { return Err("Bad Member Type. (Make sure to declare structs in right order.)".into()) };
 
-        alignment = std::cmp::min(alignment, *member_alignment);
+        alignment = std::cmp::max(alignment, *member_alignment);
     }
 
     /* Compute offsets, ensure fields respect alignment. */

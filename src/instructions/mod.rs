@@ -101,6 +101,12 @@ pub enum Instruction {
     // As above, an offset and a arg size. Result is consumed from the stack.
     WriteBase (isize, IntSize), 
 
+    // As somewhat of a last resort, we can write into the stack from another
+    // location in the stack. First arg is source, second is destination, both
+    // relative to stack pointer. The stack pointer does not move at all in this
+    // case.
+    WriteStack (isize, isize, IntSize),
+
     // The instruction index. Precondition: The stack has, at an alignment of 8, 
     // allocated space for the return value, and has evaluated and placed
     // arguments on the top of the stack. The stack currently has an alignment of 8,

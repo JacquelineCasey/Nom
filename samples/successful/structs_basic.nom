@@ -1,8 +1,17 @@
-//! 1
+//! 0
 
 struct int_pair {
     first: i32,
     second: i32,
+}
+
+fn make_pair(a: i32, b: i32) -> int_pair {
+    int_pair { first: a, second: b }
+}
+
+fn get_mult(p: i32) -> i32 {
+    // p.first * p.second
+    600
 }
 
 fn main() -> i32 {
@@ -11,7 +20,21 @@ fn main() -> i32 {
         second: 6
     };
 
-    0 + 1
+    var sum: i32 = 0;
+    val a_bool: bool = false;  // two variables to mess with the stack 
 
-    // Types can be declared but not yet used.
+    // sum += pair.first * pair.second;
+
+    pair = int_pair {  // Reassign ok.
+        first: 1 + 1,  // Expression ok.
+        second: 4,     // Trailing comma ok.
+    };
+
+    // sum += pair.first * pair.second;
+
+    pair = make_pair(3, 3);
+
+    // sum += get_mult(pair)  // Pass to function ok.
+    
+    sum
 }    

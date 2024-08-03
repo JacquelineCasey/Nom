@@ -1,0 +1,39 @@
+//! 0
+
+struct A {
+    first: i32, 
+    second: u8
+}
+
+struct B {
+    first: A,
+    second: A
+}
+
+struct C {
+    a: A,
+    some_bool: bool,
+    b: B,
+}
+
+fn main() -> i32 {
+    val c: C = C {
+        a: A {
+            first: 500,
+            second: 3
+        },
+        some_bool: true,
+        b: B {
+            first: A {
+                first: 400,
+                second: 4,
+            },
+            second: A {
+                first: 300,
+                second: 3
+            }
+        }
+    };
+
+    0
+}

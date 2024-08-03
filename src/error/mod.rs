@@ -3,6 +3,8 @@
 // For now, errors are really just strings, but I want to have user facing errors
 // at some point.
 
+use crate::{token::Token, CompilationEnvironment};
+
 #[derive(Debug)]
 pub struct ASTError (pub String);
 
@@ -70,7 +72,7 @@ impl From<String> for TokenError {
 pub enum CompileError {
     Direct (String),
     TokenError (TokenError),
-    ParseError (parsley::ParseError),
+    ParseError (parsley::ParseError, Vec<Token>),  // We pack the tokens for context.
     ASTError (ASTError),
     AnalysisError (AnalysisError),
 }
@@ -93,11 +95,7 @@ impl From<TokenError> for CompileError {
     }
 }
 
-impl From<parsley::ParseError> for CompileError {
-    fn from(value: parsley::ParseError) -> Self {
-        CompileError::ParseError(value)
-    }
-}
+// Parse error doesn't have one due to differing structure.
 
 impl From<ASTError> for CompileError {
     fn from(value: ASTError) -> Self {
@@ -108,5 +106,36 @@ impl From<ASTError> for CompileError {
 impl From<AnalysisError> for CompileError {
     fn from(value: AnalysisError) -> Self {
         CompileError::AnalysisError(value)
+    }
+}
+
+pub fn pretty_error_msg(env: &CompilationEnvironment, err: &CompileError) -> String {
+    // Much more work to be done here, but I'll do it piecemeal for now.
+    // I'd like to replace all of the string error messages throughout the code with
+    // enums.
+    match err {
+        CompileError::Direct(msg) => format!("Error occurred during compilation:\n    {msg}"),
+        CompileError::TokenError(TokenError (msg)) => format!("Error occurred during tokenization:\n    {msg}"),
+        CompileError::ParseError(p_error, tokens) => pretty_parse_error_msg(env, p_error, tokens),
+        CompileError::ASTError(ASTError (msg)) => format!("Error occurred during ast construction:\n    {msg}"),
+        CompileError::AnalysisError(AnalysisError (msg)) => format!("Error occurred during analysis:\n    {msg}"),
+    }
+}
+
+pub fn pretty_parse_error_msg(_env: &CompilationEnvironment, err: &parsley::ParseError, tokens: &Vec<Token>) -> String {
+    match err {
+        parsley::ParseError::Internal(msg) => format!("Internal error occurred during parsing:\n    {msg}"),
+        parsley::ParseError::IncompleteParse { index, terminals } => {
+            format!("Error occurred during parsing:\n    Failed to parse token at {} (token type: {:?})\n    Expected one of the following tokens instead: {:?}", 
+                tokens[*index].span,
+                tokens[*index].body,  // TODO: Replace with something prettier.
+                terminals.iter().collect::<Vec<_>>(),
+            )
+        }
+        parsley::ParseError::OutOfInput { terminals } => {
+            format!("Error occurred during parsing:\n    Ran out of input, expected more.\n    Expected one of the following tokens: {:?}",
+                terminals.iter().collect::<Vec<_>>(),
+            )
+        }
     }
 }

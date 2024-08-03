@@ -583,3 +583,10 @@ impl std::fmt::Display for Token {
         f.write_str("{token}")
     }
 }
+
+impl std::fmt::Display for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
+        f.write_str(&format!("{}:{}:{}", self.file, self.start_line, self.start_col))
+    }
+}

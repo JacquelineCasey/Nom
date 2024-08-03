@@ -85,7 +85,7 @@ impl CompilationEnvironment {
 
         let tokens = token::tokenize(&input, path)?;
 
-        let syntax_tree = self.parser.parse_tokens(&tokens, "Program")?;
+        let syntax_tree = self.parser.parse_tokens(&tokens, "Program").map_err(|err| CompileError::ParseError(err, tokens))?;
         let mut ast = ast::build_ast(&syntax_tree)?;
         analysis::desugar(&mut ast);
 
@@ -216,7 +216,14 @@ enum FileOrString {
 fn compile(file: FileOrString) -> Vec<instructions::Instruction> {
     let mut env = CompilationEnvironment::new();
     env.queue.add_goal(CompilationGoal::ImportFile(file));
-    env.process_goals().expect("Goals should complete");
+    
+    match env.process_goals() {
+        Ok(_) => (),
+        Err(err) => {
+            println!("{}\n", error::pretty_error_msg(&env, &err));
+            panic!("Compilation Failed.")
+        }
+    }
 
     let generator = generate::CodeGenerator::new();
     

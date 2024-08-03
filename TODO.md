@@ -8,6 +8,9 @@ can go here:
 
 -[x] Update generation code to do struct expressions (and assignment for non-int sized types)
 
+-[] Member access parsing is too forgiving. Should require second part (right of .) to be
+    an identifier.
+
 - [] Define struct member access syntax
   - [] Implement syntax
 

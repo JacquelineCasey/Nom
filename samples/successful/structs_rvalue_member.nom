@@ -2,11 +2,13 @@
 
 struct int_pair {
     first: i32,
+    a_bool: bool,  // Here to mess with alignment, offset, etc.
     second: i32,
+    a_long: u64,  // Here to mess with alignment, offset, etc.
 }
 
 fn make_pair(a: i32, b: i32) -> int_pair {
-    int_pair { first: a, second: b }
+    int_pair { first: a, a_bool: false, second: b, a_long: 100000 }
 }
 
 fn main() -> i32 {

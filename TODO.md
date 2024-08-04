@@ -5,6 +5,3 @@ The shortest of short term items (i.e, tasks necessary to complete the next goal
 can go here:
 
 == Immediate TODO ==
-
--[] RValue member read
--[] Clippy Pass

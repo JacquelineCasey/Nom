@@ -560,7 +560,7 @@ impl CodeGenerator {
                     offset_into_struct = offset + env.types[member_type].size;
                 }           
             }
-            E::MemberAccess(struct_expr, member, _) => {
+            E::MemberAccess(..) => {
                 let expr_type = &env.type_index[&subtree.get_node_data().id];
                 let TypeInfo { size, alignment, .. } = &env.types[expr_type];
 
@@ -574,25 +574,24 @@ impl CodeGenerator {
                                 instructions.append(&mut self.generate_read_from_base(base_offset + offset, *size, *alignment)?);
                             },
                             Location::EvaluatedExpression(expr) => {
-                                todo!("RValue member access (also do member write)")
+                                let struct_type = &env.type_index[&expr.get_node_data().id];
+                                let TypeInfo { size: struct_size, alignment: struct_alignment, .. } = &env.types[struct_type];
+
+                                let align_shift = get_align_shift(depth, *struct_alignment);
+
+                                instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
+
+                                instructions.append(&mut self.generate_expression(env, expr, function_info, depth + align_shift)?);
+
+                                instructions.push(PI::Actual(I::RetractStackPtr((*struct_size as isize - offset - *size as isize) as usize)));
+
+                                instructions.append(&mut self.generate_stack_retraction(align_shift + offset as usize, *size, *alignment)?);
                             },
                             _ => return Err("Expected other location type".into())
                         }
                     },
                     _ => return Err("Expected other location type".into()),
                 }
-
-
-                // Need to carefully work out l vs r value case...
-                // If I remember correctly, at this point we know that we are evaluating
-                // an expression. However, if we want to do so efficiently, we might
-                // treat an lvalue vs rvalue left side differently. For a temporary,
-                // we want to scoop out the value and discard the rest. For a local,
-                // we definitely do not want to evaluate the whole struct, just grab
-                // the value instead.
-
-                // I'm picturing a helper which crawls the tree looking to "lvalue
-                // evaluate" it into a "location" struct.
             }
             E::Moved => panic!("ExprAST Moved"),
         }
@@ -808,6 +807,7 @@ impl CodeGenerator {
         Ok(instructions)
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn locate_expr<'a>(&self, expr: &'a ExprAST, env: &CompilationEnvironment) -> Result<Location<'a>, GenerateError> {
         match expr {
             ExprAST::Add(..)
@@ -841,7 +841,7 @@ impl CodeGenerator {
                 
                 let (_, field_alignment) = members[member_name];
 
-                let inner_location = self.locate_expr(&struct_expr, env)?;
+                let inner_location = self.locate_expr(struct_expr, env)?;
                 Ok(Location::OffsetFrom(Box::new(inner_location), isize::try_from(field_alignment).expect("Small enough")))
             },
             ExprAST::Moved => panic!("Moved Expression"),

@@ -1,0 +1,121 @@
+//! 33
+
+// The worlds saddest fixed size array (8 values).
+// It is sad for many reasons.
+// Once we figure out pointers, we can make happy arrays.
+
+struct sad_array {
+    first: i32, 
+    second: i32, 
+    third: i32, 
+    fourth: i32, 
+    fifth: i32, 
+    sixth: i32, 
+    seventh: i32, 
+    eighth: i32, 
+}
+
+fn init() -> sad_array {
+    return sad_array {
+        first: 0, 
+        second: 0, 
+        third: 0, 
+        fourth: 0, 
+        fifth: 0, 
+        sixth: 0, 
+        seventh: 0, 
+        eighth: 0, 
+    }
+}
+
+fn get(arr: sad_array, idx: u8) -> i32 {
+    if idx == 0 {
+        arr.first
+    }
+    else if idx == 1 {
+        arr.second
+    }
+    else if idx == 2 {
+        arr.third
+    }
+    else if idx == 3 {
+        arr.fourth
+    }
+    else if idx == 4 {
+        arr.fifth
+    }
+    else if idx == 5 {
+        arr.sixth
+    }
+    else if idx == 6 {
+        arr.seventh
+    }
+    else if idx == 7 {
+        arr.eighth
+    }
+    else {
+        0  // Out of bounds
+    }
+}
+
+fn set(arr: sad_array, idx: u8, value: i32) -> sad_array {
+    // Aside, I would typically name the third argument "val", but that is a keyword!
+
+    if idx == 0 {
+        arr.first = value;
+    }
+    else if idx == 1 {
+        arr.second = value;
+    }
+    else if idx == 2 {
+        arr.third = value;
+    }
+    else if idx == 3 {
+        arr.fourth = value;
+    }
+    else if idx == 4 {
+        arr.fifth = value;
+    }
+    else if idx == 5 {
+        arr.sixth = value;
+    }
+    else if idx == 6 {
+        arr.seventh = value;
+    }
+    else if idx == 7 {
+        arr.eighth = value;
+    };
+    arr
+}
+
+fn main() -> i32 {
+    var arr: sad_array = init();
+
+    // Let's compute the sum of the first 8 fibonacci numbers.
+    // First, write them down.
+
+    arr = set(arr, 0, 0);
+    arr = set(arr, 1, 1);
+
+    var i: u8 = 2;
+    while i < 8 {
+        val a: i32 = get(arr, i - 2);
+        val b: i32 = get(arr, i - 1);
+
+        arr = set(arr, i, a + b);
+
+        i += 1;
+    };
+
+    // Then, sum them up.
+    
+    var sum: i32 = 0;
+    i = 0;
+    while i < 8 {
+        sum += get(arr, i);
+
+        i += 1;
+    };
+
+    sum
+}

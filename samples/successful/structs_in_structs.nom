@@ -1,4 +1,4 @@
-//! 0
+//! 800
 
 struct A {
     first: i32, 
@@ -22,7 +22,7 @@ fn main() -> i32 {
             first: 500,
             second: 3
         },
-        some_bool: true,
+        some_bool: false,
         b: B {
             first: A {
                 first: 400,
@@ -35,5 +35,10 @@ fn main() -> i32 {
         }
     };
 
-    0
+    if not c.some_bool and c.a.second + c.b.first.second + c.b.second.second == 10 {
+        c.a.first + c.b.second.first  // 800 (success)
+    }
+    else {
+        0  // Fail
+    }
 }

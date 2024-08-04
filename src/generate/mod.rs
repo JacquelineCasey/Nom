@@ -2,6 +2,7 @@
 mod optimize_instructions;  // Makes optimizations at the instruction level.
 
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -60,7 +61,7 @@ impl<'a> Location<'a> {
                     Location::OffsetFrom(inner_inner, offset_b) => {
                         Location::OffsetFrom(inner_inner, offset_a + offset_b)
                     },
-                    _ => collapsed_inner
+                    _ => Location::OffsetFrom(Box::new(collapsed_inner), offset_a),
                 }
             },
             _ => self,
@@ -559,8 +560,28 @@ impl CodeGenerator {
                     offset_into_struct = offset + env.types[member_type].size;
                 }           
             }
-            E::MemberAccess(_, _, _) => {
-                todo!("GENERATE (this is gonna hurt...)")
+            E::MemberAccess(struct_expr, member, _) => {
+                let expr_type = &env.type_index[&subtree.get_node_data().id];
+                let TypeInfo { size, alignment, .. } = &env.types[expr_type];
+
+                let loc = self.locate_expr(subtree, env)?.collapse_offsets();
+
+                match loc {
+                    Location::OffsetFrom(inner, offset) => {
+                        match inner.borrow() {
+                            Location::Local(name) => {
+                                let (base_offset, _, _) = function_info.variable_info_by_name(name).expect("Variable Exists");
+                                instructions.append(&mut self.generate_read_from_base(base_offset + offset, *size, *alignment)?);
+                            },
+                            Location::EvaluatedExpression(expr) => {
+                                todo!("RValue member access (also do member write)")
+                            },
+                            _ => return Err("Expected other location type".into())
+                        }
+                    },
+                    _ => return Err("Expected other location type".into()),
+                }
+
 
                 // Need to carefully work out l vs r value case...
                 // If I remember correctly, at this point we know that we are evaluating
@@ -609,12 +630,8 @@ impl CodeGenerator {
                 ));
             },
             StatementAST::Assignment(left, right, ..) => {
-                if let ExprAST::Variable(name, ..) = left {
-                    instructions.append(&mut self.generate_assignment(env, name, right, function_info, depth)?);
-                }
-                else {
-                    return Err("Could not find variable".into());
-                }
+                let location = self.locate_expr(left, env)?;
+                instructions.append(&mut self.generate_assignment(env, location, right, function_info, depth)?);
             },
             StatementAST::CompoundAssignment(..) =>
                 return Err("Expected Compound Assignment to have been desugared".into()),
@@ -625,7 +642,7 @@ impl CodeGenerator {
                     DeclarationAST::Struct { .. } => 
                         return Err("Tried to build struct in function".into()),  // Lambdas?
                     DeclarationAST::Variable { name, expr, .. } => {
-                        instructions.append(&mut self.generate_assignment(env, name, expr, function_info, depth)?);
+                        instructions.append(&mut self.generate_assignment(env, Location::Local(name.clone()), expr, function_info, depth)?);
                     }
                 }
             }
@@ -634,12 +651,12 @@ impl CodeGenerator {
         Ok(instructions)
     }
 
-    fn generate_assignment(&self, env: &CompilationEnvironment, var_name: &str, expr: &ExprAST,
+    fn generate_assignment(&self, env: &CompilationEnvironment, location: Location, right_expr: &ExprAST,
         function_info: &FunctionInfo, depth: usize) -> Result<Vec<PseudoInstruction>, GenerateError> {
 
         let mut instructions = vec![];
         
-        let expr_type = &env.type_index[&expr.get_node_data().id];
+        let expr_type = &env.type_index[&right_expr.get_node_data().id];
         let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
         
         let align_shift = get_align_shift(depth, expr_type_info.alignment);
@@ -649,13 +666,33 @@ impl CodeGenerator {
             Instruction::AdvanceStackPtr(align_shift)
         ));
 
-        instructions.append(&mut self.generate_expression(env, expr, function_info, depth + align_shift)?);
+        instructions.append(&mut self.generate_expression(env, right_expr, function_info, depth + align_shift)?);
+        
+        // We handle the most general case involving a field, but really if it
+        // is just a variable then we say the field has offset 0.
 
-        let (offset, size, _) = function_info.variable_info_by_name(var_name)
-            .ok_or(GenerateError("Could not find local variable".to_string()))?;
+        let (local, field_offset) = match location.collapse_offsets() {
+            Location::Local(name) =>
+                (name, 0),
+            Location::OffsetFrom(inner, offset) => match *inner {
+                Location::Local(name) => 
+                    (name, offset),
+                _ => 
+                    return Err("Cannot assign into an arbitrary expression".into()),  
+            },
+            _ => 
+                return Err("Cannot assign into an arbitrary expression".into()),  
+        };
+
+        let (var_offset, _, _) = function_info.variable_info_by_name(&local)
+            .ok_or::<GenerateError>("Could not find local variable".into())?;
     
         // Store generated value
-        instructions.append(&mut self.generate_write_to_base(*offset, *size, expr_type_info.alignment)?);
+        instructions.append(&mut self.generate_write_to_base(
+            var_offset + field_offset, 
+            expr_type_info.size, 
+            expr_type_info.alignment
+        )?);
 
         // Remove alignment
         instructions.push(PseudoInstruction::Actual(

@@ -6,7 +6,5 @@ can go here:
 
 == Immediate TODO ==
 
--[x] Define struct member access syntax
-  -[] Implement syntax
-
--[] Test nesting? Struct in a struct?
+-[] RValue member read
+-[] Clippy Pass

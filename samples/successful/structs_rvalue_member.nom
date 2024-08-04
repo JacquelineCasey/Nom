@@ -1,4 +1,4 @@
-//! 105
+//! 33
 
 struct int_pair {
     first: i32,
@@ -10,9 +10,7 @@ fn make_pair(a: i32, b: i32) -> int_pair {
 }
 
 fn main() -> i32 {
-    val pair: int_pair = make_pair(3, 5);
+    var sum: i32 = 0;
 
-    pair.first = 100;
-
-    pair.first + pair.second
+    make_pair(44, 33).second  // We need to be able to handle rvalue member access here.
 }

@@ -138,6 +138,7 @@ pub enum ExprAST {
     StructExpression { name: String, members: Vec<(String, ExprAST)>, data: ASTNodeData },
 
     // This is a hack that allows us to remove an AST, operate on it, and put it back. (Blame the borrow checker for this.)
+    // (See std::mem::take usage for why we need this...)
     #[default] 
     Moved,  
 }
@@ -741,7 +742,7 @@ fn build_member_access_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         let Some(ST::TokenNode(Token { body: TB::Identifier(member_name), span: new_span })) = iter.next()
             else { return Err("Expected identifier in MemberAccessExpression".into()) };
 
-        curr_span = Span::combine(&curr_span, &new_span);
+        curr_span = Span::combine(&curr_span, new_span);
 
         curr_expr = ExprAST::MemberAccess(
             Box::new(curr_expr), 

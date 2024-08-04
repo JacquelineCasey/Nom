@@ -122,7 +122,7 @@ pub fn pretty_error_msg(env: &CompilationEnvironment, err: &CompileError) -> Str
     }
 }
 
-pub fn pretty_parse_error_msg(_env: &CompilationEnvironment, err: &parsley::ParseError, tokens: &Vec<Token>) -> String {
+pub fn pretty_parse_error_msg(_env: &CompilationEnvironment, err: &parsley::ParseError, tokens: &[Token]) -> String {
     match err {
         parsley::ParseError::Internal(msg) => format!("Internal error occurred during parsing:\n    {msg}"),
         parsley::ParseError::IncompleteParse { index, terminals } => {

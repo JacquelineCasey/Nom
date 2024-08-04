@@ -141,8 +141,10 @@ fn scope_check_expression(env: &CompilationEnvironment, local_types: &mut HashMa
                 return Err("Struct expression does not define all members.".into())
             }
         }
-        ExprAST::MemberAccess(_, _, _) => {
-            todo!("SCOPE CHECK")
+        ExprAST::MemberAccess(expr, _, _) => {
+            /* We can't actually validate the member here since we don't know the
+             * type of the expression. */
+            scope_check_expression(env, local_types, expr)?;
         }
         ExprAST::Moved => panic!("ExprAST was moved"),
     }

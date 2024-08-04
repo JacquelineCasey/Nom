@@ -35,6 +35,38 @@ enum TempInstruction {
                      // but allows reasoning about jumps without counting instructions early on (before optimization).
 }
 
+/* For supporting lvalues vs rvalue semantics. For every expression we can determine 
+ * a location, which is enough information to describe to the generator how to (efficiently) *
+ * get the value. For some cases, it requires evaluating the expression in whole. In others, 
+ * we can simply copy from somewhere, possibly with some offset. For others still, we may
+ * need to evaluate an expression to determine that offset. */
+#[derive(Clone, Debug)]
+enum Location<'a> {
+    EvaluatedExpression(&'a ExprAST),  // We have to fully evaluate this expression.
+    Local(String), // A local (or argument).
+    OffsetFrom(Box<Location<'a>>, isize) // A particular offset from another location.
+
+    // Soon - LocalUnknownOffset... maybe (String, Expr). Supporting expressions like arr[i * 2]
+}
+
+impl<'a> Location<'a> {
+    // Returns a new location struct where the offsets are collapsed to a single
+    // level.
+    fn collapse_offsets(self) -> Self {
+        match self {
+            Location::OffsetFrom(inner, offset_a) => {
+                let collapsed_inner = inner.collapse_offsets();
+                match collapsed_inner {
+                    Location::OffsetFrom(inner_inner, offset_b) => {
+                        Location::OffsetFrom(inner_inner, offset_a + offset_b)
+                    },
+                    _ => collapsed_inner
+                }
+            },
+            _ => self,
+        }
+    }
+}
 
 impl CodeGenerator {
     pub fn new() -> CodeGenerator {
@@ -737,6 +769,46 @@ impl CodeGenerator {
         instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(shift)));
 
         Ok(instructions)
+    }
+
+    fn locate_expr<'a>(&self, expr: &'a ExprAST, env: &CompilationEnvironment) -> Result<Location<'a>, GenerateError> {
+        match expr {
+            ExprAST::Add(..)
+            | ExprAST::Subtract(..)
+            | ExprAST::Multiply(..)
+            | ExprAST::Divide(..)
+            | ExprAST::Modulus(..)
+            | ExprAST::Comparison(..)
+            | ExprAST::Or(..)
+            | ExprAST::And(..)
+            | ExprAST::Not(..)
+            | ExprAST::IntegerLiteral(..)
+            | ExprAST::BooleanLiteral(..)
+            | ExprAST::FunctionCall(..)
+            | ExprAST::Block(..)
+            | ExprAST::If { .. }
+            | ExprAST::While { .. }
+            | ExprAST::Return(..)
+            | ExprAST::StructExpression { .. } => {
+                Ok(Location::EvaluatedExpression(expr))  // These are never lvalues, basically. 
+            },
+            ExprAST::Variable(name, _) => {
+                Ok(Location::Local(name.clone()))
+            },
+            ExprAST::MemberAccess(struct_expr, member_name, _) => {
+                let struct_type = &env.type_index[&struct_expr.get_node_data().id];
+                let struct_info = &env.types[&struct_type];
+                
+                let KindData::Struct { members } = &struct_info.kind
+                    else { return Err("Expected struct type".into()) };
+                
+                let (_, field_alignment) = members[member_name];
+
+                let inner_location = self.locate_expr(&struct_expr, env)?;
+                Ok(Location::OffsetFrom(Box::new(inner_location), isize::try_from(field_alignment).expect("Small enough")))
+            },
+            ExprAST::Moved => panic!("Moved Expression"),
+        }
     }
 }
 

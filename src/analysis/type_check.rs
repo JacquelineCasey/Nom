@@ -11,7 +11,7 @@ pub fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), An
     let mut block = std::mem::take(&mut function.ast);
     let return_type = function.return_type.clone();
 
-    type_check_expression(env, &mut block, name, &Some(return_type))?;
+    type_check_expr(env, &mut block, name, Some(&return_type))?;
     finalize_partial_types_expr(env, &mut AnyAST::Expression (&mut block), name)?;
 
     // We need the old lifetime to die.
@@ -29,7 +29,7 @@ pub fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), An
 // literals. If the type is not provided, it will be decided (i.e. literals will be
 // assumed to be i32, etc.)
 #[allow(clippy::too_many_lines)]
-fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, function_name: &str, expected: &Option<Type>) -> Result<Type, AnalysisError> {
+fn type_check_expr(env: &mut CompilationEnvironment, expr: &mut ExprAST, function_name: &str, expected: Option<&Type>) -> Result<Type, AnalysisError> {
     // TODO: Conversions!
 
     let expr_type = match expr {
@@ -38,15 +38,15 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
         | ExprAST::Multiply(left, right, _)
         | ExprAST::Divide(left, right, _)
         | ExprAST::Modulus(left, right, _) => {
-            let left_type = type_check_expression(env, left, function_name, expected)?;
-            let right_type = type_check_expression(env, right, function_name, expected)?;
+            let left_type = type_check_expr(env, left, function_name, expected)?;
+            let right_type = type_check_expr(env, right, function_name, expected)?;
 
             if left_type != right_type {
                 if left_type == Type::PartiallyKnown(PartialType::IntLiteral) {
-                    type_check_expression(env, left, function_name, &Some(right_type))?;
+                    type_check_expr(env, left, function_name, Some(&right_type))?;
                 }
                 else if right_type == Type::PartiallyKnown(PartialType::IntLiteral) {
-                    type_check_expression(env, right, function_name, &Some(left_type.clone()))?;
+                    type_check_expr(env, right, function_name, Some(&left_type.clone()))?;
                 }
                 else {
                     return Err("Types don't match".into());
@@ -56,15 +56,15 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             left_type
         },
         ExprAST::Comparison(left, right, _, _) => {
-            let left_type = type_check_expression(env, left, function_name, &None)?;
-            let right_type = type_check_expression(env, right, function_name, &None)?;
+            let left_type = type_check_expr(env, left, function_name, None)?;
+            let right_type = type_check_expr(env, right, function_name, None)?;
 
             if left_type != right_type {
                 if left_type == Type::PartiallyKnown(PartialType::IntLiteral) {
-                    type_check_expression(env, left, function_name, &Some(right_type))?;
+                    type_check_expr(env, left, function_name, Some(&right_type))?;
                 }
                 else if right_type == Type::PartiallyKnown(PartialType::IntLiteral) {
-                    type_check_expression(env, right, function_name, &Some(left_type))?;
+                    type_check_expr(env, right, function_name, Some(&left_type))?;
                 }
                 else {
                     let Some(bound) = upper_bound_type(&left_type, &right_type)
@@ -73,21 +73,21 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                     // TODO: This repeat definitely could cause some efficiency issues. 
                     // We need a smarter unification algorithm perhaps...
 
-                    type_check_expression(env, left, function_name, &Some(bound.clone()))?;
-                    type_check_expression(env, right, function_name, &Some(bound))?;
+                    type_check_expr(env, left, function_name, Some(&bound.clone()))?;
+                    type_check_expr(env, right, function_name, Some(&bound))?;
                 }
             }
 
             Type::BuiltIn(BuiltIn::Boolean)
         },
         ExprAST::And(left, right, _) | ExprAST::Or(left, right, _) => {
-            type_check_expression(env, left, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
-            type_check_expression(env, right, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
+            type_check_expr(env, left, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
+            type_check_expr(env, right, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
 
             Type::BuiltIn(BuiltIn::Boolean)
         },
         ExprAST::Not(inner, _) => {
-            type_check_expression(env, inner, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
+            type_check_expr(env, inner, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
 
             Type::BuiltIn(BuiltIn::Boolean)
         },
@@ -95,13 +95,13 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             for stmt in statements {
                 match stmt {
                     StatementAST::Assignment(left, right, _) => {
-                        let left_type = type_check_expression(env, left, function_name, &None)?;
-                        type_check_expression(env, right, function_name, &Some(left_type.clone()))?;
+                        let left_type = type_check_expr(env, left, function_name, None)?;
+                        type_check_expr(env, right, function_name, Some(&left_type))?;
                     },
                     StatementAST::CompoundAssignment(..) =>
                         return Err("Expected Compound Assignment to have been desugared".into()),
                     StatementAST::ExpressionStatement(expr, _) => {
-                        type_check_expression(env, expr, function_name, &None)?;
+                        type_check_expr(env, expr, function_name, None)?;
                     }
                     StatementAST::Declaration(DeclarationAST::Variable { expr, name, type_ascription, .. }, _) => {
 
@@ -111,7 +111,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
 
                         env.functions.get_mut(function_name).expect("known").local_types.insert(name.clone(), Some(var_type.clone()));
 
-                        let expr_type = type_check_expression(env, expr, function_name, &Some(var_type.clone()))?;
+                        let expr_type = type_check_expr(env, expr, function_name, Some(&var_type))?;
                         
                         if expr_type != var_type {
                             return Err("Type checking failed at variable declaration".into())
@@ -125,7 +125,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                 }
             }
             if let Some(expr) = final_expr {
-                type_check_expression(env, expr, function_name, expected)?
+                type_check_expr(env, expr, function_name, expected)?
             }
             else {
                 Type::BuiltIn(BuiltIn::Unit)
@@ -136,7 +136,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             let return_type = func.return_type.clone();
 
             for (expr, (_, expected_type)) in exprs.iter_mut().zip(func.parameter_types.clone()) {
-                type_check_expression(env, expr, function_name, &Some(expected_type))?;
+                type_check_expr(env, expr, function_name, Some(&expected_type))?;
             }
 
             return_type            
@@ -177,21 +177,21 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
         }
         ExprAST::If { condition, block, else_branch: None, .. }
         | ExprAST::While { condition, block, .. } => {
-            type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
-            type_check_expression(env, block, function_name, &Some(Type::BuiltIn(BuiltIn::Unit)))?
+            type_check_expr(env, condition, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
+            type_check_expr(env, block, function_name, Some(&Type::BuiltIn(BuiltIn::Unit)))?
         }
         ExprAST::If { condition, block, else_branch: Some(else_branch), .. } => {
-            type_check_expression(env, condition, function_name, &Some(Type::BuiltIn(BuiltIn::Boolean)))?;
-            let if_type = type_check_expression(env, block, function_name, expected)?;
-            let else_type = type_check_expression(env, else_branch, function_name, expected)?;
+            type_check_expr(env, condition, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
+            let if_type = type_check_expr(env, block, function_name, expected)?;
+            let else_type = type_check_expr(env, else_branch, function_name, expected)?;
 
             // Note: Applies only if expected was None.
             if if_type != else_type {
                 if if_type == Type::PartiallyKnown(PartialType::IntLiteral) {
-                    type_check_expression(env, block, function_name, &Some(else_type))?
+                    type_check_expr(env, block, function_name, Some(&else_type))?
                 }
                 else if else_type == Type::PartiallyKnown(PartialType::IntLiteral) {
-                    type_check_expression(env, else_branch, function_name, &Some(if_type))?
+                    type_check_expr(env, else_branch, function_name, Some(&if_type))?
                 }
                 else {
                     let Some(bound) = upper_bound_type(&if_type, &else_type)
@@ -200,8 +200,8 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                     // TODO: This repeat definitely could cause some efficiency issues. 
                     // We need a smarter unification algorithm perhaps...
 
-                    type_check_expression(env, block, function_name, &Some(bound.clone()))?;
-                    type_check_expression(env, else_branch, function_name, &Some(bound))?
+                    type_check_expr(env, block, function_name, Some(&bound.clone()))?;
+                    type_check_expr(env, else_branch, function_name, Some(&bound))?
                 }
             }
             else {
@@ -212,7 +212,7 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
             let return_type = env.functions.get(function_name).expect("Function exists").return_type.clone();
 
             if let Some(inner) = expr {
-                type_check_expression(env, inner, function_name, &Some(return_type))?;
+                type_check_expr(env, inner, function_name, Some(&return_type))?;
             }
             else if return_type != Type::BuiltIn(BuiltIn::Unit) {
                 return Err("Expected unit type".into())
@@ -235,13 +235,24 @@ fn type_check_expression(env: &mut CompilationEnvironment, expr: &mut ExprAST, f
                 let Some((member_type, _)) = type_members.get(member_name)
                     else { todo!() };
 
-                type_check_expression(env, member_expr, function_name, &Some(member_type.clone()))?;
+                type_check_expr(env, member_expr, function_name, Some(&member_type.clone()))?;
             }
 
             struct_type
         },
-        ExprAST::MemberAccess(_, _, _) => {
-            todo!("Type Check")
+        ExprAST::MemberAccess(expr, member_name, _) => {
+            let expr_type = type_check_expr(env, expr, function_name, None)?;
+            
+            let Some(type_info) = env.types.get(&expr_type)
+                else { return Err("Type not found".into()) };
+
+            let KindData::Struct { members } = &type_info.kind
+                else { return Err("Right side of member access expression is not a struct type".into()) };
+
+            let Some((member_type, _)) = members.get(member_name)
+                else { return Err("Right side of member access expression is not a struct type".into()) };
+
+            member_type.clone()
         }
         ExprAST::Moved => panic!("ExprAST moved"),
     };

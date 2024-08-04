@@ -1,0 +1,5 @@
+//! -1
+
+fn main() -> i32 {
+    0 - 1  // At time of writing, negative literals are not allowed.
+}    

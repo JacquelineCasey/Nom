@@ -6,10 +6,5 @@
 // They can go anywhere at the start of a line.
 
 fn main() -> i32 {
-    1000 * ( 234 + 123 / (4 - 2)   )    
+    1000 * (234 + 123 / (4 - 2))
 }    
-
-fn another() -> i32 {
-    var a: i32 = 450 + 112; 
-    a
-}

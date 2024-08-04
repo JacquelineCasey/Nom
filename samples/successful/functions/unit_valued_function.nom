@@ -14,7 +14,7 @@ fn f(x: i32, y: i32, z: i32) -> i32 {
 fn main() -> i32 {
     val a: i32 = 10;
     var z: i32 = f(a, 20, 30);
-    var u1: unit =  unit(z);
+    var u1: unit = unit(z);
     var u2: unit = unit(a);
     var u3: unit = {};  // Zig-like
     u2 = u3;

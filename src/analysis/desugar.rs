@@ -2,10 +2,12 @@
 // early so that later analysis steps can take place with a somewhat normalized
 // format.
 
-use crate::{ast::{AST, ExprAST, StatementAST, ASTNodeData, AnyAST}, token::Span};
+use crate::{
+    ast::{ASTNodeData, AnyAST, ExprAST, StatementAST, AST},
+    token::Span,
+};
 
-
-pub fn desugar(ast: &mut AST)  {
+pub fn desugar(ast: &mut AST) {
     desugar_ast(&mut AnyAST::File(ast))
 }
 
@@ -15,8 +17,9 @@ fn desugar_ast<'a>(ast: &'a mut AnyAST<'a>) {
          * operation. */
         AnyAST::Statement(statement @ StatementAST::CompoundAssignment(..)) => {
             // We unpack here to appease the borrow checker.
-            let StatementAST::CompoundAssignment(left, right, op, ..) = statement
-                else { panic!("Known to be variant") };
+            let StatementAST::CompoundAssignment(left, right, op, ..) = statement else {
+                panic!("Known to be variant")
+            };
 
             let left = std::mem::take(left);
             let right = std::mem::take(right);
@@ -24,14 +27,37 @@ fn desugar_ast<'a>(ast: &'a mut AnyAST<'a>) {
             let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
 
             let operation = match op {
-                crate::ast::MathOperation::Add => ExprAST::Add(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
-                crate::ast::MathOperation::Subtract => ExprAST::Subtract(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
-                crate::ast::MathOperation::Multiply => ExprAST::Multiply(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
-                crate::ast::MathOperation::Divide => ExprAST::Divide(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
-                crate::ast::MathOperation::Modulus => ExprAST::Modulus(Box::new(left.duplicate()), Box::new(right), ASTNodeData::new(span.clone())),
+                crate::ast::MathOperation::Add => ExprAST::Add(
+                    Box::new(left.duplicate()),
+                    Box::new(right),
+                    ASTNodeData::new(span.clone()),
+                ),
+                crate::ast::MathOperation::Subtract => ExprAST::Subtract(
+                    Box::new(left.duplicate()),
+                    Box::new(right),
+                    ASTNodeData::new(span.clone()),
+                ),
+                crate::ast::MathOperation::Multiply => ExprAST::Multiply(
+                    Box::new(left.duplicate()),
+                    Box::new(right),
+                    ASTNodeData::new(span.clone()),
+                ),
+                crate::ast::MathOperation::Divide => ExprAST::Divide(
+                    Box::new(left.duplicate()),
+                    Box::new(right),
+                    ASTNodeData::new(span.clone()),
+                ),
+                crate::ast::MathOperation::Modulus => ExprAST::Modulus(
+                    Box::new(left.duplicate()),
+                    Box::new(right),
+                    ASTNodeData::new(span.clone()),
+                ),
             };
-            
-            _ = std::mem::replace(*statement, StatementAST::Assignment(left, operation, ASTNodeData::new(span)));
+
+            _ = std::mem::replace(
+                *statement,
+                StatementAST::Assignment(left, operation, ASTNodeData::new(span)),
+            );
 
             desugar_ast(&mut AnyAST::Statement(statement))
         }

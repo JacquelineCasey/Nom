@@ -4,11 +4,10 @@
 use super::PseudoInstruction;
 use crate::instructions::Instruction;
 
-
 /* Optimizes the code of a single function */
 pub fn optimize(instructions: Vec<PseudoInstruction>) -> Vec<PseudoInstruction> {
-    use PseudoInstruction as PI;
     use Instruction as I;
+    use PseudoInstruction as PI;
 
     // Combine nearby stack_ptr moves
     let mut final_instructions = vec![];
@@ -23,7 +22,7 @@ pub fn optimize(instructions: Vec<PseudoInstruction>) -> Vec<PseudoInstruction> 
                 next_move -= i as isize;
             }
             PI::Actual(I::Return) => {
-                next_move = 0;  // Stack ptr movement does not matter here
+                next_move = 0; // Stack ptr movement does not matter here
                 final_instructions.push(PI::Actual(I::Return));
             }
             PI::Actual(I::RetractMoving(0, _)) => {
@@ -32,8 +31,7 @@ pub fn optimize(instructions: Vec<PseudoInstruction>) -> Vec<PseudoInstruction> 
             other => {
                 if next_move > 0 {
                     final_instructions.push(PI::Actual(I::AdvanceStackPtr(next_move as usize)));
-                }
-                else if next_move < 0 {
+                } else if next_move < 0 {
                     final_instructions.push(PI::Actual(I::RetractStackPtr((-next_move) as usize)));
                 }
                 next_move = 0;

@@ -1,4 +1,3 @@
-
 // We do approximately one error type per module.
 // For now, errors are really just strings, but I want to have user facing errors
 // at some point.
@@ -6,7 +5,7 @@
 use crate::{token::Token, CompilationEnvironment};
 
 #[derive(Debug)]
-pub struct ASTError (pub String);
+pub struct ASTError(pub String);
 
 impl From<&str> for ASTError {
     fn from(value: &str) -> Self {
@@ -20,9 +19,8 @@ impl From<String> for ASTError {
     }
 }
 
-
 #[derive(Debug)]
-pub struct GenerateError (pub String);
+pub struct GenerateError(pub String);
 
 impl From<&str> for GenerateError {
     fn from(value: &str) -> Self {
@@ -36,9 +34,8 @@ impl From<String> for GenerateError {
     }
 }
 
-
 #[derive(Debug)]
-pub struct AnalysisError (pub String);
+pub struct AnalysisError(pub String);
 
 impl From<&str> for AnalysisError {
     fn from(value: &str) -> Self {
@@ -52,9 +49,8 @@ impl From<String> for AnalysisError {
     }
 }
 
-
 #[derive(Debug)]
-pub struct TokenError (pub String);
+pub struct TokenError(pub String);
 
 impl From<&str> for TokenError {
     fn from(value: &str) -> Self {
@@ -70,11 +66,11 @@ impl From<String> for TokenError {
 
 #[derive(Debug)]
 pub enum CompileError {
-    Direct (String),
-    TokenError (TokenError),
-    ParseError (parsley::ParseError, Vec<Token>),  // We pack the tokens for context.
-    ASTError (ASTError),
-    AnalysisError (AnalysisError),
+    Direct(String),
+    TokenError(TokenError),
+    ParseError(parsley::ParseError, Vec<Token>), // We pack the tokens for context.
+    ASTError(ASTError),
+    AnalysisError(AnalysisError),
 }
 
 impl From<&str> for CompileError {
@@ -115,16 +111,28 @@ pub fn pretty_error_msg(env: &CompilationEnvironment, err: &CompileError) -> Str
     // enums.
     match err {
         CompileError::Direct(msg) => format!("Error occurred during compilation:\n    {msg}"),
-        CompileError::TokenError(TokenError (msg)) => format!("Error occurred during tokenization:\n    {msg}"),
+        CompileError::TokenError(TokenError(msg)) => {
+            format!("Error occurred during tokenization:\n    {msg}")
+        }
         CompileError::ParseError(p_error, tokens) => pretty_parse_error_msg(env, p_error, tokens),
-        CompileError::ASTError(ASTError (msg)) => format!("Error occurred during ast construction:\n    {msg}"),
-        CompileError::AnalysisError(AnalysisError (msg)) => format!("Error occurred during analysis:\n    {msg}"),
+        CompileError::ASTError(ASTError(msg)) => {
+            format!("Error occurred during ast construction:\n    {msg}")
+        }
+        CompileError::AnalysisError(AnalysisError(msg)) => {
+            format!("Error occurred during analysis:\n    {msg}")
+        }
     }
 }
 
-pub fn pretty_parse_error_msg(_env: &CompilationEnvironment, err: &parsley::ParseError, tokens: &[Token]) -> String {
+pub fn pretty_parse_error_msg(
+    _env: &CompilationEnvironment,
+    err: &parsley::ParseError,
+    tokens: &[Token],
+) -> String {
     match err {
-        parsley::ParseError::Internal(msg) => format!("Internal error occurred during parsing:\n    {msg}"),
+        parsley::ParseError::Internal(msg) => {
+            format!("Internal error occurred during parsing:\n    {msg}")
+        }
         parsley::ParseError::IncompleteParse { index, terminals } => {
             format!("Error occurred during parsing:\n    Failed to parse token at {} (token type: {:?})\n    Expected one of the following tokens instead: {:?}", 
                 tokens[*index].span,

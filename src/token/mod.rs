@@ -1,15 +1,13 @@
-
 // use parsley::ParseError;
 
 #[cfg(test)]
 mod tests;
 
-use std::cmp::{min, max};
+use std::cmp::{max, min};
 use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::error::TokenError;
-
 
 /* Spans describe contiguous groups of characters in a specific source file (or
  * pseudo source file). Each span represents a half open interval. */
@@ -17,10 +15,10 @@ use crate::error::TokenError;
 #[derive(Debug, Clone)]
 pub struct Span {
     pub file: Rc<String>,
-    pub start_line: usize,  // 1 based
+    pub start_line: usize, // 1 based
     pub end_line: usize,
-    pub start_col: usize,  // 1 based
-    pub end_col: usize
+    pub start_col: usize, // 1 based
+    pub end_col: usize,
 }
 
 impl Span {
@@ -32,7 +30,7 @@ impl Span {
             start_line: min(a.start_line, b.start_line),
             end_line: max(a.end_line, b.end_line),
             start_col: min(a.start_col, a.start_col),
-            end_col: max(a.end_col, b.end_col)
+            end_col: max(a.end_col, b.end_col),
         }
     }
 
@@ -55,7 +53,6 @@ impl Span {
 pub struct Token {
     pub body: TokenBody,
     pub span: Span,
-
     // TODO: If comments ever could apply to an element as metadata, maybe that could go here?
 }
 
@@ -63,13 +60,13 @@ pub struct Token {
 // Whitespace impacts the split between some other tokens.
 #[derive(Debug, Clone)]
 pub enum TokenBody {
-    Identifier (String),
-    Keyword (Keyword),
-    StringLiteral (String),  // Content, with escapes processed, and no double quotes.
-    CharLiteral (char),  // Content, with escapes processed, and no single quotes.
-    NumericLiteral (String),  // TODO: Replace with enum for all numeric literal values.
-    Operator (Operator),
-    Punctuation (Punctuation),
+    Identifier(String),
+    Keyword(Keyword),
+    StringLiteral(String), // Content, with escapes processed, and no double quotes.
+    CharLiteral(char),     // Content, with escapes processed, and no single quotes.
+    NumericLiteral(String), // TODO: Replace with enum for all numeric literal values.
+    Operator(Operator),
+    Punctuation(Punctuation),
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +76,7 @@ pub enum Keyword {
     Fn,
     True,
     False,
-    If, 
+    If,
     Else,
     Not,
     And,
@@ -90,7 +87,7 @@ pub enum Keyword {
 }
 
 impl FromStr for Keyword {
-    type Err = TokenError;  // Likely ignored by algorithm.
+    type Err = TokenError; // Likely ignored by algorithm.
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use Keyword as K;
@@ -109,18 +106,19 @@ impl FromStr for Keyword {
             "while" => K::While,
             "return" => K::Return,
             "struct" => K::Struct,
-            _ => Err(TokenError("Not a keyword".to_string()))?
+            _ => Err(TokenError("Not a keyword".to_string()))?,
         })
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Operator {  // Operators currently accepted greedily
+pub enum Operator {
+    // Operators currently accepted greedily
     Plus,
     Minus,
-    Times, 
+    Times,
     Divide,
-    Modulus, 
+    Modulus,
     Equals,
     PlusEquals,
     MinusEquals,
@@ -152,7 +150,7 @@ pub enum Punctuation {
 }
 
 impl TryFrom<char> for Punctuation {
-    type Error = ();  // Likely ignored by algorithm.;
+    type Error = (); // Likely ignored by algorithm.;
 
     fn try_from(value: char) -> Result<Self, Self::Error> {
         use Punctuation as P;
@@ -163,27 +161,33 @@ impl TryFrom<char> for Punctuation {
             ':' => Ok(P::Colon),
             '{' => Ok(P::LeftCurlyBrace),
             '}' => Ok(P::RightCurlyBrace),
-            '(' => Ok(P::LeftParenthesis),           
+            '(' => Ok(P::LeftParenthesis),
             ')' => Ok(P::RightParenthesis),
             '[' => Ok(P::LeftSquareBracket),
             ']' => Ok(P::RightSquareBracket),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
 
-fn add_span_info(input: &str, file: Rc<String>) -> impl std::iter::Iterator<Item = (char, Span)> + '_ {
+fn add_span_info(
+    input: &str,
+    file: Rc<String>,
+) -> impl std::iter::Iterator<Item = (char, Span)> + '_ {
     let mut line_num = 1;
     let mut col_num = 1;
-    
+
     input.chars().map(move |ch| {
-        let ret_val = (ch, Span { 
-            file: Rc::clone(&file), 
-            start_line: line_num,
-            end_line: line_num,
-            start_col: col_num,
-            end_col: col_num + 1,
-        });
+        let ret_val = (
+            ch,
+            Span {
+                file: Rc::clone(&file),
+                start_line: line_num,
+                end_line: line_num,
+                start_col: col_num,
+                end_col: col_num + 1,
+            },
+        );
 
         col_num += 1;
 
@@ -194,13 +198,12 @@ fn add_span_info(input: &str, file: Rc<String>) -> impl std::iter::Iterator<Item
 
         ret_val
     })
-}  
-
+}
 
 /* Tokenization Algorithm */
 
 /* Accepts the input as a string, and a file path for bookeeping (spans). The file
- * path may also be a pseudo file path, if there is no actual backing file (e.g. 
+ * path may also be a pseudo file path, if there is no actual backing file (e.g.
  * REPL mode). */
 pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> {
     let mut tokens: Vec<Token> = vec![];
@@ -211,47 +214,47 @@ pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> 
     while let Some((ch, _)) = iter.peek() {
         if *ch == '\"' {
             let (token, span) = take_string_literal(&mut iter)?;
-            tokens.push(Token { body: token, span});
-        }
-        else if *ch == '\'' {
+            tokens.push(Token { body: token, span });
+        } else if *ch == '\'' {
             let (token, span) = take_char_literal(&mut iter)?;
             tokens.push(Token { body: token, span });
-        }
-        else if is_operator_char(*ch) {
+        } else if is_operator_char(*ch) {
             let operators = take_operators(&mut iter)?;
             for (op, span) in operators {
-                tokens.push(Token { body: TokenBody::Operator(op), span });
+                tokens.push(Token {
+                    body: TokenBody::Operator(op),
+                    span,
+                });
             }
-        }
-        else if ch.is_ascii_digit() {
+        } else if ch.is_ascii_digit() {
             let (token, span) = take_numeric_literal(&mut iter)?;
             tokens.push(Token { body: token, span });
-        }
-        else if let Ok(punct) = Punctuation::try_from(*ch) {
+        } else if let Ok(punct) = Punctuation::try_from(*ch) {
             let (_, span) = iter.next().expect("Known to exist.");
-            tokens.push(Token { body: TokenBody::Punctuation (punct), span });
-        }
-        else if is_identifier_char(*ch) {
+            tokens.push(Token {
+                body: TokenBody::Punctuation(punct),
+                span,
+            });
+        } else if is_identifier_char(*ch) {
             let (token, span) = take_identifier_or_keyword(&mut iter)?;
             tokens.push(Token { body: token, span });
-        }
-        else if ch.is_whitespace() {
+        } else if ch.is_whitespace() {
             iter.next().expect("Known");
-        }
-        else {
-            return Err(format!("Cannot start token with {}", *ch).into())
+        } else {
+            return Err(format!("Cannot start token with {}", *ch).into());
         }
     }
 
     Ok(tokens)
 }
 
-
-fn take_string_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>) 
-        -> Result<(TokenBody, Span), TokenError> {
-    
+fn take_string_literal(
+    iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
+) -> Result<(TokenBody, Span), TokenError> {
     let mut spans = vec![];
-    let (first, first_span) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let (first, first_span) = iter
+        .next()
+        .ok_or(TokenError("Expected character, found nothing".to_string()))?;
     spans.push(first_span);
 
     if first != '\"' {
@@ -264,10 +267,10 @@ fn take_string_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>)
         // TODO: Allow [\"] to escape the double quote
 
         spans.push(ch_span);
-        
+
         if ch == '\"' {
-            return Ok(
-                (TokenBody::StringLiteral(deliteralize(string)?),
+            return Ok((
+                TokenBody::StringLiteral(deliteralize(string)?),
                 Span::combine_all(&spans),
             ));
         }
@@ -278,11 +281,13 @@ fn take_string_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>)
     Err("Expected character '\"'. String literal does not terminate.".into())
 }
 
-fn take_char_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>) 
-        -> Result<(TokenBody, Span), TokenError> {
-    
+fn take_char_literal(
+    iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
+) -> Result<(TokenBody, Span), TokenError> {
     let mut spans = vec![];
-    let (first, first_span) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let (first, first_span) = iter
+        .next()
+        .ok_or(TokenError("Expected character, found nothing".to_string()))?;
     spans.push(first_span);
 
     if first != '\'' {
@@ -293,14 +298,13 @@ fn take_char_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>)
 
     for (ch, ch_span) in iter {
         // TODO: Allow [\'] to escape the single quote
-        
-        spans.push(ch_span);
 
+        spans.push(ch_span);
 
         if ch == '\'' {
             return Ok((
                 TokenBody::CharLiteral(literal_to_char(&string)?),
-                Span::combine_all(&spans)
+                Span::combine_all(&spans),
             ));
         }
 
@@ -310,36 +314,35 @@ fn take_char_literal(iter: &mut impl std::iter::Iterator<Item = (char, Span)>)
     Err("Expected character '\''. Char literal does not terminate.".into())
 }
 
-fn take_numeric_literal(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>) 
-        -> Result<(TokenBody, Span), TokenError> {
-    
+fn take_numeric_literal(
+    iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
+) -> Result<(TokenBody, Span), TokenError> {
     if !matches!(iter.peek(), Some((ch, _)) if ch.is_ascii_digit()) {
-        return Err("Expected Digit.".into())
+        return Err("Expected Digit.".into());
     }
 
     let mut string = String::new();
     let mut spans = vec![];
-    
+
     while let Some((ch, _)) = iter.peek() {
         if is_numeric_literal_char(*ch) {
             let (ch, ch_span) = iter.next().expect("Known to exist");
 
             string.push(ch);
             spans.push(ch_span);
+        } else {
+            break;
         }
-        else {
-            break
-        }   
     }
 
     Ok((TokenBody::NumericLiteral(string), Span::combine_all(&spans)))
 }
 
-fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>) 
-        -> Result<(TokenBody, Span), TokenError> {
-        
+fn take_identifier_or_keyword(
+    iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
+) -> Result<(TokenBody, Span), TokenError> {
     if !matches!(iter.peek(), Some((ch, _)) if is_identifier_char(*ch)) {
-        return Err("Expected Identifier character.".into())
+        return Err("Expected Identifier character.".into());
     }
 
     let mut string = String::new();
@@ -353,25 +356,24 @@ fn take_identifier_or_keyword(iter: &mut std::iter::Peekable<impl std::iter::Ite
                 Some(old) => Some(Span::combine(&old, &ch_span)),
                 None => Some(ch_span),
             }
-        }
-        else {
-            break
+        } else {
+            break;
         }
     }
 
     match Keyword::from_str(&string) {
         Ok(keyword) => Ok((TokenBody::Keyword(keyword), span.expect("Known to exist"))),
-        Err(_) => Ok((TokenBody::Identifier(string), span.expect("Known to exist")))
+        Err(_) => Ok((TokenBody::Identifier(string), span.expect("Known to exist"))),
     }
 }
 
 // A / looks like an operator, but if it is followed by another slash then we discard the whole
 // line.
-fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>) 
-        -> Result<Vec<(Operator, Span)>, TokenError> {
-    
+fn take_operators(
+    iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
+) -> Result<Vec<(Operator, Span)>, TokenError> {
     if !matches!(iter.peek(), Some((ch, _)) if is_operator_char(*ch)) {
-        return Err("Expected operator character.".into())
+        return Err("Expected operator character.".into());
     }
 
     let mut string = String::new();
@@ -381,9 +383,8 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
             let (ch, ch_span) = iter.next().expect("Known to exist");
             string.push(ch);
             spans.push(ch_span);
-        }
-        else {
-            break
+        } else {
+            break;
         }
     }
 
@@ -403,67 +404,48 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
                 }
             }
 
-            return Ok(operators)
+            return Ok(operators);
         }
         // This is an operator for lexical reasons. Punctuation has to be single characters.
         else if slice.starts_with("->") {
             (Operator::ThinRightArrow, 2)
-        }
-        else if slice.starts_with("==") {
+        } else if slice.starts_with("==") {
             (Operator::DoubleEquals, 2)
-        }
-        else if slice.starts_with("!=") {
+        } else if slice.starts_with("!=") {
             (Operator::NotEquals, 2)
-        }
-        else if slice.starts_with("<=") {
+        } else if slice.starts_with("<=") {
             (Operator::LessEquals, 2)
-        }
-        else if slice.starts_with(">=") {
+        } else if slice.starts_with(">=") {
             (Operator::GreaterEquals, 2)
-        }
-        else if slice.starts_with("+=") {
+        } else if slice.starts_with("+=") {
             (Operator::PlusEquals, 2)
-        }
-        else if slice.starts_with("-=") {
+        } else if slice.starts_with("-=") {
             (Operator::MinusEquals, 2)
-        }
-        else if slice.starts_with("*=") {
+        } else if slice.starts_with("*=") {
             (Operator::TimesEquals, 2)
-        }
-        else if slice.starts_with("/=") {
+        } else if slice.starts_with("/=") {
             (Operator::DivideEquals, 2)
-        }
-        else if slice.starts_with("%=") {
+        } else if slice.starts_with("%=") {
             (Operator::ModulusEquals, 2)
-        }
-        else if slice.starts_with('<') {
+        } else if slice.starts_with('<') {
             (Operator::Less, 1)
-        }
-        else if slice.starts_with('>') {
+        } else if slice.starts_with('>') {
             (Operator::Greater, 1)
-        }
-        else if slice.starts_with('+') {
+        } else if slice.starts_with('+') {
             (Operator::Plus, 1)
-        }
-        else if slice.starts_with('-') {
+        } else if slice.starts_with('-') {
             (Operator::Minus, 1)
-        }
-        else if slice.starts_with('*') {
+        } else if slice.starts_with('*') {
             (Operator::Times, 1)
-        }
-        else if slice.starts_with('/') {
+        } else if slice.starts_with('/') {
             (Operator::Divide, 1)
-        }
-        else if slice.starts_with('%') {
+        } else if slice.starts_with('%') {
             (Operator::Modulus, 1)
-        }
-        else if slice.starts_with('=') {
+        } else if slice.starts_with('=') {
             (Operator::Equals, 1)
-        }
-        else if slice.starts_with('.') {
+        } else if slice.starts_with('.') {
             (Operator::Dot, 1)
-        }
-        else {
+        } else {
             return Err(format!("Could not split operators: {slice}").into());
         };
 
@@ -475,7 +457,6 @@ fn take_operators(iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item =
 
     Ok(operators)
 }
-
 
 fn is_operator_char(ch: char) -> bool {
     let operators = ['+', '-', '*', '/', '=', '>', '<', '!', '%', '.'];
@@ -506,72 +487,328 @@ fn literal_to_char(string: &str) -> Result<char, TokenError> {
     // Be aware of [\']
     if string.len() == 1 {
         Ok(string.chars().next().expect("Known to exist"))
-    }
-    else {
+    } else {
         Err("Bad character literal.".into())
     }
 }
-
 
 /* Make Token work with Parsley */
 
 impl parsley::Token for Token {
     fn matches(token_type: &str, token: &Self) -> Result<bool, parsley::ParseError> {
+        use Keyword as K;
+        use Operator as O;
+        use Punctuation as P;
         use Token as T;
         use TokenBody as TB;
-        use Punctuation as P;
-        use Operator as O;
-        use Keyword as K;
 
         Ok(match token_type {
-            "Identifier"     => matches!(token, T { body: TB::Identifier(_), .. }),
-            "NumericLiteral" => matches!(token, T { body: TB::NumericLiteral(_), .. }),
+            "Identifier" => matches!(
+                token,
+                T {
+                    body: TB::Identifier(_),
+                    ..
+                }
+            ),
+            "NumericLiteral" => matches!(
+                token,
+                T {
+                    body: TB::NumericLiteral(_),
+                    ..
+                }
+            ),
 
-            "LeftCurlyBrace"     => matches!(token, T { body: TB::Punctuation(P::LeftCurlyBrace), .. }),
-            "RightCurlyBrace"    => matches!(token, T { body: TB::Punctuation(P::RightCurlyBrace), .. }),
-            "LeftParenthesis"    => matches!(token, T { body: TB::Punctuation(P::LeftParenthesis), .. }),
-            "RightParenthesis"   => matches!(token, T { body: TB::Punctuation(P::RightParenthesis), .. }),
-            "LeftSquareBracket"  => matches!(token, T { body: TB::Punctuation(P::LeftSquareBracket), .. }),
-            "RightSquareBracket" => matches!(token, T { body: TB::Punctuation(P::RightSquareBracket), .. }),
-            "Semicolon"          => matches!(token, T { body: TB::Punctuation(P::Semicolon), .. }),
-            "Comma"              => matches!(token, T { body: TB::Punctuation(P::Comma), .. }),
-            "Colon"              => matches!(token, T { body: TB::Punctuation(P::Colon), .. }),
+            "LeftCurlyBrace" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::LeftCurlyBrace),
+                    ..
+                }
+            ),
+            "RightCurlyBrace" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::RightCurlyBrace),
+                    ..
+                }
+            ),
+            "LeftParenthesis" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::LeftParenthesis),
+                    ..
+                }
+            ),
+            "RightParenthesis" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::RightParenthesis),
+                    ..
+                }
+            ),
+            "LeftSquareBracket" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::LeftSquareBracket),
+                    ..
+                }
+            ),
+            "RightSquareBracket" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::RightSquareBracket),
+                    ..
+                }
+            ),
+            "Semicolon" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::Semicolon),
+                    ..
+                }
+            ),
+            "Comma" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::Comma),
+                    ..
+                }
+            ),
+            "Colon" => matches!(
+                token,
+                T {
+                    body: TB::Punctuation(P::Colon),
+                    ..
+                }
+            ),
 
-            "Plus"           => matches!(token, T { body: TB::Operator(O::Plus), .. }),
-            "Minus"          => matches!(token, T { body: TB::Operator(O::Minus), .. }),
-            "Times"          => matches!(token, T { body: TB::Operator(O::Times), .. }), 
-            "Divide"         => matches!(token, T { body: TB::Operator(O::Divide), .. }),
-            "Modulus"        => matches!(token, T { body: TB::Operator(O::Modulus), .. }),
-            "Equals"         => matches!(token, T { body: TB::Operator(O::Equals), .. }),
-            "ThinRightArrow" => matches!(token, T { body: TB::Operator(O::ThinRightArrow), .. }),
-            "DoubleEquals"   => matches!(token, T { body: TB::Operator(O::DoubleEquals), .. }),
-            "NotEquals"      => matches!(token, T { body: TB::Operator(O::NotEquals), .. }),
-            "LessEquals"     => matches!(token, T { body: TB::Operator(O::LessEquals), .. }),
-            "GreaterEquals"  => matches!(token, T { body: TB::Operator(O::GreaterEquals), .. }),
-            "Less"           => matches!(token, T { body: TB::Operator(O::Less), .. }),
-            "Greater"        => matches!(token, T { body: TB::Operator(O::Greater), .. }),
-            "PlusEquals"     => matches!(token, T { body: TB::Operator(O::PlusEquals), .. }),
-            "MinusEquals"    => matches!(token, T { body: TB::Operator(O::MinusEquals), .. }),
-            "TimesEquals"    => matches!(token, T { body: TB::Operator(O::TimesEquals), .. }),
-            "DivideEquals"   => matches!(token, T { body: TB::Operator(O::DivideEquals), .. }),
-            "ModulusEquals"  => matches!(token, T { body: TB::Operator(O::ModulusEquals), .. }),
-            "Dot"            => matches!(token, T { body: TB::Operator(O::Dot), .. }),
+            "Plus" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Plus),
+                    ..
+                }
+            ),
+            "Minus" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Minus),
+                    ..
+                }
+            ),
+            "Times" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Times),
+                    ..
+                }
+            ),
+            "Divide" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Divide),
+                    ..
+                }
+            ),
+            "Modulus" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Modulus),
+                    ..
+                }
+            ),
+            "Equals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Equals),
+                    ..
+                }
+            ),
+            "ThinRightArrow" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::ThinRightArrow),
+                    ..
+                }
+            ),
+            "DoubleEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::DoubleEquals),
+                    ..
+                }
+            ),
+            "NotEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::NotEquals),
+                    ..
+                }
+            ),
+            "LessEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::LessEquals),
+                    ..
+                }
+            ),
+            "GreaterEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::GreaterEquals),
+                    ..
+                }
+            ),
+            "Less" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Less),
+                    ..
+                }
+            ),
+            "Greater" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Greater),
+                    ..
+                }
+            ),
+            "PlusEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::PlusEquals),
+                    ..
+                }
+            ),
+            "MinusEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::MinusEquals),
+                    ..
+                }
+            ),
+            "TimesEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::TimesEquals),
+                    ..
+                }
+            ),
+            "DivideEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::DivideEquals),
+                    ..
+                }
+            ),
+            "ModulusEquals" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::ModulusEquals),
+                    ..
+                }
+            ),
+            "Dot" => matches!(
+                token,
+                T {
+                    body: TB::Operator(O::Dot),
+                    ..
+                }
+            ),
 
-            "Var" => matches!(token, T { body: TB::Keyword(K::Var), .. }),
-            "Val" => matches!(token, T { body: TB::Keyword(K::Val), .. }),
-            "Fn"  => matches!(token, T { body: TB::Keyword(K::Fn), .. }),
-            "True" => matches!(token, T { body: TB::Keyword(K::True), .. }),
-            "False" => matches!(token, T { body: TB::Keyword(K::False), .. }),
-            "If" => matches!(token, T { body: TB::Keyword(K::If), .. }),
-            "Else" => matches!(token, T { body: TB::Keyword(K::Else), .. }),
-            "Not" => matches!(token, T { body: TB::Keyword(K::Not), .. }),
-            "And" => matches!(token, T { body: TB::Keyword(K::And), .. }),
-            "Or" => matches!(token, T { body: TB::Keyword(K::Or), .. }),
-            "While" => matches!(token, T { body: TB::Keyword(K::While), .. }),
-            "Return" => matches!(token, T { body: TB::Keyword(K::Return), .. }),
-            "Struct" => matches!(token, T { body: TB::Keyword(K::Struct), .. }),
+            "Var" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::Var),
+                    ..
+                }
+            ),
+            "Val" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::Val),
+                    ..
+                }
+            ),
+            "Fn" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::Fn),
+                    ..
+                }
+            ),
+            "True" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::True),
+                    ..
+                }
+            ),
+            "False" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::False),
+                    ..
+                }
+            ),
+            "If" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::If),
+                    ..
+                }
+            ),
+            "Else" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::Else),
+                    ..
+                }
+            ),
+            "Not" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::Not),
+                    ..
+                }
+            ),
+            "And" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::And),
+                    ..
+                }
+            ),
+            "Or" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::Or),
+                    ..
+                }
+            ),
+            "While" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::While),
+                    ..
+                }
+            ),
+            "Return" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::Return),
+                    ..
+                }
+            ),
+            "Struct" => matches!(
+                token,
+                T {
+                    body: TB::Keyword(K::Struct),
+                    ..
+                }
+            ),
 
-            _ => return Err(format!("Bad token type: \"{token_type}\"").into())
+            _ => return Err(format!("Bad token type: \"{token_type}\"").into()),
         })
     }
 }
@@ -586,7 +823,9 @@ impl std::fmt::Display for Token {
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-
-        f.write_str(&format!("{}:{}:{}", self.file, self.start_line, self.start_col))
+        f.write_str(&format!(
+            "{}:{}:{}",
+            self.file, self.start_line, self.start_col
+        ))
     }
 }

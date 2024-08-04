@@ -1,16 +1,16 @@
 /* Eventually, this binary will be a tool for compiling (?) or running possibly many
  * Nom files. */
 
- 
 use nom::compile_string;
 use nom::runtime::Runtime;
 
 use std::io::Read;
 
-
 fn main() {
     let mut buffer = String::new();
-    std::io::stdin().read_to_string(&mut buffer).expect("Reading stdin should succeed");
+    std::io::stdin()
+        .read_to_string(&mut buffer)
+        .expect("Reading stdin should succeed");
 
     let code = compile_string(buffer);
 

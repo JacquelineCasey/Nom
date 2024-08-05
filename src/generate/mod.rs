@@ -1,5 +1,5 @@
-mod expression;
-mod optimize_instructions; // Makes optimizations at the instruction level. // Contains functions that generate code to evaluate each type of expression.
+mod expression; // Contains functions that generate code to evaluate each type of expression.
+mod optimize_instructions; // Makes optimizations at the instruction level.
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -8,7 +8,7 @@ use std::hash::Hash;
 use crate::analysis::types::{KindData, Type, TypeInfo};
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
 use crate::error::GenerateError;
-use crate::instructions::{Constant, Instruction, IntSize, IntegerBinaryOperation};
+use crate::instructions::{Constant, Instruction, IntSize};
 use crate::util::reinterpret;
 use crate::{util, CompilationEnvironment};
 
@@ -70,9 +70,7 @@ impl<'a> Location<'a> {
 
 impl CodeGenerator {
     pub fn new() -> CodeGenerator {
-        CodeGenerator {
-            functions: HashMap::new(),
-        }
+        CodeGenerator { functions: HashMap::new() }
     }
 
     pub fn generate(
@@ -84,16 +82,12 @@ impl CodeGenerator {
 
         // TODO: Pruning? Here or in lib / analysis
 
-        let function_list = env
-            .functions
-            .iter()
-            .map(|(name, func)| (name, &func.ast))
-            .collect::<Vec<(_, _)>>();
+        let function_list =
+            env.functions.iter().map(|(name, func)| (name, &func.ast)).collect::<Vec<(_, _)>>();
 
         // Preprocess step: Determine the local variable storage locations
         for (fn_name, _) in &function_list {
-            self.functions
-                .insert((*fn_name).to_string(), FunctionInfo::new(env, fn_name)?);
+            self.functions.insert((*fn_name).to_string(), FunctionInfo::new(env, fn_name)?);
         }
 
         // Process functions and generate code
@@ -135,9 +129,9 @@ impl CodeGenerator {
             .map(|instr| match instr {
                 PseudoInstruction::Actual(instr) => Ok(instr),
                 PseudoInstruction::Temp(TempInstruction::Call(name)) => {
-                    let location = function_locations.get(&name).ok_or(GenerateError(format!(
-                        "Could not find function named {name}"
-                    )))?;
+                    let location = function_locations
+                        .get(&name)
+                        .ok_or(GenerateError(format!("Could not find function named {name}")))?;
                     Ok(Instruction::Call(*location))
                 }
                 PseudoInstruction::Temp(
@@ -222,10 +216,7 @@ impl CodeGenerator {
         name: &str,
         instructions: &mut Vec<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
-        let a = self
-            .functions
-            .get(name)
-            .ok_or(GenerateError("Function not found".to_string()))?;
+        let a = self.functions.get(name).ok_or(GenerateError("Function not found".to_string()))?;
 
         for instr in &a.initial_code {
             instructions.push(instr.clone());
@@ -240,31 +231,25 @@ impl CodeGenerator {
         subtree: &ExprAST,
         name: &str,
     ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let function_info = self
-            .functions
-            .get(name)
-            .ok_or(GenerateError("Failed to find function".to_string()))?;
+        let function_info =
+            self.functions.get(name).ok_or(GenerateError("Failed to find function".to_string()))?;
 
         let mut instructions = vec![];
 
         // TODO: Better alignment functions.
         let expr_type = &env.type_index[&subtree.get_node_data().id];
-        let expr_type_info = env
-            .types
-            .get(expr_type)
-            .ok_or(GenerateError("Type not found".to_string()))?;
+        let expr_type_info =
+            env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
         let mut depth = function_info.top - 16; // Skipping the saved registers is done by Call
         let alignment = get_align_shift(depth, expr_type_info.alignment);
         depth += alignment;
 
-        instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(
-            depth,
-        )));
+        instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(depth)));
 
         instructions.append(&mut self.generate_expression(env, subtree, function_info, depth)?); // TODO: Should this be zero or function_info.top. Can we call it depth?
 
-        instructions.append(&mut self.generate_return(env, function_info)?); //
+        instructions.append(&mut self.generate_return_handoff(env, function_info)?); //
 
         let instructions = optimize(instructions);
         let instructions = Self::resolve_jumps(instructions)?;
@@ -273,7 +258,9 @@ impl CodeGenerator {
 
     // Precondition: stack pointer is byte above return value.
     // Postcondition: return value moved to final destination. Function returns.
-    fn generate_return(
+    // So called because it hands off control to the previous function. Not to be
+    // confused with generate_return_expr, which handles the return keyword.
+    fn generate_return_handoff(
         &self,
         env: &CompilationEnvironment,
         function_info: &FunctionInfo,
@@ -315,13 +302,9 @@ impl CodeGenerator {
         depth: usize,
     ) -> Result<Vec<PseudoInstruction>, GenerateError> {
         use ExprAST as E;
-        use Instruction as I;
-        use PseudoInstruction as PI;
-
-        let mut instructions = vec![];
 
         match subtree {
-            E::Add(left, right, node_data) => instructions.append(&mut self.generate_math_expr(
+            E::Add(left, right, node_data) => self.generate_math_expr(
                 env,
                 function_info,
                 depth,
@@ -329,466 +312,77 @@ impl CodeGenerator {
                 right,
                 crate::ast::MathOperation::Add,
                 node_data,
-            )?),
-            E::Subtract(left, right, node_data) => {
-                instructions.append(&mut self.generate_math_expr(
-                    env,
-                    function_info,
-                    depth,
-                    left,
-                    right,
-                    crate::ast::MathOperation::Subtract,
-                    node_data,
-                )?)
-            }
-            E::Multiply(left, right, node_data) => {
-                instructions.append(&mut self.generate_math_expr(
-                    env,
-                    function_info,
-                    depth,
-                    left,
-                    right,
-                    crate::ast::MathOperation::Multiply,
-                    node_data,
-                )?)
-            }
-            E::Divide(left, right, node_data) => {
-                instructions.append(&mut self.generate_math_expr(
-                    env,
-                    function_info,
-                    depth,
-                    left,
-                    right,
-                    crate::ast::MathOperation::Divide,
-                    node_data,
-                )?)
-            }
-            E::Modulus(left, right, node_data) => {
-                instructions.append(&mut self.generate_math_expr(
-                    env,
-                    function_info,
-                    depth,
-                    left,
-                    right,
-                    crate::ast::MathOperation::Modulus,
-                    node_data,
-                )?)
-            }
+            ),
+            E::Subtract(left, right, node_data) => self.generate_math_expr(
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Subtract,
+                node_data,
+            ),
+            E::Multiply(left, right, node_data) => self.generate_math_expr(
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Multiply,
+                node_data,
+            ),
+            E::Divide(left, right, node_data) => self.generate_math_expr(
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Divide,
+                node_data,
+            ),
+            E::Modulus(left, right, node_data) => self.generate_math_expr(
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Modulus,
+                node_data,
+            ),
             E::Comparison(left, right, comparison, ..) => {
-                let left_type = &env.type_index[&left.get_node_data().id];
-                let right_type = &env.type_index[&right.get_node_data().id];
-
-                if left_type != right_type {
-                    return Err("Left and Right part of comparison have different types".into());
-                }
-
-                let align_shift = get_align_shift(depth, env.types[left_type].alignment);
-
-                let Type::BuiltIn(builtin_type) = left_type else {
-                    return Err("Tried to compare non builtin types".into());
-                };
-
-                let Some(int_size) = builtin_type.get_int_size() else {
-                    return Err("Tried to compare builtin type without int_size".into());
-                };
-
-                instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
-
-                instructions.append(&mut self.generate_expression(
-                    env,
-                    left,
-                    function_info,
-                    depth + align_shift,
-                )?);
-                instructions.append(&mut self.generate_expression(
-                    env,
-                    right,
-                    function_info,
-                    depth + align_shift + env.types[left_type].size,
-                )?);
-
-                instructions.push(PI::Actual(I::IntegerComparisonOperation {
-                    comparison: *comparison,
-                    size: int_size,
-                    signed: builtin_type.is_signed(),
-                }));
-
-                instructions.push(PI::Actual(I::RetractMoving(align_shift, IntSize::OneByte)));
+                self.generate_comparison_expr(env, function_info, depth, left, right, comparison)
             }
-            E::And(left, right, _) | E::Or(left, right, _) => {
-                let jump_id = util::next_id();
-
-                instructions.append(&mut self.generate_expression(
-                    env,
-                    left,
-                    function_info,
-                    depth,
-                )?);
-
-                instructions.push(PI::Actual(I::Duplicate(IntSize::OneByte)));
-
-                if let E::And(..) = subtree {
-                    instructions.push(PI::Temp(TempInstruction::JumpIfFalse(jump_id)));
-                } else {
-                    instructions.push(PI::Temp(TempInstruction::JumpIfTrue(jump_id)));
-                }
-
-                instructions.push(PI::Actual(I::RetractStackPtr(1))); // Overwrite old bool.
-                instructions.append(&mut self.generate_expression(
-                    env,
-                    right,
-                    function_info,
-                    depth,
-                )?);
-
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_id)));
-                // If we jumped, the left value is still there. Otherwise, it was repleaced with the right value.
+            E::And(left, right, _) => {
+                self.generate_binary_logic_expr(env, function_info, depth, left, right, true)
             }
-            E::Not(inner, _) => {
-                instructions.append(&mut self.generate_expression(
-                    env,
-                    inner,
-                    function_info,
-                    depth,
-                )?);
-                instructions.push(PI::Actual(I::BooleanNot));
+            E::Or(left, right, _) => {
+                self.generate_binary_logic_expr(env, function_info, depth, left, right, false)
             }
-            E::IntegerLiteral(num, data) => {
-                let num_type = &env.type_index[&data.id];
-
-                let Type::BuiltIn(builtin) = num_type else {
-                    return Err("Literal has non built in type".into());
-                };
-
-                let int_size = builtin
-                    .get_int_size()
-                    .ok_or(GenerateError::from("Literal type did not fit in int"))?;
-
-                if builtin.is_signed() {
-                    match int_size {
-                        IntSize::OneByte => instructions.push(PI::Actual(I::PushConstant(
-                            Constant::OneByte(reinterpret::<i8, u8>(*num as i8)),
-                        ))),
-                        IntSize::TwoByte => instructions.push(PI::Actual(I::PushConstant(
-                            Constant::TwoByte(reinterpret::<i16, u16>(*num as i16)),
-                        ))),
-                        IntSize::FourByte => instructions.push(PI::Actual(I::PushConstant(
-                            Constant::FourByte(reinterpret::<i32, u32>(*num as i32)),
-                        ))),
-                        IntSize::EightByte => instructions.push(PI::Actual(I::PushConstant(
-                            Constant::EightByte(reinterpret::<i64, u64>(*num as i64)),
-                        ))),
-                    }
-                } else {
-                    match int_size {
-                        IntSize::OneByte => instructions
-                            .push(PI::Actual(I::PushConstant(Constant::OneByte(*num as u8)))),
-                        IntSize::TwoByte => instructions
-                            .push(PI::Actual(I::PushConstant(Constant::TwoByte(*num as u16)))),
-                        IntSize::FourByte => instructions
-                            .push(PI::Actual(I::PushConstant(Constant::FourByte(*num as u32)))),
-                        IntSize::EightByte => instructions.push(PI::Actual(I::PushConstant(
-                            Constant::EightByte(*num as u64),
-                        ))),
-                    }
-                }
-            }
-            E::BooleanLiteral(val, ..) => match val {
-                true => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(1)))),
-                false => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(0)))),
-            },
-            E::Variable(name, ..) => {
-                // This is placing a variable's value on the stack. See statement for storing
-                // a variable.
-
-                // TODO: Shadowing...
-                let (offset, size, val_type) = function_info
-                    .variable_info_by_name(name)
-                    .expect("known to exist");
-                instructions.append(&mut self.generate_read_from_base(
-                    *offset,
-                    *size,
-                    env.types[val_type].alignment,
-                )?);
-            }
+            E::Not(inner, _) => self.generate_not_expr(env, function_info, depth, inner),
+            E::IntegerLiteral(num, data) => self.generate_int_literal_expr(env, *num, data),
+            E::BooleanLiteral(val, ..) => self.generate_bool_literal_expr(*val),
+            E::Variable(name, ..) => self.generate_variable_expr(env, function_info, name),
             E::Block(statements, expr, ..) => {
-                for statement in statements {
-                    instructions.append(&mut self.generate_statement(
-                        env,
-                        statement,
-                        function_info,
-                        depth,
-                    )?);
-                }
-
-                if let Some(expr) = expr {
-                    instructions.append(&mut self.generate_expression(
-                        env,
-                        expr,
-                        function_info,
-                        depth,
-                    )?);
-                }
+                self.generate_block_expr(env, function_info, depth, statements, expr)
             }
             E::FunctionCall(name, subexprs, ..) => {
-                // We assume that the depth is already such that a value from the function
-                // Can be aligned. If the alignment is not 8 though, we shift, run the function,
-                // and then pull the value back.
-
-                let info = self
-                    .functions
-                    .get(name)
-                    .ok_or(GenerateError("Function not found".to_string()))?;
-
-                let align_shift = get_align_shift(depth, 8);
-
-                instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
-
-                let (relative_return_loc, return_size, return_type) =
-                    info.variables.get(&Variable::Return).expect("Known exists");
-
-                // So relative position is how far below the function we currently are.
-
-                // Skip past the
-                instructions.push(PI::Actual(I::AdvanceStackPtr(*return_size)));
-                let mut relative_position = relative_return_loc + *return_size as isize;
-
-                if subexprs.len() != info.parameters.len() {
-                    return Err(format!(
-                        "Function has wrong number of arguments. {} arguments vs {} parameters",
-                        subexprs.len(),
-                        info.parameters.len()
-                    )
-                    .into());
-                }
-
-                for (expr, param) in subexprs.iter().zip(&info.parameters) {
-                    let (param_loc, size, _) = info.variables.get(param).expect("Known exists");
-
-                    instructions.push(PI::Actual(I::AdvanceStackPtr(
-                        (param_loc - relative_position) as usize,
-                    )));
-                    relative_position = *param_loc;
-
-                    instructions.append(&mut self.generate_expression(
-                        env,
-                        expr,
-                        function_info,
-                        depth + align_shift + (relative_position - relative_return_loc) as usize,
-                    )?);
-                    relative_position += *size as isize;
-                }
-
-                // Finally align to function call.
-                instructions.push(PI::Actual(I::AdvanceStackPtr(
-                    (-relative_position) as usize,
-                )));
-
-                instructions.push(PI::Temp(TempInstruction::Call(name.clone())));
-
-                instructions.push(PI::Actual(I::RetractStackPtr(
-                    (-relative_return_loc) as usize - return_size,
-                )));
-
-                // Retract moving to original expression location
-                match return_size {
-                    0 => instructions.push(PI::Actual(I::RetractStackPtr(align_shift))),
-                    _ => instructions.append(&mut self.generate_stack_retraction(
-                        align_shift,
-                        *return_size,
-                        env.types[return_type].alignment,
-                    )?),
-                }
+                self.generate_function_call_expr(env, function_info, depth, name, subexprs)
             }
-            E::If {
-                condition,
-                block,
-                else_branch: None,
-                ..
-            } => {
-                let mut condition_instrs =
-                    self.generate_expression(env, condition, function_info, depth)?;
-                let mut block_instrs =
-                    self.generate_expression(env, block, function_info, depth)?;
-                let skip_jump_id = util::next_id();
-
-                instructions.append(&mut condition_instrs);
-                instructions.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
-                instructions.append(&mut block_instrs);
-
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
+            E::If { condition, block, else_branch, .. } => {
+                self.generate_if_expr(env, function_info, depth, condition, block, else_branch)
             }
-            E::If {
-                condition,
-                block,
-                else_branch: Some(else_branch),
-                ..
-            } => {
-                let mut condition_instrs =
-                    self.generate_expression(env, condition, function_info, depth)?;
-                let mut block_instrs =
-                    self.generate_expression(env, block, function_info, depth)?;
-                let mut else_instrs =
-                    self.generate_expression(env, else_branch, function_info, depth)?;
-
-                let jump_1_id = util::next_id();
-                let jump_2_id = util::next_id();
-
-                instructions.append(&mut condition_instrs);
-                instructions.push(PI::Temp(TempInstruction::JumpIfFalse(jump_1_id)));
-                instructions.append(&mut block_instrs);
-                instructions.push(PI::Temp(TempInstruction::Jump(jump_2_id)));
-
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_1_id)));
-                instructions.append(&mut else_instrs);
-
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_2_id)));
+            E::While { condition, block, .. } => {
+                self.generate_while_expr(env, function_info, depth, condition, block)
             }
-            E::While {
-                condition, block, ..
-            } => {
-                let mut condition_instrs =
-                    self.generate_expression(env, condition, function_info, depth)?;
-                let mut block_instrs =
-                    self.generate_expression(env, block, function_info, depth)?;
-                let skip_jump_id = util::next_id();
-                let back_jump_id = util::next_id();
-
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(back_jump_id)));
-                instructions.append(&mut condition_instrs);
-
-                instructions.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
-                instructions.append(&mut block_instrs);
-                instructions.push(PI::Temp(TempInstruction::Jump(back_jump_id)));
-
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
-            }
-            E::Return(Some(expr), _) => {
-                let expr_type = &env.type_index[&expr.get_node_data().id];
-                let expr_type_info = env
-                    .types
-                    .get(expr_type)
-                    .ok_or(GenerateError("Type not found".to_string()))?;
-
-                let align_shift = get_align_shift(depth, expr_type_info.alignment);
-
-                // Align
-                instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(
-                    align_shift,
-                )));
-
-                instructions.append(&mut self.generate_expression(
-                    env,
-                    expr,
-                    function_info,
-                    depth + align_shift,
-                )?);
-
-                // Everything above can be its own function, see Statement::Expression too
-
-                instructions.append(&mut self.generate_return(env, function_info)?);
-                //
-            }
-            E::Return(None, _) => {
-                instructions.append(&mut self.generate_return(env, function_info)?);
-                //
-            }
+            E::Return(expr, _) => self.generate_return_expr(env, function_info, depth, expr),
             E::StructExpression { name, members, .. } => {
-                let TypeInfo { kind, .. } =
-                    env.types.get(&name.clone().into()).expect("Known exists");
-
-                let KindData::Struct {
-                    members: type_members,
-                } = kind
-                else {
-                    panic!("Expected struct type")
-                };
-
-                let mut member_exprs = Vec::<(&ExprAST, &Type, usize)>::new();
-
-                for (member_name, expr) in members {
-                    let (member_type, member_offset) = &type_members[member_name];
-                    member_exprs.push((expr, member_type, *member_offset));
-                }
-
-                member_exprs.sort_by_key(|(_, _, offset)| *offset);
-
-                let mut offset_into_struct = 0;
-
-                for (expr, member_type, offset) in member_exprs {
-                    if offset_into_struct < offset {
-                        instructions
-                            .push(PI::Actual(I::AdvanceStackPtr(offset - offset_into_struct)));
-                    }
-
-                    instructions.append(&mut self.generate_expression(
-                        env,
-                        expr,
-                        function_info,
-                        depth + offset,
-                    )?);
-
-                    offset_into_struct = offset + env.types[member_type].size;
-                }
+                self.generate_struct_expr(env, function_info, depth, name, members)
             }
             E::MemberAccess(..) => {
-                let expr_type = &env.type_index[&subtree.get_node_data().id];
-                let TypeInfo {
-                    size, alignment, ..
-                } = &env.types[expr_type];
-
-                let loc = self.locate_expr(subtree, env)?.collapse_offsets();
-
-                match loc {
-                    Location::OffsetFrom(inner, offset) => match inner.borrow() {
-                        Location::Local(name) => {
-                            let (base_offset, _, _) = function_info
-                                .variable_info_by_name(name)
-                                .expect("Variable Exists");
-                            instructions.append(&mut self.generate_read_from_base(
-                                base_offset + offset,
-                                *size,
-                                *alignment,
-                            )?);
-                        }
-                        Location::EvaluatedExpression(expr) => {
-                            let struct_type = &env.type_index[&expr.get_node_data().id];
-                            let TypeInfo {
-                                size: struct_size,
-                                alignment: struct_alignment,
-                                ..
-                            } = &env.types[struct_type];
-
-                            let align_shift = get_align_shift(depth, *struct_alignment);
-
-                            instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
-
-                            instructions.append(&mut self.generate_expression(
-                                env,
-                                expr,
-                                function_info,
-                                depth + align_shift,
-                            )?);
-
-                            instructions.push(PI::Actual(I::RetractStackPtr(
-                                (*struct_size as isize - offset - *size as isize) as usize,
-                            )));
-
-                            instructions.append(&mut self.generate_stack_retraction(
-                                align_shift + offset as usize,
-                                *size,
-                                *alignment,
-                            )?);
-                        }
-                        _ => return Err("Expected other location type".into()),
-                    },
-                    _ => return Err("Expected other location type".into()),
-                }
+                self.generate_member_access_expr(env, function_info, depth, subtree)
             }
             E::Moved => panic!("ExprAST Moved"),
         }
-
-        Ok(instructions)
     }
 
     fn generate_statement(
@@ -803,17 +397,14 @@ impl CodeGenerator {
         match statement {
             StatementAST::ExpressionStatement(expr, _) => {
                 let expr_type = &env.type_index[&expr.get_node_data().id];
-                let expr_type_info = env
-                    .types
-                    .get(expr_type)
-                    .ok_or(GenerateError("Type not found".to_string()))?;
+                let expr_type_info =
+                    env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
                 let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
                 // Align
-                instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(
-                    align_shift,
-                )));
+                instructions
+                    .push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(align_shift)));
 
                 instructions.append(&mut self.generate_expression(
                     env,
@@ -828,9 +419,8 @@ impl CodeGenerator {
                 )));
 
                 // Remove alignment
-                instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(
-                    align_shift,
-                )));
+                instructions
+                    .push(PseudoInstruction::Actual(Instruction::RetractStackPtr(align_shift)));
             }
             StatementAST::Assignment(left, right, ..) => {
                 let location = self.locate_expr(left, env)?;
@@ -880,17 +470,13 @@ impl CodeGenerator {
         let mut instructions = vec![];
 
         let expr_type = &env.type_index[&right_expr.get_node_data().id];
-        let expr_type_info = env
-            .types
-            .get(expr_type)
-            .ok_or(GenerateError("Type not found".to_string()))?;
+        let expr_type_info =
+            env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
         let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
         // Align
-        instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(
-            align_shift,
-        )));
+        instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(align_shift)));
 
         instructions.append(&mut self.generate_expression(
             env,
@@ -923,9 +509,7 @@ impl CodeGenerator {
         )?);
 
         // Remove alignment
-        instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(
-            align_shift,
-        )));
+        instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(align_shift)));
 
         Ok(instructions)
     }
@@ -1050,9 +634,7 @@ impl CodeGenerator {
             }
         }
 
-        instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(
-            shift,
-        )));
+        instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(shift)));
 
         Ok(instructions)
     }
@@ -1132,9 +714,10 @@ impl FunctionInfo {
             parameters: vec![],
         };
 
-        let analysis_info = env.functions.get(name).ok_or(GenerateError(
-            "Could not find analyzed function data".to_string(),
-        ))?;
+        let analysis_info = env
+            .functions
+            .get(name)
+            .ok_or(GenerateError("Could not find analyzed function data".to_string()))?;
 
         // We first allocate return value and arguments, then we push them behind
         // the base pointer and ensure they have 8 alignment. Then we allocate
@@ -1143,9 +726,7 @@ impl FunctionInfo {
         let return_type_info = env
             .types
             .get(&analysis_info.return_type)
-            .ok_or(GenerateError(
-                "Could not find analyzed type data".to_string(),
-            ))?;
+            .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
         info.add_variable(
             Variable::Return,
@@ -1155,9 +736,10 @@ impl FunctionInfo {
         );
 
         for (name, param_type) in &analysis_info.parameter_types {
-            let param_type_info = env.types.get(param_type).ok_or(GenerateError(
-                "Could not find analyzed type data".to_string(),
-            ))?;
+            let param_type_info = env
+                .types
+                .get(param_type)
+                .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(
                 Variable::Parameter(name.clone()),
@@ -1178,20 +760,17 @@ impl FunctionInfo {
         info.top = 16; // Room for two u64 saved registers
 
         for (name, local_type) in &analysis_info.local_types {
-            if info
-                .variables
-                .contains_key(&Variable::Parameter(name.clone()))
-            {
+            if info.variables.contains_key(&Variable::Parameter(name.clone())) {
                 continue;
             }
 
-            let local_type = local_type
-                .clone()
-                .ok_or(GenerateError("Type not specified".into()))?;
+            let local_type =
+                local_type.clone().ok_or(GenerateError("Type not specified".into()))?;
 
-            let local_type_info = env.types.get(&local_type).ok_or(GenerateError(
-                "Could not find analyzed type data".to_string(),
-            ))?;
+            let local_type_info = env
+                .types
+                .get(&local_type)
+                .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(
                 Variable::Local(name.clone()),
@@ -1208,8 +787,7 @@ impl FunctionInfo {
     fn add_variable(&mut self, variable: Variable, size: usize, alignment: usize, var_type: Type) {
         self.top += get_align_shift(self.top, alignment);
 
-        self.variables
-            .insert(variable, (self.top as isize, size, var_type));
+        self.variables.insert(variable, (self.top as isize, size, var_type));
         self.top += size;
     }
 

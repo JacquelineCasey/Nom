@@ -37,10 +37,8 @@ impl Function {
 
         // TODO: Someday we might want this to add type generation requests to _env
 
-        let parameter_types = params
-            .into_iter()
-            .map(|(name, type_name)| (name, type_name.into()))
-            .collect();
+        let parameter_types =
+            params.into_iter().map(|(name, type_name)| (name, type_name.into())).collect();
         Function {
             ast,
             return_type: return_type.into(),

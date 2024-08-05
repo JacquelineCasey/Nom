@@ -221,20 +221,14 @@ pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> 
         } else if is_operator_char(*ch) {
             let operators = take_operators(&mut iter)?;
             for (op, span) in operators {
-                tokens.push(Token {
-                    body: TokenBody::Operator(op),
-                    span,
-                });
+                tokens.push(Token { body: TokenBody::Operator(op), span });
             }
         } else if ch.is_ascii_digit() {
             let (token, span) = take_numeric_literal(&mut iter)?;
             tokens.push(Token { body: token, span });
         } else if let Ok(punct) = Punctuation::try_from(*ch) {
             let (_, span) = iter.next().expect("Known to exist.");
-            tokens.push(Token {
-                body: TokenBody::Punctuation(punct),
-                span,
-            });
+            tokens.push(Token { body: TokenBody::Punctuation(punct), span });
         } else if is_identifier_char(*ch) {
             let (token, span) = take_identifier_or_keyword(&mut iter)?;
             tokens.push(Token { body: token, span });
@@ -252,9 +246,8 @@ fn take_string_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
     let mut spans = vec![];
-    let (first, first_span) = iter
-        .next()
-        .ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let (first, first_span) =
+        iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
     spans.push(first_span);
 
     if first != '\"' {
@@ -285,9 +278,8 @@ fn take_char_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
     let mut spans = vec![];
-    let (first, first_span) = iter
-        .next()
-        .ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let (first, first_span) =
+        iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
     spans.push(first_span);
 
     if first != '\'' {
@@ -503,310 +495,62 @@ impl parsley::Token for Token {
         use TokenBody as TB;
 
         Ok(match token_type {
-            "Identifier" => matches!(
-                token,
-                T {
-                    body: TB::Identifier(_),
-                    ..
-                }
-            ),
-            "NumericLiteral" => matches!(
-                token,
-                T {
-                    body: TB::NumericLiteral(_),
-                    ..
-                }
-            ),
+            "Identifier" => matches!(token, T { body: TB::Identifier(_), .. }),
+            "NumericLiteral" => matches!(token, T { body: TB::NumericLiteral(_), .. }),
 
-            "LeftCurlyBrace" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::LeftCurlyBrace),
-                    ..
-                }
-            ),
-            "RightCurlyBrace" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::RightCurlyBrace),
-                    ..
-                }
-            ),
-            "LeftParenthesis" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::LeftParenthesis),
-                    ..
-                }
-            ),
-            "RightParenthesis" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::RightParenthesis),
-                    ..
-                }
-            ),
-            "LeftSquareBracket" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::LeftSquareBracket),
-                    ..
-                }
-            ),
-            "RightSquareBracket" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::RightSquareBracket),
-                    ..
-                }
-            ),
-            "Semicolon" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::Semicolon),
-                    ..
-                }
-            ),
-            "Comma" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::Comma),
-                    ..
-                }
-            ),
-            "Colon" => matches!(
-                token,
-                T {
-                    body: TB::Punctuation(P::Colon),
-                    ..
-                }
-            ),
+            "LeftCurlyBrace" => matches!(token, T { body: TB::Punctuation(P::LeftCurlyBrace), .. }),
+            "RightCurlyBrace" => {
+                matches!(token, T { body: TB::Punctuation(P::RightCurlyBrace), .. })
+            }
+            "LeftParenthesis" => {
+                matches!(token, T { body: TB::Punctuation(P::LeftParenthesis), .. })
+            }
+            "RightParenthesis" => {
+                matches!(token, T { body: TB::Punctuation(P::RightParenthesis), .. })
+            }
+            "LeftSquareBracket" => {
+                matches!(token, T { body: TB::Punctuation(P::LeftSquareBracket), .. })
+            }
+            "RightSquareBracket" => {
+                matches!(token, T { body: TB::Punctuation(P::RightSquareBracket), .. })
+            }
+            "Semicolon" => matches!(token, T { body: TB::Punctuation(P::Semicolon), .. }),
+            "Comma" => matches!(token, T { body: TB::Punctuation(P::Comma), .. }),
+            "Colon" => matches!(token, T { body: TB::Punctuation(P::Colon), .. }),
 
-            "Plus" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Plus),
-                    ..
-                }
-            ),
-            "Minus" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Minus),
-                    ..
-                }
-            ),
-            "Times" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Times),
-                    ..
-                }
-            ),
-            "Divide" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Divide),
-                    ..
-                }
-            ),
-            "Modulus" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Modulus),
-                    ..
-                }
-            ),
-            "Equals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Equals),
-                    ..
-                }
-            ),
-            "ThinRightArrow" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::ThinRightArrow),
-                    ..
-                }
-            ),
-            "DoubleEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::DoubleEquals),
-                    ..
-                }
-            ),
-            "NotEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::NotEquals),
-                    ..
-                }
-            ),
-            "LessEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::LessEquals),
-                    ..
-                }
-            ),
-            "GreaterEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::GreaterEquals),
-                    ..
-                }
-            ),
-            "Less" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Less),
-                    ..
-                }
-            ),
-            "Greater" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Greater),
-                    ..
-                }
-            ),
-            "PlusEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::PlusEquals),
-                    ..
-                }
-            ),
-            "MinusEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::MinusEquals),
-                    ..
-                }
-            ),
-            "TimesEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::TimesEquals),
-                    ..
-                }
-            ),
-            "DivideEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::DivideEquals),
-                    ..
-                }
-            ),
-            "ModulusEquals" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::ModulusEquals),
-                    ..
-                }
-            ),
-            "Dot" => matches!(
-                token,
-                T {
-                    body: TB::Operator(O::Dot),
-                    ..
-                }
-            ),
+            "Plus" => matches!(token, T { body: TB::Operator(O::Plus), .. }),
+            "Minus" => matches!(token, T { body: TB::Operator(O::Minus), .. }),
+            "Times" => matches!(token, T { body: TB::Operator(O::Times), .. }),
+            "Divide" => matches!(token, T { body: TB::Operator(O::Divide), .. }),
+            "Modulus" => matches!(token, T { body: TB::Operator(O::Modulus), .. }),
+            "Equals" => matches!(token, T { body: TB::Operator(O::Equals), .. }),
+            "ThinRightArrow" => matches!(token, T { body: TB::Operator(O::ThinRightArrow), .. }),
+            "DoubleEquals" => matches!(token, T { body: TB::Operator(O::DoubleEquals), .. }),
+            "NotEquals" => matches!(token, T { body: TB::Operator(O::NotEquals), .. }),
+            "LessEquals" => matches!(token, T { body: TB::Operator(O::LessEquals), .. }),
+            "GreaterEquals" => matches!(token, T { body: TB::Operator(O::GreaterEquals), .. }),
+            "Less" => matches!(token, T { body: TB::Operator(O::Less), .. }),
+            "Greater" => matches!(token, T { body: TB::Operator(O::Greater), .. }),
+            "PlusEquals" => matches!(token, T { body: TB::Operator(O::PlusEquals), .. }),
+            "MinusEquals" => matches!(token, T { body: TB::Operator(O::MinusEquals), .. }),
+            "TimesEquals" => matches!(token, T { body: TB::Operator(O::TimesEquals), .. }),
+            "DivideEquals" => matches!(token, T { body: TB::Operator(O::DivideEquals), .. }),
+            "ModulusEquals" => matches!(token, T { body: TB::Operator(O::ModulusEquals), .. }),
+            "Dot" => matches!(token, T { body: TB::Operator(O::Dot), .. }),
 
-            "Var" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::Var),
-                    ..
-                }
-            ),
-            "Val" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::Val),
-                    ..
-                }
-            ),
-            "Fn" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::Fn),
-                    ..
-                }
-            ),
-            "True" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::True),
-                    ..
-                }
-            ),
-            "False" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::False),
-                    ..
-                }
-            ),
-            "If" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::If),
-                    ..
-                }
-            ),
-            "Else" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::Else),
-                    ..
-                }
-            ),
-            "Not" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::Not),
-                    ..
-                }
-            ),
-            "And" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::And),
-                    ..
-                }
-            ),
-            "Or" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::Or),
-                    ..
-                }
-            ),
-            "While" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::While),
-                    ..
-                }
-            ),
-            "Return" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::Return),
-                    ..
-                }
-            ),
-            "Struct" => matches!(
-                token,
-                T {
-                    body: TB::Keyword(K::Struct),
-                    ..
-                }
-            ),
+            "Var" => matches!(token, T { body: TB::Keyword(K::Var), .. }),
+            "Val" => matches!(token, T { body: TB::Keyword(K::Val), .. }),
+            "Fn" => matches!(token, T { body: TB::Keyword(K::Fn), .. }),
+            "True" => matches!(token, T { body: TB::Keyword(K::True), .. }),
+            "False" => matches!(token, T { body: TB::Keyword(K::False), .. }),
+            "If" => matches!(token, T { body: TB::Keyword(K::If), .. }),
+            "Else" => matches!(token, T { body: TB::Keyword(K::Else), .. }),
+            "Not" => matches!(token, T { body: TB::Keyword(K::Not), .. }),
+            "And" => matches!(token, T { body: TB::Keyword(K::And), .. }),
+            "Or" => matches!(token, T { body: TB::Keyword(K::Or), .. }),
+            "While" => matches!(token, T { body: TB::Keyword(K::While), .. }),
+            "Return" => matches!(token, T { body: TB::Keyword(K::Return), .. }),
+            "Struct" => matches!(token, T { body: TB::Keyword(K::Struct), .. }),
 
             _ => return Err(format!("Bad token type: \"{token_type}\"").into()),
         })
@@ -823,9 +567,6 @@ impl std::fmt::Display for Token {
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!(
-            "{}:{}:{}",
-            self.file, self.start_line, self.start_col
-        ))
+        f.write_str(&format!("{}:{}:{}", self.file, self.start_line, self.start_col))
     }
 }

@@ -64,11 +64,7 @@ pub enum Instruction {
 
     // Both operands must be the same type and size. Consumes two operands, and
     // pushes a single byte, which is the result.
-    IntegerComparisonOperation {
-        comparison: Comparison,
-        size: IntSize,
-        signed: bool,
-    },
+    IntegerComparisonOperation { comparison: Comparison, size: IntSize, signed: bool },
 
     // Pops one operand, pushes one as the result
     UnaryOperation(IntegerUnaryOperation, IntSize),

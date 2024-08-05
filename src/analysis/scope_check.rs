@@ -9,10 +9,8 @@ use crate::{
 
 // Checks the scope (as well as const-ness) rules, and builds a table of local variables.
 pub fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
-    let function = env
-        .functions
-        .get_mut(name)
-        .ok_or(AnalysisError("Could not find function".into()))?;
+    let function =
+        env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
     let block = std::mem::take(&mut function.ast);
 
     let mut local_types = HashMap::new();
@@ -104,12 +102,7 @@ fn scope_check_expression(
             }
         }
         ExprAST::IntegerLiteral(..) | ExprAST::BooleanLiteral(..) => (),
-        ExprAST::If {
-            condition,
-            block,
-            else_branch,
-            ..
-        } => {
+        ExprAST::If { condition, block, else_branch, .. } => {
             scope_check_expression(env, local_types, condition)?;
             scope_check_expression(env, local_types, block)?;
 
@@ -117,9 +110,7 @@ fn scope_check_expression(
                 scope_check_expression(env, local_types, branch)?;
             }
         }
-        ExprAST::While {
-            condition, block, ..
-        } => {
+        ExprAST::While { condition, block, .. } => {
             scope_check_expression(env, local_types, condition)?;
             scope_check_expression(env, local_types, block)?;
         }
@@ -128,19 +119,12 @@ fn scope_check_expression(
                 scope_check_expression(env, local_types, expr)?;
             }
         }
-        ExprAST::StructExpression {
-            name,
-            members: expr_members,
-            ..
-        } => {
+        ExprAST::StructExpression { name, members: expr_members, .. } => {
             let Some(type_info) = env.types.get(&name.clone().into()) else {
                 return Err(format!("Could not find a type called {name}").into());
             };
 
-            let KindData::Struct {
-                members: ref type_members,
-            } = type_info.kind
-            else {
+            let KindData::Struct { members: ref type_members } = type_info.kind else {
                 return Err(format!("{name} is a type, but not a Struct type").into());
             };
 
@@ -149,7 +133,7 @@ fn scope_check_expression(
             for (member_name, member_expr) in expr_members {
                 if seen_members.contains(member_name) {
                     return Err(
-                        format!("{member_name} is defined twice in struct expression").into(),
+                        format!("{member_name} is defined twice in struct expression").into()
                     );
                 }
 

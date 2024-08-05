@@ -73,10 +73,9 @@ impl CompilationEnvironment {
     // but definitions may or may not be created depending on if they are needed.
     fn import_file(&mut self, file: &FileOrString) -> Result<(), CompileError> {
         let (path, input) = match file {
-            FileOrString::File(path) => (
-                path,
-                std::fs::read_to_string(path).map_err(|_| "Could not open file")?,
-            ),
+            FileOrString::File(path) => {
+                (path, std::fs::read_to_string(path).map_err(|_| "Could not open file")?)
+            }
             FileOrString::String(path, data) => (path, data.clone()),
         };
 
@@ -129,8 +128,7 @@ impl CompilationEnvironment {
     fn scope_check(&mut self, function_name: &str) -> Result<(), CompileError> {
         analysis::scope_check(self, function_name)?;
 
-        self.queue
-            .add_goal(CompilationGoal::TypeCheck(function_name.to_string()));
+        self.queue.add_goal(CompilationGoal::TypeCheck(function_name.to_string()));
 
         Ok(())
     }
@@ -157,10 +155,7 @@ struct CompilationQueue {
 
 impl CompilationQueue {
     fn new() -> Self {
-        CompilationQueue {
-            queue: VecDeque::new(),
-            processed: HashSet::new(),
-        }
+        CompilationQueue { queue: VecDeque::new(), processed: HashSet::new() }
     }
 
     fn add_goal(&mut self, goal: CompilationGoal) {
@@ -233,9 +228,7 @@ fn compile(file: FileOrString) -> Vec<instructions::Instruction> {
 
     let generator = generate::CodeGenerator::new();
 
-    generator
-        .generate(&env)
-        .expect("Code should generate successfully")
+    generator.generate(&env).expect("Code should generate successfully")
 }
 
 pub fn compile_file(path: String) -> Vec<instructions::Instruction> {

@@ -5,10 +5,8 @@ use crate::{ast::StatementAST, CompilationEnvironment};
 use super::types::{upper_bound_type, BuiltIn, KindData, PartialType, Type};
 
 pub fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
-    let function = env
-        .functions
-        .get_mut(name)
-        .ok_or(AnalysisError("Could not find function".into()))?;
+    let function =
+        env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
     let mut block = std::mem::take(&mut function.ast);
     let return_type = function.return_type.clone();
 
@@ -84,28 +82,13 @@ fn type_check_expr(
             Type::BuiltIn(BuiltIn::Boolean)
         }
         ExprAST::And(left, right, _) | ExprAST::Or(left, right, _) => {
-            type_check_expr(
-                env,
-                left,
-                function_name,
-                Some(&Type::BuiltIn(BuiltIn::Boolean)),
-            )?;
-            type_check_expr(
-                env,
-                right,
-                function_name,
-                Some(&Type::BuiltIn(BuiltIn::Boolean)),
-            )?;
+            type_check_expr(env, left, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
+            type_check_expr(env, right, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
 
             Type::BuiltIn(BuiltIn::Boolean)
         }
         ExprAST::Not(inner, _) => {
-            type_check_expr(
-                env,
-                inner,
-                function_name,
-                Some(&Type::BuiltIn(BuiltIn::Boolean)),
-            )?;
+            type_check_expr(env, inner, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
 
             Type::BuiltIn(BuiltIn::Boolean)
         }
@@ -123,12 +106,7 @@ fn type_check_expr(
                         type_check_expr(env, expr, function_name, None)?;
                     }
                     StatementAST::Declaration(
-                        DeclarationAST::Variable {
-                            expr,
-                            name,
-                            type_ascription,
-                            ..
-                        },
+                        DeclarationAST::Variable { expr, name, type_ascription, .. },
                         _,
                     ) => {
                         let var_type: Type = type_ascription.clone()
@@ -162,10 +140,8 @@ fn type_check_expr(
             }
         }
         ExprAST::FunctionCall(name, exprs, _) => {
-            let func = env
-                .functions
-                .get(name)
-                .ok_or(AnalysisError::from("Could not lookup function"))?;
+            let func =
+                env.functions.get(name).ok_or(AnalysisError::from("Could not lookup function"))?;
             let return_type = func.return_type.clone();
 
             for (expr, (_, expected_type)) in exprs.iter_mut().zip(func.parameter_types.clone()) {
@@ -193,9 +169,9 @@ fn type_check_expr(
         ExprAST::BooleanLiteral(..) => Type::BuiltIn(BuiltIn::Boolean),
         ExprAST::Variable(name, _) => {
             if let Some(inner) = env.functions[function_name].local_types.get(name) {
-                inner.clone().ok_or(AnalysisError::from(
-                    "Variable lookup succeeded, but had unknown_type",
-                ))?
+                inner
+                    .clone()
+                    .ok_or(AnalysisError::from("Variable lookup succeeded, but had unknown_type"))?
             } else if let Some((_, inner)) = env.functions[function_name]
                 .parameter_types
                 .iter()
@@ -206,40 +182,13 @@ fn type_check_expr(
                 return Err("AKJSnagkj".into());
             }
         }
-        ExprAST::If {
-            condition,
-            block,
-            else_branch: None,
-            ..
+        ExprAST::If { condition, block, else_branch: None, .. }
+        | ExprAST::While { condition, block, .. } => {
+            type_check_expr(env, condition, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
+            type_check_expr(env, block, function_name, Some(&Type::BuiltIn(BuiltIn::Unit)))?
         }
-        | ExprAST::While {
-            condition, block, ..
-        } => {
-            type_check_expr(
-                env,
-                condition,
-                function_name,
-                Some(&Type::BuiltIn(BuiltIn::Boolean)),
-            )?;
-            type_check_expr(
-                env,
-                block,
-                function_name,
-                Some(&Type::BuiltIn(BuiltIn::Unit)),
-            )?
-        }
-        ExprAST::If {
-            condition,
-            block,
-            else_branch: Some(else_branch),
-            ..
-        } => {
-            type_check_expr(
-                env,
-                condition,
-                function_name,
-                Some(&Type::BuiltIn(BuiltIn::Boolean)),
-            )?;
+        ExprAST::If { condition, block, else_branch: Some(else_branch), .. } => {
+            type_check_expr(env, condition, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
             let if_type = type_check_expr(env, block, function_name, expected)?;
             let else_type = type_check_expr(env, else_branch, function_name, expected)?;
 
@@ -265,12 +214,8 @@ fn type_check_expr(
             }
         }
         ExprAST::Return(expr, _) => {
-            let return_type = env
-                .functions
-                .get(function_name)
-                .expect("Function exists")
-                .return_type
-                .clone();
+            let return_type =
+                env.functions.get(function_name).expect("Function exists").return_type.clone();
 
             if let Some(inner) = expr {
                 type_check_expr(env, inner, function_name, Some(&return_type))?;
@@ -289,17 +234,12 @@ fn type_check_expr(
 
             let type_info = type_info.clone(); // Appeases borrow checker.
 
-            let KindData::Struct {
-                members: ref type_members,
-            } = type_info.kind
-            else {
+            let KindData::Struct { members: ref type_members } = type_info.kind else {
                 return Err(format!("Type {name} is not a struct type").into());
             };
 
             for (member_name, member_expr) in members {
-                let Some((member_type, _)) = type_members.get(member_name) else {
-                    todo!()
-                };
+                let Some((member_type, _)) = type_members.get(member_name) else { todo!() };
 
                 type_check_expr(env, member_expr, function_name, Some(&member_type.clone()))?;
             }
@@ -334,8 +274,7 @@ fn type_check_expr(
         }
     }
 
-    env.type_index
-        .insert(expr.get_node_data().id, expr_type.clone());
+    env.type_index.insert(expr.get_node_data().id, expr_type.clone());
     Ok(expr_type)
 }
 
@@ -354,8 +293,7 @@ fn finalize_partial_types_expr<'a>(
             let found_type = &env.type_index[&expr.get_node_data().id];
 
             if let Type::PartiallyKnown(PartialType::IntLiteral) = found_type {
-                env.type_index
-                    .insert(expr.get_node_data().id, Type::BuiltIn(BuiltIn::I32));
+                env.type_index.insert(expr.get_node_data().id, Type::BuiltIn(BuiltIn::I32));
             }
         }
         _ => (),

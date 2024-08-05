@@ -72,11 +72,7 @@ impl Runtime {
             Instruction::UnaryOperation(op, size) => {
                 self.eval_unary_int_op(op, size);
             }
-            Instruction::IntegerComparisonOperation {
-                comparison,
-                size,
-                signed,
-            } => {
+            Instruction::IntegerComparisonOperation { comparison, size, signed } => {
                 self.eval_int_comparison(comparison, size, signed);
             }
             Instruction::BooleanNot => {
@@ -355,10 +351,7 @@ impl Runtime {
                 reinterpret::<S, U>(reinterpret::<U, S>(left) * reinterpret::<U, S>(right))
             }
             IntegerBinaryOperation::UnsignedDivision => {
-                assert!(
-                    right != U::zero(),
-                    "Critical Runtime Error: Division by Zero"
-                );
+                assert!(right != U::zero(), "Critical Runtime Error: Division by Zero");
 
                 left / right
             }
@@ -366,18 +359,12 @@ impl Runtime {
                 let s_left = reinterpret::<U, S>(left);
                 let s_right = reinterpret::<U, S>(right);
 
-                assert!(
-                    s_right != S::zero(),
-                    "Critical Runtime Error: Division by Zero"
-                );
+                assert!(s_right != S::zero(), "Critical Runtime Error: Division by Zero");
 
                 reinterpret::<S, U>(s_left / s_right)
             }
             IntegerBinaryOperation::UnsignedModulus => {
-                assert!(
-                    right != U::zero(),
-                    "Critical Runtime Error: Modulus by Zero"
-                );
+                assert!(right != U::zero(), "Critical Runtime Error: Modulus by Zero");
 
                 left % right
             }
@@ -385,10 +372,7 @@ impl Runtime {
                 let s_left = reinterpret::<U, S>(left);
                 let s_right = reinterpret::<U, S>(right);
 
-                assert!(
-                    s_right != S::zero(),
-                    "Critical Runtime Error: Modulus by Zero"
-                );
+                assert!(s_right != S::zero(), "Critical Runtime Error: Modulus by Zero");
 
                 reinterpret::<S, U>(s_left % s_right)
             }

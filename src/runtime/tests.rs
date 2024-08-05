@@ -39,15 +39,9 @@ fn u8_math() {
         I::PushConstant(Constant::OneByte(8)),
         I::PushConstant(Constant::OneByte(2)),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::OneByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedMultiplication,
-            IntSize::OneByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::OneByte),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::OneByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedSubtraction,
-            IntSize::OneByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::OneByte),
         I::DebugPrintSigned(IntSize::OneByte),
         I::Exit,
     ]);
@@ -65,15 +59,9 @@ fn u16_math() {
         I::PushConstant(Constant::TwoByte(8)),
         I::PushConstant(Constant::TwoByte(2)),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::TwoByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedMultiplication,
-            IntSize::TwoByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::TwoByte),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::TwoByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedSubtraction,
-            IntSize::TwoByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::TwoByte),
         I::DebugPrintSigned(IntSize::TwoByte),
         I::Exit,
     ]);
@@ -96,10 +84,7 @@ fn u32_math() {
             IntSize::FourByte,
         ),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedSubtraction,
-            IntSize::FourByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::FourByte),
         I::DebugPrintSigned(IntSize::FourByte),
         I::Exit,
     ]);
@@ -122,10 +107,7 @@ fn u64_math() {
             IntSize::EightByte,
         ),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::EightByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedSubtraction,
-            IntSize::EightByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::EightByte),
         I::DebugPrintSigned(IntSize::EightByte),
         I::Exit,
     ]);
@@ -185,10 +167,7 @@ fn function_call() {
         // instruction 11: Start of square(a: u32).
         I::ReadBase(-4, IntSize::FourByte),
         I::Duplicate(IntSize::FourByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::SignedMultiplication,
-            IntSize::FourByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::SignedMultiplication, IntSize::FourByte),
         I::WriteBase(-8, IntSize::FourByte), // Return sets return value.
         I::Return,
     ]);
@@ -205,18 +184,12 @@ fn conversion() {
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::OneByte),
         I::IntegerConversion(IntSize::OneByte, false, IntSize::FourByte, true),
         I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(-1))),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::SignedMultiplication,
-            IntSize::FourByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::SignedMultiplication, IntSize::FourByte),
         I::PushConstant(Constant::FourByte(230)), // This would overflow an i8
         I::IntegerBinaryOperation(IntegerBinaryOperation::SignedAddition, IntSize::FourByte),
         I::IntegerConversion(IntSize::FourByte, true, IntSize::OneByte, false),
         I::PushConstant(Constant::OneByte(100)),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedSubtraction,
-            IntSize::OneByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::OneByte),
         I::DebugPrintSigned(IntSize::OneByte), // Note - always prints signed...
         I::Exit,
     ]);

@@ -8,9 +8,7 @@ use std::io::Read;
 
 fn main() {
     let mut buffer = String::new();
-    std::io::stdin()
-        .read_to_string(&mut buffer)
-        .expect("Reading stdin should succeed");
+    std::io::stdin().read_to_string(&mut buffer).expect("Reading stdin should succeed");
 
     let code = compile_string(buffer);
 

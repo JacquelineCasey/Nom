@@ -2,7 +2,7 @@
 
 //! 6765
 
-// Ruthlessly inneficient function computing fibonacci numbers.
+// Ruthlessly inefficient function computing fibonacci numbers.
 fn fib(n: i32) -> i32 {
     var result: i32 = 0;
     if n == 1 {

@@ -26,7 +26,7 @@ Nom certainly does not).
 Here is a small program in Nom.
 
 ```
-// Ruthlessly inneficient function computing fibonacci numbers.
+// Ruthlessly inefficient function computing fibonacci numbers.
 fn fib(n: i32) -> i32 {
     var result: i32 = 0;
     if n == 1 {
@@ -60,7 +60,8 @@ and more complicated to let me learn more.
 
 Features:
 - Imperative programming basics. Variables, arithmetic, conditionals, while loops, and functions
-  (even recursive functions).
+  (even recursive functions). The syntax is much like Rust's, which for this subset
+  of features means it should look reasonably familiar those who know any `C` family language.
 - Expressional syntax. Blocks for instance are expressions, which run some statements
   before evaluating to a final expression in the block. Function bodies work like
   this as well, so you can omit the final return in the function, like in Rust. If
@@ -86,13 +87,14 @@ Upcoming Features (probably):
   I eventually want some sort of slice as well.
 - Multi-file programs, i.e. a module or import system. Some groundwork has been
   laid, but not fleshed out. With this, writing some basic utilities into a standard
-  library could come next (perhaps with some functions being implemented in natively
+  library could come next (perhaps with some functions being implemented natively
   in Rust?)  
 - More user defined types. Tuples / anonymous structs are a huge convenience. Enums 
   / unions that model sum types, completing an algebraic type system when combined
   with structs (product types). Perhaps we can have Zig-like support for optional 
   or nullable values, and likewise for fallible values ("error-union type"). I also
-  want to include a generic type system.
+  want to include a generic type system, but that may be implemented much further
+  down the line.
 
 This is a fairly high level roadmap. For a much more detailed version, see the
 project tab or the issues tab on GitHub.
@@ -100,13 +102,13 @@ project tab or the issues tab on GitHub.
 ## More about the Project
 
 Documentation for the code of the project is included in the code itself. However,
-it can be viewed by running `cargo doc`. This only shows the (small) public interface,
+it can be viewed in HTML form by running `cargo doc`. This only shows the (small) public interface,
 but documentation exists for private items as well, which can be viewed by running
 `cargo doc --document-private-items`.
 
 Most of the code is contained in the library crate, rooted at `lib.rs`. There is also
 a simple binary crate (the single file, `main.rs`) which compiles and runs a program
-provided through standard in. In the future, `main.rs` should look more like the frontend
+provided through standard input. In the future, `main.rs` should look more like the frontend
 of a compiler, handling flags and options and so on; right now, it is a very thin wrapper
 around the library.
 
@@ -143,10 +145,9 @@ below, but each of these primary modules may be further broken up into submodule
   Data is stored in a more easily accessible manner. Finally, AST nodes have some
   additional data which allows them to be identified and associated with information
   discovered later in analysis (e.g. type information, which is computed later).
-- `analysis` controls the step where information about the (as an `AST`) is repeatedly
+- `analysis` controls the step where the program (as an `AST`) is repeatedly
   analyzed to determine further information. Further transformations to the code are
-  also undertaken. Syntactic sugar is expanded into a standard form (`desugar` submodule). Items used in the programs are checked to ensure that they have been declared (`scope_check` submodule). Finally,
-  the program is type checked (`type_check` submodule), which validates the type
+  also undertaken. Syntactic sugar is expanded into a standard form (`desugar` submodule). Items used in the programs are checked to ensure that they have been declared, and are in scope (`scope_check` submodule). Finally, the program is type checked (`type_check` submodule), which validates the type
   rules as well as discovering the types for every expression, variable, and function.
 - `generate` takes the finalized `AST`, and produces a list of instructions. There
   are some final optimizations made to just this list of instructions (currently
@@ -175,3 +176,18 @@ written Nom program (written with an understanding of how it compiles) can achie
 performance similar to a translation of that program into Python (even performing
 around 10% better), which is a pleasant surprise. Make sure you build the project in
 release mode (`cargo build --release`) before doing benchmarks.
+
+I find a test driven approach is very helpful in developing this project. There
+are a couple of unit tests for some modules, but the majority of tests are integration
+tests for new language features. To extend the language, I recommend writing a test
+or two with the new feature, then going through all the modules in order updating
+as necessary. Rust's type system is very helpful here - often I need to make just
+a few well thought out changes to, for instance, the `AST` type, and after that the
+rest of the work is just going through the remaining modules and making sure they
+compile. Rust points out all the places that need to consider how the handle the new
+`AST` variant, which is very helpful.
+
+When I am done, `cargo test` should pass, with no compilation warnings either. `cargo clippy`
+should also emit no warnings (to be fair, I have been known to silence those lints I disagree
+with). Finally, `cargo fmt` should be used to fix any formatting issues.
+

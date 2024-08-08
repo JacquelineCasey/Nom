@@ -5,3 +5,6 @@ The shortest of short term items (i.e, tasks necessary to complete the next goal
 can go here:
 
 == Immediate TODO ==
+
+- Document the language in nom_docs.md
+- Document the project in the code itself.

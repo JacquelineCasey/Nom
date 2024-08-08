@@ -8,4 +8,4 @@ can go here:
 
 - Document the language in nom_docs.md
 - Document the project in the code itself.
-- Fix warnings. Clippy. Fmt
+  - Top level done. More to follow.

@@ -1,5 +1,5 @@
 //! Top level module which organizes compiling items in the program in the correct order.
-//! 
+//!
 //! Organizes compilation, ensuring items are processed in the
 //! right order. Provides a type `CompilationEnvironment` that tracks information
 //! learned from the program.
@@ -38,12 +38,12 @@ use error::CompileError;
 pub use instructions::Instruction;
 
 /// Nom's grammar, represented in parsley's definition language (similar to Backus-Naur form).
-/// 
+///
 /// See `src/grammar.parsley` for this grammar.
 static PARSER_DEFINITION: &str = include_str!("grammar.parsley"); // Drops the string right into the binary.
 
 /// `CompilationEnviornment` tracks all learned information about the compiling program.
-/// 
+///
 /// It should be understood that this represents all of the *currently known* information,
 /// so at different stages of compilation, different fields should be complete and accurate.
 struct CompilationEnvironment {
@@ -74,8 +74,8 @@ impl CompilationEnvironment {
         }
     }
 
-    /// Continuously processes compilation goals until the queue is empty. 
-    /// 
+    /// Continuously processes compilation goals until the queue is empty.
+    ///
     /// Before calling this, ensure that at least one compilation goal is placed in the queue.
     /// Note that finishing one goal may trigger the addition of follow up goals.
     fn process_goals(&mut self) -> Result<(), CompileError> {
@@ -95,7 +95,7 @@ impl CompilationEnvironment {
     }
 
     /// Processes an import file goal, handling parsing and tracking declarations.
-    /// 
+    ///
     /// Locates data associated with the file, tokenizes and parses it, and generates
     /// data about the declarations in the file. All declarations are parsed and stored,
     /// but definitions may or may not be created depending on if they are needed.
@@ -169,7 +169,7 @@ impl CompilationEnvironment {
 
     /// Processes a type check goal, ensuring type rules are followed and determining
     /// the type of all expressions.
-    /// 
+    ///
     /// After this goal completes, the function is ready to be passed to the code
     /// generator.
     fn type_check(&mut self, function_name: &str) -> Result<(), CompileError> {
@@ -181,12 +181,12 @@ impl CompilationEnvironment {
 }
 
 /// A queue of compilation goals, along with associated information.
-/// 
+///
 /// Each goal has the restriction that, when processed, it can be executed to completion.
 /// It can add additional `CompilationGoals`, but they will not run right away.
 /// A goal can be enqueued several times, but will be ignored after the first copy
 /// is processed.
-/// 
+///
 /// The queue should be thought of as a list of uncompleted goals. Inserted completed
 /// goals will have no visible effect, since those goals will never be popped later.
 struct CompilationQueue {
@@ -204,16 +204,16 @@ impl CompilationQueue {
         CompilationQueue { queue: VecDeque::new(), processed: HashSet::new() }
     }
 
-    /// Adds a goal at the end of the queue. 
-    /// 
+    /// Adds a goal at the end of the queue.
+    ///
     /// If it has already been completed by the time it is processed, it will be ignored (i.e. it will not ever be popped).
     fn add_goal(&mut self, goal: CompilationGoal) {
         self.queue.push_back(goal);
         // For debugging / verbose output reasons, we will enqueue the goal even if it has already been processed
     }
 
-    /// Returns the next goal to be completed, should one exist. 
-    /// 
+    /// Returns the next goal to be completed, should one exist.
+    ///
     /// If a goal in the queue has already been completed, then it will not be returned here.
     fn next_goal(&mut self) -> Option<CompilationGoal> {
         if !self.is_empty() {
@@ -230,8 +230,8 @@ impl CompilationQueue {
     }
 
     /// Returns true if and only if there exists a not yet completed goal in the
-    /// queue. 
-    /// 
+    /// queue.
+    ///
     /// Also clears completed goals from the front.
     fn is_empty(&mut self) -> bool {
         self.clear_completed_goals();
@@ -254,7 +254,7 @@ impl CompilationQueue {
 }
 
 /// A `CompliationGoal` expresses a single step of the compilation process.
-/// 
+///
 /// We divide these steps so that they can be completed independently as needed for
 /// different files, or even items within files. For instance, we may only need to
 /// compile some functions from a file, if the others are not used, so we will only
@@ -290,8 +290,8 @@ enum FileOrString {
     String(String, String),
 }
 
-/// Given input, generates a list of instructions. 
-/// 
+/// Given input, generates a list of instructions.
+///
 /// Errors are printed to the screen, and cause panics.
 ///
 /// Works by placing a single goal to import the input into the compilation queue.
@@ -314,8 +314,8 @@ fn compile(file: FileOrString) -> Vec<instructions::Instruction> {
 }
 
 /// Given a path to a file, tokenizes, parses, analyzes, and generates code for
-/// that file. 
-/// 
+/// that file.
+///
 /// Returns a list of instructions.
 ///
 /// If an error occurs, it will print to the screen, and the function will panic.
@@ -324,8 +324,8 @@ pub fn compile_file(path: String) -> Vec<instructions::Instruction> {
 }
 
 /// Given a string input, tokenizes, parses, analyzes, and generates code for
-/// that input. 
-/// 
+/// that input.
+///
 /// Returns a list of instructions.
 ///
 /// If an error occurs, it will print to the screen, and the function will panic.

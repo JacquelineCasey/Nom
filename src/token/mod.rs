@@ -1,4 +1,15 @@
-// use parsley::ParseError;
+//! Defines the `Token` type and handles tokenization of an input string.
+//!
+//! The `Token` type is defined to be compatible with Parsley. It is a struct
+//! that contains an enum describing the type of the token (and other information,
+//! like which operator it is). The outer struct also contains span information,
+//! describing where the token starts and ends, for the purpose of nicer error
+//! messages.
+//!
+//! The program is tokenized in a fairly ad-hoc manner. Tokenization is a very
+//! local process, this is only a small amount of looking ahead at future characters.
+//!
+//! The tokenization removes excess whitespace, and removes comments.
 
 #[cfg(test)]
 mod tests;
@@ -9,19 +20,32 @@ use std::str::FromStr;
 
 use crate::error::TokenError;
 
-/* Spans describe contiguous groups of characters in a specific source file (or
- * pseudo source file). Each span represents a half open interval. */
+/* Span definition and basic functions */
 
+/// A `Span` descibes a contigous group of characters, in a specific source file (or
+/// pseudo source file).
+///
+/// The span is given as a half open interval, though it may be represented differently
+/// in error messages.
 #[derive(Debug, Clone)]
 pub struct Span {
+    /// The path to a file, or a name representing a pseudo file, like "<input>".
     pub file: Rc<String>,
-    pub start_line: usize, // 1 based
+    /// The line the span starts on (1 based).
+    pub start_line: usize,
+    /// The line the span ends on (1 based).
     pub end_line: usize,
-    pub start_col: usize, // 1 based
+    /// The column the span starts on (1 based).
+    pub start_col: usize,
+    /// The column the span ends on (1 based).
     pub end_col: usize,
 }
 
 impl Span {
+    /// Given two spans, returns a new span that includes both.
+    ///
+    /// This is used heavily in `ast`, where we determine a span for every `ASTNode`
+    /// in the program.
     pub fn combine(a: &Span, b: &Span) -> Span {
         assert!(*a.file == *b.file);
 
@@ -34,6 +58,10 @@ impl Span {
         }
     }
 
+    /// Given a nonempty slice of Spans, returns a new Span that includes them all.
+    ///
+    /// This is used heavily in `ast`, where we determine a span for every `ASTNode`
+    /// in the program.
     pub fn combine_all(spans: &[Span]) -> Span {
         assert!(!spans.is_empty());
 
@@ -47,30 +75,57 @@ impl Span {
     }
 }
 
-/* Token Definitions */
+/* Token and related types */
 
+/// Represents a single token in a Nom program.
 #[derive(Debug, Clone)]
 pub struct Token {
+    /// Represents the primary information of the token - its type, and any info
+    /// related to that type.
     pub body: TokenBody,
+    /// Represents the span of the token, i.e. where in the source file it came from.
     pub span: Span,
     // TODO: If comments ever could apply to an element as metadata, maybe that could go here?
 }
 
-// Comments (single line only with "//") are stripped out entirely, and act as whitespace.
-// Whitespace impacts the split between some other tokens.
+/// Describes the information of the token, without any metadata (spans, etc.)
+///
+/// Each variant is a type of token, and comes with information specific to that
+/// type.
 #[derive(Debug, Clone)]
 pub enum TokenBody {
+    /// An identifier, or name, in the program. Used for variables, functions,
+    /// struct members, and so on. The string is naturally the name. Not allowed
+    /// to be any keyword.
     Identifier(String),
+    /// A keyword in the program. Used in various control flow and other constructs.
     Keyword(Keyword),
+    /// A string literal in the program. The String is of course the data
+    /// of the literal. Escapes are carefully processed during tokenization, so the
+    /// string here is the processed version. The quotes that mark the literal are
+    /// not included in the data.
     #[allow(unused)]
-    StringLiteral(String), // Content, with escapes processed, and no double quotes.
+    StringLiteral(String),
+    /// A character literal in the program. The char is of course the character
+    /// in the literal. Escapes are processed. The quotes that mark the literal
+    /// are not included in the data.
     #[allow(unused)]
-    CharLiteral(char), // Content, with escapes processed, and no single quotes.
-    NumericLiteral(String), // TODO: Replace with enum for all numeric literal values.
+    CharLiteral(char),
+    /// A numeric literal in the program. The string is the literal, and will be
+    /// converted to an actual number later once type information is available.
+    NumericLiteral(String),
+    /// An operator in the program. We may someday allow users to define operators,
+    /// so we handle them separately from punctuation, although they are somewhat
+    /// similar.
     Operator(Operator),
+    /// A piece of punctuation in the program. Differs from operators by being much
+    /// less complicated.
     Punctuation(Punctuation),
 }
 
+/// Represents the possible keywords in a Nom program.
+///
+/// Using an enum here is more efficient and type safe compared to just using strings.
 #[derive(Debug, Clone)]
 pub enum Keyword {
     Var,
@@ -113,9 +168,13 @@ impl FromStr for Keyword {
     }
 }
 
+/// Represents an operator in the Nom Programming language.
+///
+/// Note that there is some overlap in which characters each operator uses (e.g. `+` for `Plus`, but `+=`
+/// for `PlusEquals`), so a greedy "longest match" algorithm is used to determine which
+/// operators are actually present.
 #[derive(Debug, Clone)]
 pub enum Operator {
-    // Operators currently accepted greedily
     Plus,
     Minus,
     Times,
@@ -137,7 +196,7 @@ pub enum Operator {
     Dot,
 }
 
-// All punctuation is a single character that cannot be part of another token.
+/// A piece of punctuation in a Nom Program. Each is a single character.
 #[derive(Debug, Clone)]
 pub enum Punctuation {
     Semicolon,
@@ -172,6 +231,14 @@ impl TryFrom<char> for Punctuation {
     }
 }
 
+/* Tokenization Algorithm */
+
+/// Attaches span information to an input string.
+///
+/// Given a input string (and a filename), produces an iterator which yields the
+/// characters of the string, along with the span representing those characters.
+/// During the tokenization process, these spans are combined to produce the spans
+/// for the tokens.
 fn add_span_info(
     input: &str,
     file: Rc<String>,
@@ -202,11 +269,10 @@ fn add_span_info(
     })
 }
 
-/* Tokenization Algorithm */
-
-/* Accepts the input as a string, and a file path for bookeeping (spans). The file
- * path may also be a pseudo file path, if there is no actual backing file (e.g.
- * REPL mode). */
+/// Tokenizes input, converting a string to a list of tokens.
+///
+/// Accepts input as a string, and a file path for book-keeping (spans). The file
+/// path may also be a pseudo file path, like "<input>".
 pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> {
     let mut tokens: Vec<Token> = vec![];
 
@@ -244,6 +310,13 @@ pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> 
     Ok(tokens)
 }
 
+/// Given an iterator from `tokenize()`, extracts a string literal token.
+///
+/// Note that the string literal is escaped here, so the token contains the true
+/// data that should appear in the program.
+///
+/// Caller should be sure that a string literal appears at the front of the iterator,
+/// for instance by peeking for a double quote.
 fn take_string_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
@@ -276,6 +349,13 @@ fn take_string_literal(
     Err("Expected character '\"'. String literal does not terminate.".into())
 }
 
+/// Given an iterator from `tokenize()`, extracts a character literal token.
+///
+/// Note that the character literal is escaped here, so the token contains the true
+/// data the should appear in the program.
+///
+/// Caller should be sure that a character literal appears at the front of the iterator,
+/// for instance by peeking for a single quote.
 fn take_char_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
@@ -308,6 +388,13 @@ fn take_char_literal(
     Err("Expected character '\''. Char literal does not terminate.".into())
 }
 
+/// Given an iterator from `tokenize()`, extracts a numeric literal token.
+///
+/// Note that, at time of writing, the data extracted for the literal remains in
+/// string form, until it is processed later around type checking time.
+///
+/// Caller should be sure that a numeric literal appears at the front of the iterator,
+/// for example by peeking the iterator.
 fn take_numeric_literal(
     iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
 ) -> Result<(TokenBody, Span), TokenError> {
@@ -332,6 +419,13 @@ fn take_numeric_literal(
     Ok((TokenBody::NumericLiteral(string), Span::combine_all(&spans)))
 }
 
+/// Given an iterator from `tokenize()`, extracts an identifier or keyword token.
+///
+/// Keywords may not be used as identifiers. This function extracts a word, and
+/// converts it into the appropriate type based on contents.
+///
+/// Caller should be sure that a identifier or keyword appears at the front of the
+/// iterator, for example by peeking the iterator.
 fn take_identifier_or_keyword(
     iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
 ) -> Result<(TokenBody, Span), TokenError> {
@@ -361,8 +455,14 @@ fn take_identifier_or_keyword(
     }
 }
 
-// A / looks like an operator, but if it is followed by another slash then we discard the whole
-// line.
+/// Given an iterator from `tokenize()`, extracts a sequence of operator tokens.
+///
+/// Important: a single foward slash looks like an operator, but could be a comment.
+/// Still, the iterator can be passed to this function, and in the event it is a comment,
+/// the full line is consumed and discarded, and an empty vector is returned.
+///
+/// Caller should be sure that either a comment or a sequence of operators appears
+/// at the front of the iterator, for example by peeking the iterator.
 fn take_operators(
     iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
 ) -> Result<Vec<(Operator, Span)>, TokenError> {
@@ -452,12 +552,19 @@ fn take_operators(
     Ok(operators)
 }
 
+/// Helper function that determines if an operator may be part of an operator.
 fn is_operator_char(ch: char) -> bool {
     let operators = ['+', '-', '*', '/', '=', '>', '<', '!', '%', '.'];
 
     operators.contains(&ch)
 }
 
+/// Helper function that determines if a character might begin a numeric literal.
+///
+/// Note: At time of writing, we do not consider negative literals. Instead, we
+/// may parse `- 2` as the negation of a literal positive `2`. At time of writing,
+/// this actually doesn't work at all, and instead we can get around this by writing
+/// `0 - 2`.
 fn is_numeric_literal_char(ch: char) -> bool {
     // TODO: Support for floats and numbers of different bases.
 
@@ -465,17 +572,29 @@ fn is_numeric_literal_char(ch: char) -> bool {
     ch.is_ascii_digit()
 }
 
+/// Helper function that determines if a character might be part of an identifier.
+///
+/// Note: While digits are permitted in identifiers, they cannot begin them, because
+/// this triggers the numeric literal parsing instead.
 fn is_identifier_char(ch: char) -> bool {
     // Note that digits won't work at start due to algorithm design.
     ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
 }
 
-#[allow(clippy::unnecessary_wraps)]
+/// Helper function that processes literals in strings.
+///
+/// At time of writing, nothing is actually done, although escaping a quote does
+/// work.
+#[allow(clippy::unnecessary_wraps)] // When we implement this fully this goes away.
 fn deliteralize(string: String) -> Result<String, TokenError> {
     // TODO: Actually turn literal into represented string
     Ok(string)
 }
 
+/// Helper function that converts a character literal into a single character.
+///
+/// At time of writing, almost nothing is done, other than a check that the literal
+/// is a single character.
 fn literal_to_char(string: &str) -> Result<char, TokenError> {
     // TODO: Add supports for escaped characters. Preferably shared with deliteralize?
     // Be aware of [\']
@@ -486,10 +605,12 @@ fn literal_to_char(string: &str) -> Result<char, TokenError> {
     }
 }
 
-/* Make Token work with Parsley */
+/* Make Token compatible with parsley. */
 
 impl parsley::Token for Token {
     fn matches(token_type: &str, token: &Self) -> Result<bool, parsley::ParseError> {
+        /* This allows the parsley grammar to refer to types of tokens. */
+
         use Keyword as K;
         use Operator as O;
         use Punctuation as P;
@@ -558,6 +679,8 @@ impl parsley::Token for Token {
         })
     }
 }
+
+/* Additional trait implementation. */
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

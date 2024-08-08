@@ -23,6 +23,7 @@ pub struct Function {
     // Local order *kinda* doesn't matter, so we have a hash map
     // None means the type has not yet been decided.
     pub local_types: HashMap<String, Option<Type>>,
+    #[allow(unused)]
     pub scope: HashMap<String, bool>, // Temporary - the bool being true means mutable (aka `var`).
 }
 

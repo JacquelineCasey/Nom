@@ -28,6 +28,7 @@ pub fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), A
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 fn scope_check_expression(
     env: &CompilationEnvironment,
     local_types: &mut HashMap<String, Option<Type>>,
@@ -52,7 +53,7 @@ fn scope_check_expression(
             for statement in statements {
                 match statement {
                     StatementAST::ExpressionStatement(expr, _) => {
-                        scope_check_expression(env, local_types, expr)?
+                        scope_check_expression(env, local_types, expr)?;
                     }
                     StatementAST::Assignment(left, right, _) => {
                         scope_check_expression(env, local_types, left)?;

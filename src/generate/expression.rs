@@ -3,7 +3,11 @@ use crate::{
     instructions::{Comparison, IntegerBinaryOperation},
 };
 
-use super::*;
+use super::{
+    get_align_shift, reinterpret, util, Borrow, CodeGenerator, CompilationEnvironment, Constant,
+    ExprAST, FunctionInfo, GenerateError, Instruction, IntSize, KindData, Location,
+    PseudoInstruction, StatementAST, TempInstruction, Type, TypeInfo, Variable,
+};
 
 use Instruction as I;
 use PseudoInstruction as PI;
@@ -21,6 +25,9 @@ impl CodeGenerator {
         operation: MathOperation,
         node_data: &ASTNodeData,
     ) -> Result<Vec<PseudoInstruction>, GenerateError> {
+        use IntegerBinaryOperation as IBO;
+        use MathOperation as MO;
+
         let subtree_type = &env.type_index[&node_data.id];
         let left_type = &env.type_index[&left.get_node_data().id];
         let right_type = &env.type_index[&right.get_node_data().id];
@@ -47,9 +54,6 @@ impl CodeGenerator {
             depth + arg_size.to_usize(),
         )?);
 
-        use IntegerBinaryOperation as IBO;
-        use MathOperation as MO;
-
         instructions.push(PI::Actual(I::IntegerBinaryOperation(
             match operation {
                 MO::Add if curr_type.is_unsigned() => IBO::UnsignedAddition,
@@ -60,7 +64,7 @@ impl CodeGenerator {
                 MO::Multiply if curr_type.is_signed() => IBO::SignedMultiplication,
                 MO::Divide if curr_type.is_unsigned() => IBO::UnsignedDivision,
                 MO::Divide if curr_type.is_signed() => IBO::SignedDivision,
-                MO::Modulus if curr_type.is_unsigned() => IBO::UnsignedSubtraction,
+                MO::Modulus if curr_type.is_unsigned() => IBO::UnsignedModulus,
                 MO::Modulus if curr_type.is_signed() => IBO::SignedModulus,
                 _ => panic!("Known unreachable"),
             },
@@ -77,7 +81,7 @@ impl CodeGenerator {
         depth: usize,
         left: &ExprAST,
         right: &ExprAST,
-        comparison: &Comparison,
+        comparison: Comparison,
     ) -> Result<Vec<PseudoInstruction>, GenerateError> {
         let mut instructions = vec![];
 
@@ -114,7 +118,7 @@ impl CodeGenerator {
         )?);
 
         instructions.push(PI::Actual(I::IntegerComparisonOperation {
-            comparison: *comparison,
+            comparison,
             size: int_size,
             signed: builtin_type.is_signed(),
         }));
@@ -172,7 +176,6 @@ impl CodeGenerator {
     }
 
     pub(super) fn generate_int_literal_expr(
-        &self,
         env: &CompilationEnvironment,
         num: i128,
         node_data: &ASTNodeData,
@@ -206,16 +209,16 @@ impl CodeGenerator {
         } else {
             match int_size {
                 IntSize::OneByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(num as u8))))
+                    instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(num as u8))));
                 }
                 IntSize::TwoByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::TwoByte(num as u16))))
+                    instructions.push(PI::Actual(I::PushConstant(Constant::TwoByte(num as u16))));
                 }
                 IntSize::FourByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(num as u32))))
+                    instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(num as u32))));
                 }
                 IntSize::EightByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::EightByte(num as u64))))
+                    instructions.push(PI::Actual(I::PushConstant(Constant::EightByte(num as u64))));
                 }
             }
         }
@@ -223,26 +226,23 @@ impl CodeGenerator {
         Ok(instructions)
     }
 
-    pub(super) fn generate_bool_literal_expr(
-        &self,
-        val: bool,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
+    pub(super) fn generate_bool_literal_expr(val: bool) -> Vec<PseudoInstruction> {
         let mut instructions = vec![];
 
-        match val {
-            true => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(1)))),
-            false => instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(0)))),
+        if val {
+            instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(1))));
+        } else {
+            instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(0))));
         }
 
-        Ok(instructions)
+        instructions
     }
 
     pub(super) fn generate_variable_expr(
-        &self,
         env: &CompilationEnvironment,
         function_info: &FunctionInfo,
         name: &str,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
+    ) -> Vec<PseudoInstruction> {
         let mut instructions = vec![];
 
         // This is placing a variable's value on the stack. See statement for storing
@@ -252,13 +252,13 @@ impl CodeGenerator {
 
         let (offset, size, val_type) =
             function_info.variable_info_by_name(name).expect("known to exist");
-        instructions.append(&mut self.generate_read_from_base(
+        instructions.append(&mut Self::generate_read_from_base(
             *offset,
             *size,
             env.types[val_type].alignment,
-        )?);
+        ));
 
-        Ok(instructions)
+        instructions
     }
 
     pub(super) fn generate_block_expr(
@@ -353,11 +353,11 @@ impl CodeGenerator {
         // Retract moving to original expression location
         match return_size {
             0 => instructions.push(PI::Actual(I::RetractStackPtr(align_shift))),
-            _ => instructions.append(&mut self.generate_stack_retraction(
+            _ => instructions.append(&mut Self::generate_stack_retraction(
                 align_shift,
                 *return_size,
                 env.types[return_type].alignment,
-            )?),
+            )),
         }
 
         Ok(instructions)
@@ -469,7 +469,7 @@ impl CodeGenerator {
             )?);
         }
 
-        instructions.append(&mut self.generate_return_handoff(env, function_info)?);
+        instructions.append(&mut Self::generate_return_handoff(env, function_info)?);
 
         Ok(instructions)
     }
@@ -538,11 +538,11 @@ impl CodeGenerator {
                 Location::Local(name) => {
                     let (base_offset, _, _) =
                         function_info.variable_info_by_name(name).expect("Variable Exists");
-                    instructions.append(&mut self.generate_read_from_base(
+                    instructions.append(&mut Self::generate_read_from_base(
                         base_offset + offset,
                         *size,
                         *alignment,
-                    )?);
+                    ));
                 }
                 Location::EvaluatedExpression(expr) => {
                     let struct_type = &env.type_index[&expr.get_node_data().id];
@@ -564,11 +564,11 @@ impl CodeGenerator {
                         (*struct_size as isize - offset - *size as isize) as usize,
                     )));
 
-                    instructions.append(&mut self.generate_stack_retraction(
+                    instructions.append(&mut Self::generate_stack_retraction(
                         align_shift + offset as usize,
                         *size,
                         *alignment,
-                    )?);
+                    ));
                 }
                 _ => return Err("Expected other location type".into()),
             },

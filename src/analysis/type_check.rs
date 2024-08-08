@@ -150,22 +150,21 @@ fn type_check_expr(
 
             return_type
         }
-        ExprAST::IntegerLiteral(literal, _) => match expected {
-            Some(inner_type) => {
+        ExprAST::IntegerLiteral(literal, _) => {
+            if let Some(inner_type) = expected {
                 if !integer_literal_fits(*literal, inner_type) {
                     return Err("Literal does not fit in type".into());
                 }
 
                 inner_type.clone()
-            }
-            None => {
+            } else {
                 if !integer_literal_fits(*literal, &Type::BuiltIn(BuiltIn::I32)) {
                     return Err("Literal does not fit in i32. i32 was chosen because type of literal was unknown. Type inference needs some help".into());
                 }
 
                 Type::PartiallyKnown(PartialType::IntLiteral)
             }
-        },
+        }
         ExprAST::BooleanLiteral(..) => Type::BuiltIn(BuiltIn::Boolean),
         ExprAST::Variable(name, _) => {
             if let Some(inner) = env.functions[function_name].local_types.get(name) {

@@ -60,6 +60,7 @@ impl Runtime {
     }
 
     #[allow(clippy::too_many_lines)]
+    #[allow(clippy::cast_ptr_alignment)] // Checked
     fn eval_instruction(
         &mut self,
         instruction: Instruction,

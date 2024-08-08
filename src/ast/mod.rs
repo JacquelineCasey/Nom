@@ -78,7 +78,7 @@ impl DeclarationAST {
             }
             DeclarationAST::Variable { mutability, name, expr, type_ascription, node_data } => {
                 DeclarationAST::Variable {
-                    mutability: mutability.clone(),
+                    mutability: *mutability,
                     name: name.clone(),
                     expr: expr.duplicate(),
                     type_ascription: type_ascription.clone(),
@@ -124,7 +124,7 @@ impl StatementAST {
                 StatementAST::CompoundAssignment(
                     left.duplicate(),
                     right.duplicate(),
-                    op.clone(),
+                    *op,
                     node_data.relabel(),
                 )
             }
@@ -322,6 +322,7 @@ impl<'a> AnyAST<'a> {
      * Most methods that want to crawl the whole tree will use this, check to see if
      * it is at a specific type of node, then recurse in both cases. I anticipate this
      * being useful for applying optimizations / desugaring stages. */
+    #[allow(clippy::match_same_arms)] // I prefer my ordering
     pub fn children(&'a mut self) -> Vec<AnyAST<'a>> {
         use AnyAST as A;
         use DeclarationAST as D;
@@ -380,7 +381,7 @@ impl<'a> AnyAST<'a> {
                 let mut vec: Vec<_> = stmts.iter_mut().map(A::Statement).collect();
 
                 if let Some(expr) = maybe_expr {
-                    vec.push(A::Expression(expr.as_mut()))
+                    vec.push(A::Expression(expr.as_mut()));
                 }
 
                 vec
@@ -422,13 +423,13 @@ impl<'a> AnyAST<'a> {
 
 /* Related Types */
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Mutability {
     Var,
     Val,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum MathOperation {
     Add,
     Subtract,
@@ -1128,9 +1129,9 @@ fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 
     let mut members = vec![];
     while let Some(member_name_tree) = iter.next() {
-        let member_name = match member_name_tree {
-            ST::TokenNode(Token { body: TB::Identifier(member_name), .. }) => member_name,
-            _ => return Err("Expected identifier".into()),
+        let ST::TokenNode(Token { body: TB::Identifier(member_name), .. }) = member_name_tree
+        else {
+            return Err("Expected identifier".into());
         };
 
         match iter.next() {
@@ -1173,7 +1174,7 @@ fn build_struct_member_list(tree: &ST<Token>) -> Result<Vec<(String, String)>, A
     while let Some(node) = iter.next() {
         match node {
             ST::RuleNode { rule_name, .. } if rule_name == "StructMemberListEntry" => {
-                entries.push(build_struct_member_list_entry(node)?)
+                entries.push(build_struct_member_list_entry(node)?);
             }
             _ => return Err("Expected struct member".into()),
         }

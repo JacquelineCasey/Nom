@@ -187,7 +187,7 @@ rest of the work is just going through the remaining modules and making sure the
 compile. Rust points out all the places that need to consider how the handle the new
 `AST` variant, which is very helpful.
 
-When I am done, `cargo test` should pass, with no compilation warnings either. `cargo clippy`
-should also emit no warnings (to be fair, I have been known to silence those lints I disagree
-with). Finally, `cargo fmt` should be used to fix any formatting issues.
-
+When I am done, `cargo test` should pass, with no compilation warnings either. `cargo clippy` 
+(or `cargo clippy -- -D clippy::pedantic`) should also emit no warnings (to be fair, 
+I have been known to silence those lints I disagree with). Finally, `cargo fmt` 
+should be used to fix any formatting issues.

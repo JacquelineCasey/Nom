@@ -113,7 +113,7 @@ impl CompilationEnvironment {
                     self.queue.add_goal(CompilationGoal::ScopeCheck(name));
                 }
                 ast::DeclarationAST::Struct { name, members, .. } => {
-                    analysis::types::add_struct_type(self, name, members)?;
+                    analysis::types::add_struct_type(self, &name, members)?;
                 }
             }
         }
@@ -219,7 +219,7 @@ fn compile(file: FileOrString) -> Vec<instructions::Instruction> {
     env.queue.add_goal(CompilationGoal::ImportFile(file));
 
     match env.process_goals() {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             println!("{}\n", error::pretty_error_msg(&env, &err));
             panic!("Compilation Failed.")

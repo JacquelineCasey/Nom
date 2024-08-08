@@ -62,8 +62,10 @@ pub struct Token {
 pub enum TokenBody {
     Identifier(String),
     Keyword(Keyword),
+    #[allow(unused)]
     StringLiteral(String), // Content, with escapes processed, and no double quotes.
-    CharLiteral(char),     // Content, with escapes processed, and no single quotes.
+    #[allow(unused)]
+    CharLiteral(char), // Content, with escapes processed, and no single quotes.
     NumericLiteral(String), // TODO: Replace with enum for all numeric literal values.
     Operator(Operator),
     Punctuation(Punctuation),

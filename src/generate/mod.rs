@@ -249,7 +249,7 @@ impl CodeGenerator {
 
         instructions.append(&mut self.generate_expression(env, subtree, function_info, depth)?); // TODO: Should this be zero or function_info.top. Can we call it depth?
 
-        instructions.append(&mut self.generate_return_handoff(env, function_info)?); //
+        instructions.append(&mut Self::generate_return_handoff(env, function_info)?); //
 
         let instructions = optimize(instructions);
         let instructions = Self::resolve_jumps(instructions)?;
@@ -261,7 +261,6 @@ impl CodeGenerator {
     // So called because it hands off control to the previous function. Not to be
     // confused with generate_return_expr, which handles the return keyword.
     fn generate_return_handoff(
-        &self,
         env: &CompilationEnvironment,
         function_info: &FunctionInfo,
     ) -> Result<Vec<PseudoInstruction>, GenerateError> {
@@ -278,11 +277,7 @@ impl CodeGenerator {
 
         let TypeInfo { alignment, .. } = env.types[return_type];
 
-        instructions.append(&mut self.generate_write_to_base(
-            *return_location,
-            *size,
-            alignment,
-        )?);
+        instructions.append(&mut Self::generate_write_to_base(*return_location, *size, alignment));
 
         instructions.push(PseudoInstruction::Actual(Instruction::Return));
 
@@ -350,7 +345,7 @@ impl CodeGenerator {
                 node_data,
             ),
             E::Comparison(left, right, comparison, ..) => {
-                self.generate_comparison_expr(env, function_info, depth, left, right, comparison)
+                self.generate_comparison_expr(env, function_info, depth, left, right, *comparison)
             }
             E::And(left, right, _) => {
                 self.generate_binary_logic_expr(env, function_info, depth, left, right, true)
@@ -359,9 +354,9 @@ impl CodeGenerator {
                 self.generate_binary_logic_expr(env, function_info, depth, left, right, false)
             }
             E::Not(inner, _) => self.generate_not_expr(env, function_info, depth, inner),
-            E::IntegerLiteral(num, data) => self.generate_int_literal_expr(env, *num, data),
-            E::BooleanLiteral(val, ..) => self.generate_bool_literal_expr(*val),
-            E::Variable(name, ..) => self.generate_variable_expr(env, function_info, name),
+            E::IntegerLiteral(num, data) => Self::generate_int_literal_expr(env, *num, data),
+            E::BooleanLiteral(val, ..) => Ok(Self::generate_bool_literal_expr(*val)),
+            E::Variable(name, ..) => Ok(Self::generate_variable_expr(env, function_info, name)),
             E::Block(statements, expr, ..) => {
                 self.generate_block_expr(env, function_info, depth, statements, expr)
             }
@@ -502,11 +497,11 @@ impl CodeGenerator {
             .ok_or::<GenerateError>("Could not find local variable".into())?;
 
         // Store generated value
-        instructions.append(&mut self.generate_write_to_base(
+        instructions.append(&mut Self::generate_write_to_base(
             var_offset + field_offset,
             expr_type_info.size,
             expr_type_info.alignment,
-        )?);
+        ));
 
         // Remove alignment
         instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(align_shift)));
@@ -518,14 +513,13 @@ impl CodeGenerator {
     /// location given as an offset from the base pointer (e.g. a local, a return value, a
     /// mutable argument).
     ///
-    /// base_offset is the location of the target. val_size is the size of the value
-    /// (and implicitely, the target). alignment is the alignment of the type.
+    /// `base_offset` is the location of the target. `val_size` is the size of the value
+    /// (and implicitely, the target). `alignment` is the alignment of the type.
     fn generate_write_to_base(
-        &self,
         base_offset: isize,
         val_size: usize,
         alignment: usize,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
+    ) -> Vec<PseudoInstruction> {
         let mut bytes_remaining = val_size;
         let mut instructions = vec![];
 
@@ -549,22 +543,21 @@ impl CodeGenerator {
             }
         }
 
-        Ok(instructions)
+        instructions
     }
 
     /// Generates code to move a value (with given size and alignment) from some
     /// location given as an offset from the base pointer (e.g. a local, or a
     /// mutable argument) to the stack.
     ///
-    /// base_offset is the location of the target. val_size is the size of the value
-    /// (and implicitely, the target). alignment is the alignment of the type.
+    /// `base_offset` is the location of the target. `val_size` is the size of the value
+    /// (and implicitely, the target). `alignment` is the alignment of the type.
     /// We assume we are already aligned for that type (as is typical).
     fn generate_read_from_base(
-        &self,
         base_offset: isize,
         val_size: usize,
         alignment: usize,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
+    ) -> Vec<PseudoInstruction> {
         let mut bytes_remaining = val_size;
         let mut instructions = vec![];
 
@@ -586,20 +579,19 @@ impl CodeGenerator {
             }
         }
 
-        Ok(instructions)
+        instructions
     }
 
     /// Generates code to move a value that currently exists on the stack down
     /// some number of bytes (the shift).
     fn generate_stack_retraction(
-        &self,
         shift: usize,
         size: usize,
         alignment: usize,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
+    ) -> Vec<PseudoInstruction> {
         let mut instructions = vec![];
         if shift == 0 {
-            return Ok(instructions);
+            return instructions;
         }
 
         if size == alignment {
@@ -607,7 +599,7 @@ impl CodeGenerator {
                 shift,
                 size.try_into().expect("8, 4, 2, 1"),
             )));
-            return Ok(instructions);
+            return instructions;
         }
 
         let mut bytes_remaining = size;
@@ -636,7 +628,7 @@ impl CodeGenerator {
 
         instructions.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(shift)));
 
-        Ok(instructions)
+        instructions
     }
 
     #[allow(clippy::only_used_in_recursion)]
@@ -668,7 +660,7 @@ impl CodeGenerator {
             ExprAST::Variable(name, _) => Ok(Location::Local(name.clone())),
             ExprAST::MemberAccess(struct_expr, member_name, _) => {
                 let struct_type = &env.type_index[&struct_expr.get_node_data().id];
-                let struct_info = &env.types[&struct_type];
+                let struct_info = &env.types[struct_type];
 
                 let KindData::Struct { members } = &struct_info.kind else {
                     return Err("Expected struct type".into());

@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub fn desugar(ast: &mut AST) {
-    desugar_ast(&mut AnyAST::File(ast))
+    desugar_ast(&mut AnyAST::File(ast));
 }
 
 fn desugar_ast<'a>(ast: &'a mut AnyAST<'a>) {
@@ -59,11 +59,11 @@ fn desugar_ast<'a>(ast: &'a mut AnyAST<'a>) {
                 StatementAST::Assignment(left, operation, ASTNodeData::new(span)),
             );
 
-            desugar_ast(&mut AnyAST::Statement(statement))
+            desugar_ast(&mut AnyAST::Statement(statement));
         }
         _ => {
             for mut child in ast.children() {
-                desugar_ast(&mut child)
+                desugar_ast(&mut child);
             }
         }
     }

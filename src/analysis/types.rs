@@ -181,7 +181,7 @@ pub fn get_default_types() -> HashMap<Type, TypeInfo> {
 
 pub fn add_struct_type(
     env: &mut CompilationEnvironment,
-    name: String,
+    name: &str,
     members: Vec<(String, String)>,
 ) -> Result<(), CompileError> {
     if members.is_empty() {
@@ -220,7 +220,7 @@ pub fn add_struct_type(
     }
 
     env.types.insert(
-        Type::UserDefined(name.clone()),
+        Type::UserDefined(name.to_string()),
         TypeInfo {
             size: curr_offset,
             alignment,

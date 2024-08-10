@@ -286,7 +286,7 @@ enum FileOrString {
     /// Represents input via a file, given by a string.
     File(String),
     /// Represents direct string input. The first string is a "Fake Path" for use
-    /// in diagnostics, such as "<input>". The second string is the full program.
+    /// in diagnostics, such as "\<input\>". The second string is the full program.
     String(String, String),
 }
 

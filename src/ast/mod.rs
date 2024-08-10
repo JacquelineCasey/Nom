@@ -1,4 +1,49 @@
-use std::vec;
+//! Defines the [`AST`] type, and handles specializing [`SyntaxTrees`](parsley::SyntaxTree)
+//! into [`ASTs`](AST)
+//!
+//! The [`AST`] (abstract syntax tree) type is a highly heterogenous tree that represents
+//! the meaning of the parsed program. There are closely related types representing
+//! declarations (both top level and within other scopes), expressions, and statements.
+//! There is no real ordering of these: statements contain expressions, but block
+//! expressions contain statements. A statement may contain a declaration, but
+//! a function declaration contains expressions and statements. This is a result
+//! of Nom's expressional syntax, which mimics Rust's.
+//!
+//! Each of these related types are implemented as an enum, where each variant represents
+//! a type of expression, a type of statement, etc. This allows each variant to contain
+//! heterogenous data, from directly relevant data to data held in children AST elements.
+//!
+//! The [`AST`] is designed with the intent to simplify further operations on it, and
+//! to allow a lot of pattern matching. Many functions at later stages of compilation
+//! recurse over the tree and split based on a pattern match.
+//!
+//! Excess information is discarded. While [`AST`] nodes remember a span over the tokens
+//! that generated it, those tokens have been discarded. Punctuation does not appear
+//! in the tree, though it's location could likely be inferred. Parentheses and grouping
+//! are not shown, but is certainly reflected in the structure of the tree.
+//!
+//! Along with defining the types, this module also defines numerous helper functions
+//! to help later stages operate on the tree cleanly. Notably, there is the [`AnyAST`]
+//! type that permits recursing over the children without excessive pattern matching,
+//! allowing a function to examine just a few enum variants, and recurse over the
+//! rest (good for desugaring, and certain types of optimization).
+//!
+//! Finally, the module implements the conversion of [`parsley's`](parsley) syntax trees (which
+//! come from sequences of [`Tokens`][Token] from [`tokenize()`](super::token::tokenize))
+//! into abstract syntax trees. [`parsley`] determines the structure of the code,
+//! but this module ensures the structure follows more rules, and gathers information
+//! into a more manipulatable and typesafe format. While types of nodes are expressed
+//! as strings in syntax trees, in AST's they are expressed as typesafe enum variants.
+//!
+//! While the main way to generate an [`AST`] is by passing it a syntax tree, it is
+//! also permitted to modify the tree at later stages. This is done during the desugaring
+//! process, and during optimizations. This is where the fact that AST's represent
+//! *abstract* syntax, which makes modifying code during these later stages easier
+//! and more natural.
+//!
+//! The fact that certain syntactic constructs are removed later means that stages
+//! that occurs can be permitted to ignore some enum variants, which should have
+//! been removed during these steps.
 
 use parsley::SyntaxTree as ST;
 
@@ -11,60 +56,122 @@ use crate::token::{
     Keyword as Kw, Operator as Op, Punctuation as Punc, Span, Token, TokenBody as TB,
 };
 
-// ---- AST Definitions ---- //
+/* AST Definitions */
 
+/// Represents an abstract syntax tree for a single file.
+///
+/// The AST owns all of the data of all of the nodes underneath it. This top level
+/// node is really just a list of [`DeclarationASTs`](DeclarationAST), which are
+/// the declarations in that file (at time of writing, should be all functions).
+///
+/// As with the other AST types, this node has an [`ASTNodeData`] field.
 #[derive(Debug)]
 pub struct AST {
+    /// The declarations in the file.
     pub declarations: Vec<DeclarationAST>,
+    /// Metadata, which is stored in every AST type.
     pub node_data: ASTNodeData,
 }
 
-/* Data shared by every AST Node */
-#[derive(Debug, Clone)]
+/// Metadata associated with each and every AST node (all AST node types).
+///
+/// Instead of repeating ourselves across every enum variant, we place a single
+/// [`ASTNodeData`] in each and allow that to hold common information. With a constructor,
+/// it is easy to initialize this struct without getting too distracted from the
+/// main logic.
+///
+/// Actually, much of the data associated with a node is only associated with the
+/// `id` field.
+#[derive(Debug)]
 pub struct ASTNodeData {
-    pub id: u32,    // Unique id
-    pub span: Span, // Location in a source file.
+    /// A unique id. The only gaurantee is that these are unique, there is no promise
+    /// that a given number is somewhere in the tree. Useful for associating additional
+    /// information (like type info) outside of the tree, which is slightly better
+    /// for borrowing / const correctness purposes.
+    pub id: u32,
+    /// A [`Span`] representing the part of the file that corresponds to this language
+    /// construct. Used in error messages.
+    pub span: Span,
 }
 
 impl ASTNodeData {
+    /// Initializes an [`ASTNodeData`].
+    ///
+    /// The span is provided as an argument. The id is generated such that it will
+    /// never be used again (unless perhaps we overflow, which is extremely unlikely).
     pub fn new(span: Span) -> ASTNodeData {
         ASTNodeData { id: crate::util::next_id(), span }
     }
 
-    /* Makes a clone, except the id is different */
+    /// Clones the [`ASTNodeData`], but gives it a new id.
+    /// 
+    /// Notice that [`ASTNodeData`] lacks a Clone implentation. This is the analog.
+    /// While clone would imply that the type is fully copied (more or less), this
+    /// function is not a true copy. All fields are cloned, except for `id`, which
+    /// receives a new id. This way, the cloned subtree can be added to the AST
+    /// without causing issues involving, say, the type index.
     pub fn relabel(&self) -> ASTNodeData {
-        ASTNodeData { id: crate::util::next_id(), ..self.clone() }
+        ASTNodeData { id: crate::util::next_id(), span: self.span.clone() }
     }
 }
 
-// Note - explicitly not Clone. Any "clone" should have new node_data, so if you
-// need to clone these structs you should use a different method (duplicate).
+
+/// Represents a declaration in the Nom program.
+/// 
+/// This AST type handles declarations, which include functions, variables, and
+/// types.
+/// 
+/// Note that this type is explicitely not [`Clone`]. Instead, you should use
+/// [`duplicate()`](DeclarationAST::duplicate), which acts like clone except the
+/// [`ASTNodeData`] is provided a new id.
 #[derive(Debug)]
 pub enum DeclarationAST {
-    // The parameters are pairs of names and type ascriptions
+    /// A function declaration in the Nom program. Note that function calls are
+    /// different.
     Function {
+        /// The name of the function.
         name: String,
+        /// A list of parameters, each represented by a (name, type) pair (each a string).
         params: Vec<(String, String)>,
+        /// The code of the function. This ExprAST should always be a block.
         block: ExprAST,
+        /// A string representing the type the function returns.
         return_type: String,
+        /// Metadata.
         node_data: ASTNodeData,
     },
+    /// A variable declaration within a function. Global variables are not yet
+    /// supported.
     Variable {
+        /// Represents whether or not the variable is mutable or not.
         mutability: Mutability,
+        /// The name of the variables.
         name: String,
+        /// The expression that defines the variable. It is not permitted to have
+        /// a variable without an initial value.
         expr: ExprAST,
+        /// The type associated with the variable. This is optional, so that someday
+        /// we might allow type inference to determine the type (not yet implemented).
         type_ascription: Option<String>,
+        /// Metadata.
         node_data: ASTNodeData,
     },
+    /// A type declaration for a struct.
     Struct {
+        /// The name of the struct.
         name: String,
+        /// Members of the struct. Each element is a (member name, type) pair, both
+        /// strings.
         members: Vec<(String, String)>,
+        /// Metadata.
         node_data: ASTNodeData,
     },
 }
 
 impl DeclarationAST {
-    // Creates an identical copy, except for the node_data which is intended to be unique.
+    /// Creates an identical copy, except for the `node_data` which is intended to be unique.
+    /// 
+    /// The `node_data` field recieves a value which is gauranteed to be completely new.
     pub fn duplicate(&self) -> DeclarationAST {
         match self {
             DeclarationAST::Function { name, params, block, return_type, node_data } => {
@@ -93,6 +200,7 @@ impl DeclarationAST {
         }
     }
 
+    /// Retrieves the node data, regardless of which enum variant is present.
     pub fn get_node_data(&self) -> &ASTNodeData {
         match self {
             DeclarationAST::Function { node_data, .. }
@@ -102,16 +210,35 @@ impl DeclarationAST {
     }
 }
 
+/// Represents a statements in the Nom program.
+///
+/// Assignments, including compound assignments, are the main form of statements.
+/// Declarations (which do require assignment), are another one. Finally, it is
+/// permitted for the statement to simply evaluate an expression.
+/// 
+/// Almost all constructs in Nom are expressions, so there are few enum variants 
+/// here.
 #[derive(Debug)]
 pub enum StatementAST {
-    ExpressionStatement(ExprAST, ASTNodeData), // A expression executed for its side effects
-    Assignment(ExprAST, ExprAST, ASTNodeData), // There are restrictions on wbat goes on the left, but it is ultimately an expression too.
+    /// A expression executed for its side effects. 
+    ExpressionStatement(ExprAST, ASTNodeData),
+    /// Represents an assignment of the left [`ExprAST`] from the value generated
+    /// from the right [`ExprAST`]. The left expression has some restrictions to
+    /// ensure it is actually assignable (a so called lvalue).
+    Assignment(ExprAST, ExprAST, ASTNodeData), 
+    /// Represents a compound assignment. The left [`ExprAST`] is the assignee, and
+    /// the right one is the value. Eventually desugared, so that `a += b` becomes
+    /// `a = a + b`.
     CompoundAssignment(ExprAST, ExprAST, MathOperation, ASTNodeData),
+    /// A declaration. Currently, only variable declarations are permitted within
+    /// functions.
     Declaration(DeclarationAST, ASTNodeData), // Any declaration will be allowed, but for now only variable declarations work.
 }
 
 impl StatementAST {
-    // Creates an identical copy, except for the node_data which is intended to be unique.
+    /// Creates an identical copy, except for the `node_data` which is intended to be unique.
+    /// 
+    /// The `node_data` field recieves a value which is gauranteed to be completely new.
     pub fn duplicate(&self) -> StatementAST {
         match self {
             StatementAST::ExpressionStatement(expr, node_data) => {

@@ -29,7 +29,7 @@ use crate::error::TokenError;
 /// in error messages.
 #[derive(Debug, Clone)]
 pub struct Span {
-    /// The path to a file, or a name representing a pseudo file, like "<input>".
+    /// The path to a file, or a name representing a pseudo file, like "\<input\>".
     pub file: Rc<String>,
     /// The line the span starts on (1 based).
     pub start_line: usize,
@@ -272,7 +272,7 @@ fn add_span_info(
 /// Tokenizes input, converting a string to a list of tokens.
 ///
 /// Accepts input as a string, and a file path for book-keeping (spans). The file
-/// path may also be a pseudo file path, like "<input>".
+/// path may also be a pseudo file path, like "\<input\>".
 pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> {
     let mut tokens: Vec<Token> = vec![];
 

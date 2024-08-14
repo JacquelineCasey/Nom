@@ -30,7 +30,7 @@ pub fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), An
 #[allow(clippy::too_many_lines)]
 fn type_check_expr(
     env: &mut CompilationEnvironment,
-    expr: &mut ExprAST,
+    expr: &mut ExprAST,  // This could be immutable. Depends on if we want to insert conversions.
     function_name: &str,
     expected: Option<&Type>,
 ) -> Result<Type, AnalysisError> {
@@ -178,7 +178,7 @@ fn type_check_expr(
             {
                 inner.clone()
             } else {
-                return Err("AKJSnagkj".into());
+                return Err("Variable not found".into());
             }
         }
         ExprAST::If { condition, block, else_branch: None, .. }

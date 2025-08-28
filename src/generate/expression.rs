@@ -176,8 +176,7 @@ impl CodeGenerator {
 
         let int_size = builtin.get_int_size().ok_or(GenerateError::from("Literal type did not fit in int"))?;
 
-        let push_constant = |constant| Ok(vec!(PI::Actual(I::PushConstant(constant))));
-        
+        let push_constant = |constant| Ok(vec![PI::Actual(I::PushConstant(constant))]);
         if builtin.is_signed() {
             match int_size {
                 IntSize::OneByte => push_constant(Constant::OneByte(reinterpret::<i8, u8>(num as i8))),

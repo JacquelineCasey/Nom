@@ -9,8 +9,7 @@ use crate::{
 
 // Checks the scope (as well as const-ness) rules, and builds a table of local variables.
 pub fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
-    let function =
-        env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
+    let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
     let block = std::mem::take(&mut function.ast);
 
     let mut local_types = HashMap::new();
@@ -68,9 +67,7 @@ fn scope_check_expression(
                         }
                         DeclarationAST::Variable { name, expr, .. } => {
                             if local_types.contains_key(name) {
-                                return Err(
-                                    "Variable redeclared. Shadowing not yet implemented.".into()
-                                );
+                                return Err("Variable redeclared. Shadowing not yet implemented.".into());
                             }
 
                             local_types.insert(name.clone(), None);
@@ -133,9 +130,7 @@ fn scope_check_expression(
 
             for (member_name, member_expr) in expr_members {
                 if seen_members.contains(member_name) {
-                    return Err(
-                        format!("{member_name} is defined twice in struct expression").into()
-                    );
+                    return Err(format!("{member_name} is defined twice in struct expression").into());
                 }
 
                 if !type_members.contains_key(member_name) {

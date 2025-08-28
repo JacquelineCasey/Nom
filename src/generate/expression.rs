@@ -4,9 +4,9 @@ use crate::{
 };
 
 use super::{
-    get_align_shift, reinterpret, util, Borrow, CodeGenerator, CompilationEnvironment, Constant,
-    ExprAST, FunctionInfo, GenerateError, Instruction, IntSize, KindData, Location,
-    PseudoInstruction, StatementAST, TempInstruction, Type, TypeInfo, Variable,
+    get_align_shift, reinterpret, util, Borrow, CodeGenerator, CompilationEnvironment, Constant, ExprAST, FunctionInfo,
+    GenerateError, Instruction, IntSize, KindData, Location, PseudoInstruction, StatementAST, TempInstruction, Type,
+    TypeInfo, Variable,
 };
 
 use Instruction as I;
@@ -42,17 +42,10 @@ impl CodeGenerator {
             return Err("Cannot run binary operator on non builtin type".into());
         };
 
-        let arg_size = curr_type
-            .get_int_size()
-            .ok_or(GenerateError("Expected builtin int type".to_string()))?;
+        let arg_size = curr_type.get_int_size().ok_or(GenerateError("Expected builtin int type".to_string()))?;
 
         instructions.append(&mut self.generate_expression(env, left, function_info, depth)?);
-        instructions.append(&mut self.generate_expression(
-            env,
-            right,
-            function_info,
-            depth + arg_size.to_usize(),
-        )?);
+        instructions.append(&mut self.generate_expression(env, right, function_info, depth + arg_size.to_usize())?);
 
         instructions.push(PI::Actual(I::IntegerBinaryOperation(
             match operation {
@@ -104,12 +97,7 @@ impl CodeGenerator {
 
         instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
 
-        instructions.append(&mut self.generate_expression(
-            env,
-            left,
-            function_info,
-            depth + align_shift,
-        )?);
+        instructions.append(&mut self.generate_expression(env, left, function_info, depth + align_shift)?);
         instructions.append(&mut self.generate_expression(
             env,
             right,
@@ -188,23 +176,23 @@ impl CodeGenerator {
             return Err("Literal has non built in type".into());
         };
 
-        let int_size =
-            builtin.get_int_size().ok_or(GenerateError::from("Literal type did not fit in int"))?;
+        let int_size = builtin.get_int_size().ok_or(GenerateError::from("Literal type did not fit in int"))?;
 
         if builtin.is_signed() {
             match int_size {
-                IntSize::OneByte => instructions.push(PI::Actual(I::PushConstant(
-                    Constant::OneByte(reinterpret::<i8, u8>(num as i8)),
-                ))),
-                IntSize::TwoByte => instructions.push(PI::Actual(I::PushConstant(
-                    Constant::TwoByte(reinterpret::<i16, u16>(num as i16)),
-                ))),
-                IntSize::FourByte => instructions.push(PI::Actual(I::PushConstant(
-                    Constant::FourByte(reinterpret::<i32, u32>(num as i32)),
-                ))),
-                IntSize::EightByte => instructions.push(PI::Actual(I::PushConstant(
-                    Constant::EightByte(reinterpret::<i64, u64>(num as i64)),
-                ))),
+                IntSize::OneByte => {
+                    instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(reinterpret::<i8, u8>(num as i8)))))
+                }
+                IntSize::TwoByte => {
+                    instructions
+                        .push(PI::Actual(I::PushConstant(Constant::TwoByte(reinterpret::<i16, u16>(num as i16)))))
+                }
+                IntSize::FourByte => {
+                    instructions
+                        .push(PI::Actual(I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(num as i32)))))
+                }
+                IntSize::EightByte => instructions
+                    .push(PI::Actual(I::PushConstant(Constant::EightByte(reinterpret::<i64, u64>(num as i64))))),
             }
         } else {
             match int_size {
@@ -250,13 +238,8 @@ impl CodeGenerator {
 
         // TODO: Shadowing...
 
-        let (offset, size, val_type) =
-            function_info.variable_info_by_name(name).expect("known to exist");
-        instructions.append(&mut Self::generate_read_from_base(
-            *offset,
-            *size,
-            env.types[val_type].alignment,
-        ));
+        let (offset, size, val_type) = function_info.variable_info_by_name(name).expect("known to exist");
+        instructions.append(&mut Self::generate_read_from_base(*offset, *size, env.types[val_type].alignment));
 
         instructions
     }
@@ -272,12 +255,7 @@ impl CodeGenerator {
         let mut instructions = vec![];
 
         for statement in statements {
-            instructions.append(&mut self.generate_statement(
-                env,
-                statement,
-                function_info,
-                depth,
-            )?);
+            instructions.append(&mut self.generate_statement(env, statement, function_info, depth)?);
         }
 
         if let Some(expr) = expr {
@@ -301,8 +279,7 @@ impl CodeGenerator {
         // Can be aligned. If the alignment is not 8 though, we shift, run the function,
         // and then pull the value back.
 
-        let info =
-            self.functions.get(name).ok_or(GenerateError("Function not found".to_string()))?;
+        let info = self.functions.get(name).ok_or(GenerateError("Function not found".to_string()))?;
 
         let align_shift = get_align_shift(depth, 8);
 
@@ -329,8 +306,7 @@ impl CodeGenerator {
         for (expr, param) in subexprs.iter().zip(&info.parameters) {
             let (param_loc, size, _) = info.variables.get(param).expect("Known exists");
 
-            instructions
-                .push(PI::Actual(I::AdvanceStackPtr((param_loc - relative_position) as usize)));
+            instructions.push(PI::Actual(I::AdvanceStackPtr((param_loc - relative_position) as usize)));
             relative_position = *param_loc;
 
             instructions.append(&mut self.generate_expression(
@@ -347,8 +323,7 @@ impl CodeGenerator {
 
         instructions.push(PI::Temp(TempInstruction::Call(name.into())));
 
-        instructions
-            .push(PI::Actual(I::RetractStackPtr((-relative_return_loc) as usize - return_size)));
+        instructions.push(PI::Actual(I::RetractStackPtr((-relative_return_loc) as usize - return_size)));
 
         // Retract moving to original expression location
         match return_size {
@@ -376,12 +351,9 @@ impl CodeGenerator {
 
         match else_branch {
             Some(else_branch) => {
-                let mut condition_instrs =
-                    self.generate_expression(env, condition, function_info, depth)?;
-                let mut block_instrs =
-                    self.generate_expression(env, block, function_info, depth)?;
-                let mut else_instrs =
-                    self.generate_expression(env, else_branch, function_info, depth)?;
+                let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
+                let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
+                let mut else_instrs = self.generate_expression(env, else_branch, function_info, depth)?;
 
                 let jump_1_id = util::next_id();
                 let jump_2_id = util::next_id();
@@ -397,10 +369,8 @@ impl CodeGenerator {
                 instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_2_id)));
             }
             None => {
-                let mut condition_instrs =
-                    self.generate_expression(env, condition, function_info, depth)?;
-                let mut block_instrs =
-                    self.generate_expression(env, block, function_info, depth)?;
+                let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
+                let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
                 let skip_jump_id = util::next_id();
 
                 instructions.append(&mut condition_instrs);
@@ -424,8 +394,7 @@ impl CodeGenerator {
     ) -> Result<Vec<PseudoInstruction>, GenerateError> {
         let mut instructions = vec![];
 
-        let mut condition_instrs =
-            self.generate_expression(env, condition, function_info, depth)?;
+        let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
         let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
         let skip_jump_id = util::next_id();
         let back_jump_id = util::next_id();
@@ -453,20 +422,14 @@ impl CodeGenerator {
 
         if let Some(expr) = expr {
             let expr_type = &env.type_index[&expr.get_node_data().id];
-            let expr_type_info =
-                env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+            let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
             let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
             // Align
             instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(align_shift)));
 
-            instructions.append(&mut self.generate_expression(
-                env,
-                expr,
-                function_info,
-                depth + align_shift,
-            )?);
+            instructions.append(&mut self.generate_expression(env, expr, function_info, depth + align_shift)?);
         }
 
         instructions.append(&mut Self::generate_return_handoff(env, function_info)?);
@@ -486,9 +449,7 @@ impl CodeGenerator {
 
         let TypeInfo { kind, .. } = env.types.get(&name.to_string().into()).expect("Known exists");
 
-        let KindData::Struct { members: type_members } = kind else {
-            panic!("Expected struct type")
-        };
+        let KindData::Struct { members: type_members } = kind else { panic!("Expected struct type") };
 
         let mut member_exprs = Vec::<(&ExprAST, &Type, usize)>::new();
 
@@ -506,12 +467,7 @@ impl CodeGenerator {
                 instructions.push(PI::Actual(I::AdvanceStackPtr(offset - offset_into_struct)));
             }
 
-            instructions.append(&mut self.generate_expression(
-                env,
-                expr,
-                function_info,
-                depth + offset,
-            )?);
+            instructions.append(&mut self.generate_expression(env, expr, function_info, depth + offset)?);
 
             offset_into_struct = offset + env.types[member_type].size;
         }
@@ -536,18 +492,12 @@ impl CodeGenerator {
         match loc {
             Location::OffsetFrom(inner, offset) => match inner.borrow() {
                 Location::Local(name) => {
-                    let (base_offset, _, _) =
-                        function_info.variable_info_by_name(name).expect("Variable Exists");
-                    instructions.append(&mut Self::generate_read_from_base(
-                        base_offset + offset,
-                        *size,
-                        *alignment,
-                    ));
+                    let (base_offset, _, _) = function_info.variable_info_by_name(name).expect("Variable Exists");
+                    instructions.append(&mut Self::generate_read_from_base(base_offset + offset, *size, *alignment));
                 }
                 Location::EvaluatedExpression(expr) => {
                     let struct_type = &env.type_index[&expr.get_node_data().id];
-                    let TypeInfo { size: struct_size, alignment: struct_alignment, .. } =
-                        &env.types[struct_type];
+                    let TypeInfo { size: struct_size, alignment: struct_alignment, .. } = &env.types[struct_type];
 
                     let align_shift = get_align_shift(depth, *struct_alignment);
 

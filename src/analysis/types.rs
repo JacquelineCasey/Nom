@@ -53,8 +53,7 @@ fn type_fits(source: &BuiltIn, target: &BuiltIn) -> bool {
 
     match source {
         source if source.is_signed() => {
-            target.is_signed()
-                && source.get_int_size().expect("known") <= target.get_int_size().expect("known")
+            target.is_signed() && source.get_int_size().expect("known") <= target.get_int_size().expect("known")
         }
         source if source.is_unsigned() => {
             if target.is_unsigned() || target.is_unsigned() {
@@ -116,7 +115,7 @@ impl From<String> for Type {
 pub struct TypeInfo {
     pub size: usize,      // Number of bytes the types takes on the stack.
     pub alignment: usize, // In bytes
-    pub kind: KindData, // I'm gonna call the "type" of a type a "kind". So there's BuiltIn, Struct, etc.
+    pub kind: KindData,   // I'm gonna call the "type" of a type a "kind". So there's BuiltIn, Struct, etc.
 }
 
 #[derive(Debug, Clone)]
@@ -128,53 +127,20 @@ pub enum KindData {
 pub fn get_default_types() -> HashMap<Type, TypeInfo> {
     let mut map = HashMap::new();
 
-    map.insert(
-        Type::BuiltIn(BuiltIn::U8),
-        TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn },
-    );
-    map.insert(
-        Type::BuiltIn(BuiltIn::U16),
-        TypeInfo { size: 2, alignment: 2, kind: KindData::BuiltIn },
-    );
-    map.insert(
-        Type::BuiltIn(BuiltIn::U32),
-        TypeInfo { size: 4, alignment: 4, kind: KindData::BuiltIn },
-    );
-    map.insert(
-        Type::BuiltIn(BuiltIn::U64),
-        TypeInfo { size: 8, alignment: 8, kind: KindData::BuiltIn },
-    );
-    map.insert(
-        Type::BuiltIn(BuiltIn::I8),
-        TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn },
-    );
-    map.insert(
-        Type::BuiltIn(BuiltIn::I16),
-        TypeInfo { size: 2, alignment: 2, kind: KindData::BuiltIn },
-    );
-    map.insert(
-        Type::BuiltIn(BuiltIn::I32),
-        TypeInfo { size: 4, alignment: 4, kind: KindData::BuiltIn },
-    );
-    map.insert(
-        Type::BuiltIn(BuiltIn::I64),
-        TypeInfo { size: 8, alignment: 8, kind: KindData::BuiltIn },
-    );
+    map.insert(Type::BuiltIn(BuiltIn::U8), TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::U16), TypeInfo { size: 2, alignment: 2, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::U32), TypeInfo { size: 4, alignment: 4, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::U64), TypeInfo { size: 8, alignment: 8, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::I8), TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::I16), TypeInfo { size: 2, alignment: 2, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::I32), TypeInfo { size: 4, alignment: 4, kind: KindData::BuiltIn });
+    map.insert(Type::BuiltIn(BuiltIn::I64), TypeInfo { size: 8, alignment: 8, kind: KindData::BuiltIn });
 
-    map.insert(
-        Type::BuiltIn(BuiltIn::Boolean),
-        TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn },
-    );
+    map.insert(Type::BuiltIn(BuiltIn::Boolean), TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
 
-    map.insert(
-        Type::BuiltIn(BuiltIn::Unit),
-        TypeInfo { size: 0, alignment: 1, kind: KindData::BuiltIn },
-    ); // Not sure if this should have an alignment
+    map.insert(Type::BuiltIn(BuiltIn::Unit), TypeInfo { size: 0, alignment: 1, kind: KindData::BuiltIn }); // Not sure if this should have an alignment
 
-    map.insert(
-        Type::BuiltIn(BuiltIn::Bottom),
-        TypeInfo { size: 0, alignment: 1, kind: KindData::BuiltIn },
-    );
+    map.insert(Type::BuiltIn(BuiltIn::Bottom), TypeInfo { size: 0, alignment: 1, kind: KindData::BuiltIn });
 
     map
 }
@@ -221,11 +187,7 @@ pub fn add_struct_type(
 
     env.types.insert(
         Type::UserDefined(name.to_string()),
-        TypeInfo {
-            size: curr_offset,
-            alignment,
-            kind: KindData::Struct { members: processed_members },
-        },
+        TypeInfo { size: curr_offset, alignment, kind: KindData::Struct { members: processed_members } },
     );
 
     Ok(())

@@ -5,8 +5,7 @@ use crate::{ast::StatementAST, CompilationEnvironment};
 use super::types::{upper_bound_type, BuiltIn, KindData, PartialType, Type};
 
 pub fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
-    let function =
-        env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
+    let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
     let mut block = std::mem::take(&mut function.ast);
     let return_type = function.return_type.clone();
 
@@ -30,7 +29,7 @@ pub fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), An
 #[allow(clippy::too_many_lines)]
 fn type_check_expr(
     env: &mut CompilationEnvironment,
-    expr: &mut ExprAST,  // This could be immutable. Depends on if we want to insert conversions.
+    expr: &mut ExprAST, // This could be immutable. Depends on if we want to insert conversions.
     function_name: &str,
     expected: Option<&Type>,
 ) -> Result<Type, AnalysisError> {
@@ -105,12 +104,12 @@ fn type_check_expr(
                     StatementAST::ExpressionStatement(expr, _) => {
                         type_check_expr(env, expr, function_name, None)?;
                     }
-                    StatementAST::Declaration(
-                        DeclarationAST::Variable { expr, name, type_ascription, .. },
-                        _,
-                    ) => {
-                        let var_type: Type = type_ascription.clone()
-                            .ok_or(AnalysisError::from(format!("Type inference not yet supported - give {name} (in {function_name}) an explicit type.")))?
+                    StatementAST::Declaration(DeclarationAST::Variable { expr, name, type_ascription, .. }, _) => {
+                        let var_type: Type = type_ascription
+                            .clone()
+                            .ok_or(AnalysisError::from(format!(
+                                "Type inference not yet supported - give {name} (in {function_name}) an explicit type."
+                            )))?
                             .into();
 
                         env.functions
@@ -140,8 +139,7 @@ fn type_check_expr(
             }
         }
         ExprAST::FunctionCall(name, exprs, _) => {
-            let func =
-                env.functions.get(name).ok_or(AnalysisError::from("Could not lookup function"))?;
+            let func = env.functions.get(name).ok_or(AnalysisError::from("Could not lookup function"))?;
             let return_type = func.return_type.clone();
 
             for (expr, (_, expected_type)) in exprs.iter_mut().zip(func.parameter_types.clone()) {
@@ -168,21 +166,16 @@ fn type_check_expr(
         ExprAST::BooleanLiteral(..) => Type::BuiltIn(BuiltIn::Boolean),
         ExprAST::Variable(name, _) => {
             if let Some(inner) = env.functions[function_name].local_types.get(name) {
-                inner
-                    .clone()
-                    .ok_or(AnalysisError::from("Variable lookup succeeded, but had unknown_type"))?
-            } else if let Some((_, inner)) = env.functions[function_name]
-                .parameter_types
-                .iter()
-                .find(|(p_name, _p_type)| p_name == name)
+                inner.clone().ok_or(AnalysisError::from("Variable lookup succeeded, but had unknown_type"))?
+            } else if let Some((_, inner)) =
+                env.functions[function_name].parameter_types.iter().find(|(p_name, _p_type)| p_name == name)
             {
                 inner.clone()
             } else {
                 return Err("Variable not found".into());
             }
         }
-        ExprAST::If { condition, block, else_branch: None, .. }
-        | ExprAST::While { condition, block, .. } => {
+        ExprAST::If { condition, block, else_branch: None, .. } | ExprAST::While { condition, block, .. } => {
             type_check_expr(env, condition, function_name, Some(&Type::BuiltIn(BuiltIn::Boolean)))?;
             type_check_expr(env, block, function_name, Some(&Type::BuiltIn(BuiltIn::Unit)))?
         }
@@ -213,8 +206,7 @@ fn type_check_expr(
             }
         }
         ExprAST::Return(expr, _) => {
-            let return_type =
-                env.functions.get(function_name).expect("Function exists").return_type.clone();
+            let return_type = env.functions.get(function_name).expect("Function exists").return_type.clone();
 
             if let Some(inner) = expr {
                 type_check_expr(env, inner, function_name, Some(&return_type))?;

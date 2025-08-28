@@ -79,10 +79,7 @@ fn u32_math() {
         I::PushConstant(Constant::FourByte(8)),
         I::PushConstant(Constant::FourByte(2)),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::FourByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedMultiplication,
-            IntSize::FourByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::FourByte),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::FourByte),
         I::DebugPrintSigned(IntSize::FourByte),
@@ -102,10 +99,7 @@ fn u64_math() {
         I::PushConstant(Constant::EightByte(8)),
         I::PushConstant(Constant::EightByte(2)),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedDivision, IntSize::EightByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedMultiplication,
-            IntSize::EightByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::EightByte),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedAddition, IntSize::EightByte),
         I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedSubtraction, IntSize::EightByte),
         I::DebugPrintSigned(IntSize::EightByte),
@@ -126,18 +120,12 @@ fn function_call() {
         I::Call(10),
         I::RetractStackPtr(4), // Retract past the argument, to byte after return value
         I::PushConstant(Constant::FourByte(5)),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedMultiplication,
-            IntSize::FourByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
         I::DebugPrintSigned(IntSize::FourByte), // Should be 20
         I::Exit,                                // Done!
-        I::ReadBase(-4, IntSize::FourByte), // instruction 10: Start of square(a: u32). Grab first argument.
+        I::ReadBase(-4, IntSize::FourByte),     // instruction 10: Start of square(a: u32). Grab first argument.
         I::Duplicate(IntSize::FourByte),
-        I::IntegerBinaryOperation(
-            IntegerBinaryOperation::UnsignedMultiplication,
-            IntSize::FourByte,
-        ),
+        I::IntegerBinaryOperation(IntegerBinaryOperation::UnsignedMultiplication, IntSize::FourByte),
         I::WriteBase(-8, IntSize::FourByte), // Return sets return value.
         I::Return,
     ]);

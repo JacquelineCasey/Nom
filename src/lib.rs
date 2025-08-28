@@ -103,18 +103,14 @@ impl CompilationEnvironment {
     /// Adds a goal to scope check any imported functions.
     fn import_file(&mut self, file: &FileOrString) -> Result<(), CompileError> {
         let (path, input) = match file {
-            FileOrString::File(path) => {
-                (path, std::fs::read_to_string(path).map_err(|_| "Could not open file")?)
-            }
+            FileOrString::File(path) => (path, std::fs::read_to_string(path).map_err(|_| "Could not open file")?),
             FileOrString::String(path, data) => (path, data.clone()),
         };
 
         let tokens = token::tokenize(&input, path)?;
 
-        let syntax_tree = self
-            .parser
-            .parse_tokens(&tokens, "Program")
-            .map_err(|err| CompileError::ParseError(err, tokens))?;
+        let syntax_tree =
+            self.parser.parse_tokens(&tokens, "Program").map_err(|err| CompileError::ParseError(err, tokens))?;
         let mut ast = ast::build_ast(&syntax_tree)?;
         analysis::desugar(&mut ast);
 
@@ -123,22 +119,13 @@ impl CompilationEnvironment {
                 ast::DeclarationAST::Variable { .. } => {
                     return Err("Cannot yet process global variables".into());
                 }
-                ast::DeclarationAST::Function {
-                    name,
-                    params,
-                    block,
-                    node_data: _,
-                    return_type,
-                } => {
+                ast::DeclarationAST::Function { name, params, block, node_data: _, return_type } => {
                     if self.functions.contains_key(&name) {
                         return Err("Double declaration".into());
                     }
 
                     // Expects all types in the file to be processed first.
-                    self.functions.insert(
-                        name.clone(),
-                        analysis::Function::new(self, block, params, return_type),
-                    );
+                    self.functions.insert(name.clone(), analysis::Function::new(self, block, params, return_type));
 
                     self.queue.add_goal(CompilationGoal::ScopeCheck(name));
                 }

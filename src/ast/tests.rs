@@ -31,8 +31,8 @@ fn ast_has_spans(resource: &str) {
 
     let tokens = crate::token::tokenize(&input, "<test-input>").unwrap();
 
-    let parser = parsley::define_parser::<crate::token::Token>(PARSER_DEFINITION)
-        .expect("Parser definition should be valid");
+    let parser =
+        parsley::define_parser::<crate::token::Token>(PARSER_DEFINITION).expect("Parser definition should be valid");
 
     let syntax_tree = parser.parse_tokens(&tokens, "Program").unwrap();
 

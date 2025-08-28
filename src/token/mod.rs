@@ -123,6 +123,109 @@ pub enum TokenBody {
     Punctuation(Punctuation),
 }
 
+/// Represents a supported terminal identification. Useful for processing token related errors from
+/// parsley. If we fail to convert a string representing a terminal into this type, that is an error
+/// on our part (likely an issue in grammar.parsley).
+pub enum Terminal {
+    Identifier,
+    NumericLiteral,
+    LeftCurlyBrace,
+    RightCurlyBrace,
+    LeftParenthesis,
+    RightParenthesis,
+    LeftSquareBracket,
+    RightSquareBracket,
+    Semicolon,
+    Comma,
+    Colon,
+    Plus,
+    Minus,
+    Times,
+    Divide,
+    Modulus,
+    Equals,
+    ThinRightArrow,
+    DoubleEquals,
+    NotEquals,
+    LessEquals,
+    GreaterEquals,
+    Less,
+    Greater,
+    PlusEquals,
+    MinusEquals,
+    TimesEquals,
+    DivideEquals,
+    ModulusEquals,
+    Dot,
+    Var,
+    Val,
+    Fn,
+    True,
+    False,
+    If,
+    Else,
+    Not,
+    And,
+    Or,
+    While,
+    Return,
+    Struct,
+}
+
+/// Performs conversion from the terminal name to the enum.
+impl TryFrom<&str> for Terminal {
+    type Error = String;
+
+    fn try_from(terminal_name: &str) -> Result<Self, Self::Error> {
+        Ok(match terminal_name {
+            "Identifier" => Terminal::Identifier,
+            "NumericLiteral" => Terminal::NumericLiteral,
+            "LeftCurlyBrace" => Terminal::LeftCurlyBrace,
+            "RightCurlyBrace" => Terminal::RightCurlyBrace,
+            "LeftParenthesis" => Terminal::LeftParenthesis,
+            "RightParenthesis" => Terminal::RightParenthesis,
+            "LeftSquareBracket" => Terminal::LeftSquareBracket,
+            "RightSquareBracket" => Terminal::RightSquareBracket,
+            "Semicolon" => Terminal::Semicolon,
+            "Comma" => Terminal::Comma,
+            "Colon" => Terminal::Colon,
+            "Plus" => Terminal::Plus,
+            "Minus" => Terminal::Minus,
+            "Times" => Terminal::Times,
+            "Divide" => Terminal::Divide,
+            "Modulus" => Terminal::Modulus,
+            "Equals" => Terminal::Equals,
+            "ThinRightArrow" => Terminal::ThinRightArrow,
+            "DoubleEquals" => Terminal::DoubleEquals,
+            "NotEquals" => Terminal::NotEquals,
+            "LessEquals" => Terminal::LessEquals,
+            "GreaterEquals" => Terminal::GreaterEquals,
+            "Less" => Terminal::Less,
+            "Greater" => Terminal::Greater,
+            "PlusEquals" => Terminal::PlusEquals,
+            "MinusEquals" => Terminal::MinusEquals,
+            "TimesEquals" => Terminal::TimesEquals,
+            "DivideEquals" => Terminal::DivideEquals,
+            "ModulusEquals" => Terminal::ModulusEquals,
+            "Dot" => Terminal::Dot,
+            "Var" => Terminal::Var,
+            "Val" => Terminal::Val,
+            "Fn" => Terminal::Fn,
+            "True" => Terminal::True,
+            "False" => Terminal::False,
+            "If" => Terminal::If,
+            "Else" => Terminal::Else,
+            "Not" => Terminal::Not,
+            "And" => Terminal::And,
+            "Or" => Terminal::Or,
+            "While" => Terminal::While,
+            "Return" => Terminal::Return,
+            "Struct" => Terminal::Struct,
+            _ => Err(format!("Bad token type: \"{terminal_name}\""))?,
+        })
+    }
+}
+
 /// Represents the possible keywords in a Nom program.
 ///
 /// Using an enum here is more efficient and type safe compared to just using strings.
@@ -239,10 +342,7 @@ impl TryFrom<char> for Punctuation {
 /// characters of the string, along with the span representing those characters.
 /// During the tokenization process, these spans are combined to produce the spans
 /// for the tokens.
-fn add_span_info(
-    input: &str,
-    file: Rc<String>,
-) -> impl std::iter::Iterator<Item = (char, Span)> + '_ {
+fn add_span_info(input: &str, file: Rc<String>) -> impl std::iter::Iterator<Item = (char, Span)> + '_ {
     let mut line_num = 1;
     let mut col_num = 1;
 
@@ -321,8 +421,7 @@ fn take_string_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
     let mut spans = vec![];
-    let (first, first_span) =
-        iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let (first, first_span) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
     spans.push(first_span);
 
     if first != '\"' {
@@ -337,10 +436,7 @@ fn take_string_literal(
         spans.push(ch_span);
 
         if ch == '\"' {
-            return Ok((
-                TokenBody::StringLiteral(deliteralize(string)?),
-                Span::combine_all(&spans),
-            ));
+            return Ok((TokenBody::StringLiteral(deliteralize(string)?), Span::combine_all(&spans)));
         }
 
         string.push(ch);
@@ -360,8 +456,7 @@ fn take_char_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
     let mut spans = vec![];
-    let (first, first_span) =
-        iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let (first, first_span) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
     spans.push(first_span);
 
     if first != '\'' {
@@ -376,10 +471,7 @@ fn take_char_literal(
         spans.push(ch_span);
 
         if ch == '\'' {
-            return Ok((
-                TokenBody::CharLiteral(literal_to_char(&string)?),
-                Span::combine_all(&spans),
-            ));
+            return Ok((TokenBody::CharLiteral(literal_to_char(&string)?), Span::combine_all(&spans)));
         }
 
         string.push(ch);
@@ -617,65 +709,55 @@ impl parsley::Token for Token {
         use Token as T;
         use TokenBody as TB;
 
-        Ok(match token_type {
-            "Identifier" => matches!(token, T { body: TB::Identifier(_), .. }),
-            "NumericLiteral" => matches!(token, T { body: TB::NumericLiteral(_), .. }),
+        Ok(match Terminal::try_from(token_type)? {
+            Terminal::Identifier => matches!(token, T { body: TB::Identifier(_), .. }),
 
-            "LeftCurlyBrace" => matches!(token, T { body: TB::Punctuation(P::LeftCurlyBrace), .. }),
-            "RightCurlyBrace" => {
-                matches!(token, T { body: TB::Punctuation(P::RightCurlyBrace), .. })
-            }
-            "LeftParenthesis" => {
-                matches!(token, T { body: TB::Punctuation(P::LeftParenthesis), .. })
-            }
-            "RightParenthesis" => {
-                matches!(token, T { body: TB::Punctuation(P::RightParenthesis), .. })
-            }
-            "LeftSquareBracket" => {
-                matches!(token, T { body: TB::Punctuation(P::LeftSquareBracket), .. })
-            }
-            "RightSquareBracket" => {
-                matches!(token, T { body: TB::Punctuation(P::RightSquareBracket), .. })
-            }
-            "Semicolon" => matches!(token, T { body: TB::Punctuation(P::Semicolon), .. }),
-            "Comma" => matches!(token, T { body: TB::Punctuation(P::Comma), .. }),
-            "Colon" => matches!(token, T { body: TB::Punctuation(P::Colon), .. }),
+            Terminal::NumericLiteral => matches!(token, T { body: TB::NumericLiteral(_), .. }),
 
-            "Plus" => matches!(token, T { body: TB::Operator(O::Plus), .. }),
-            "Minus" => matches!(token, T { body: TB::Operator(O::Minus), .. }),
-            "Times" => matches!(token, T { body: TB::Operator(O::Times), .. }),
-            "Divide" => matches!(token, T { body: TB::Operator(O::Divide), .. }),
-            "Modulus" => matches!(token, T { body: TB::Operator(O::Modulus), .. }),
-            "Equals" => matches!(token, T { body: TB::Operator(O::Equals), .. }),
-            "ThinRightArrow" => matches!(token, T { body: TB::Operator(O::ThinRightArrow), .. }),
-            "DoubleEquals" => matches!(token, T { body: TB::Operator(O::DoubleEquals), .. }),
-            "NotEquals" => matches!(token, T { body: TB::Operator(O::NotEquals), .. }),
-            "LessEquals" => matches!(token, T { body: TB::Operator(O::LessEquals), .. }),
-            "GreaterEquals" => matches!(token, T { body: TB::Operator(O::GreaterEquals), .. }),
-            "Less" => matches!(token, T { body: TB::Operator(O::Less), .. }),
-            "Greater" => matches!(token, T { body: TB::Operator(O::Greater), .. }),
-            "PlusEquals" => matches!(token, T { body: TB::Operator(O::PlusEquals), .. }),
-            "MinusEquals" => matches!(token, T { body: TB::Operator(O::MinusEquals), .. }),
-            "TimesEquals" => matches!(token, T { body: TB::Operator(O::TimesEquals), .. }),
-            "DivideEquals" => matches!(token, T { body: TB::Operator(O::DivideEquals), .. }),
-            "ModulusEquals" => matches!(token, T { body: TB::Operator(O::ModulusEquals), .. }),
-            "Dot" => matches!(token, T { body: TB::Operator(O::Dot), .. }),
+            Terminal::LeftCurlyBrace => matches!(token, T { body: TB::Punctuation(P::LeftCurlyBrace), .. }),
+            Terminal::RightCurlyBrace => matches!(token, T { body: TB::Punctuation(P::RightCurlyBrace), .. }),
+            Terminal::LeftParenthesis => matches!(token, T { body: TB::Punctuation(P::LeftParenthesis), .. }),
+            Terminal::RightParenthesis => matches!(token, T { body: TB::Punctuation(P::RightParenthesis), .. }),
+            Terminal::LeftSquareBracket => matches!(token, T { body: TB::Punctuation(P::LeftSquareBracket), .. }),
+            Terminal::RightSquareBracket => matches!(token, T { body: TB::Punctuation(P::RightSquareBracket), .. }),
 
-            "Var" => matches!(token, T { body: TB::Keyword(K::Var), .. }),
-            "Val" => matches!(token, T { body: TB::Keyword(K::Val), .. }),
-            "Fn" => matches!(token, T { body: TB::Keyword(K::Fn), .. }),
-            "True" => matches!(token, T { body: TB::Keyword(K::True), .. }),
-            "False" => matches!(token, T { body: TB::Keyword(K::False), .. }),
-            "If" => matches!(token, T { body: TB::Keyword(K::If), .. }),
-            "Else" => matches!(token, T { body: TB::Keyword(K::Else), .. }),
-            "Not" => matches!(token, T { body: TB::Keyword(K::Not), .. }),
-            "And" => matches!(token, T { body: TB::Keyword(K::And), .. }),
-            "Or" => matches!(token, T { body: TB::Keyword(K::Or), .. }),
-            "While" => matches!(token, T { body: TB::Keyword(K::While), .. }),
-            "Return" => matches!(token, T { body: TB::Keyword(K::Return), .. }),
-            "Struct" => matches!(token, T { body: TB::Keyword(K::Struct), .. }),
+            Terminal::Semicolon => matches!(token, T { body: TB::Punctuation(P::Semicolon), .. }),
+            Terminal::Comma => matches!(token, T { body: TB::Punctuation(P::Comma), .. }),
+            Terminal::Colon => matches!(token, T { body: TB::Punctuation(P::Colon), .. }),
 
-            _ => return Err(format!("Bad token type: \"{token_type}\"").into()),
+            Terminal::Plus => matches!(token, T { body: TB::Operator(O::Plus), .. }),
+            Terminal::Minus => matches!(token, T { body: TB::Operator(O::Minus), .. }),
+            Terminal::Times => matches!(token, T { body: TB::Operator(O::Times), .. }),
+            Terminal::Divide => matches!(token, T { body: TB::Operator(O::Divide), .. }),
+            Terminal::Modulus => matches!(token, T { body: TB::Operator(O::Modulus), .. }),
+            Terminal::Equals => matches!(token, T { body: TB::Operator(O::Equals), .. }),
+            Terminal::ThinRightArrow => matches!(token, T { body: TB::Operator(O::ThinRightArrow), .. }),
+            Terminal::DoubleEquals => matches!(token, T { body: TB::Operator(O::DoubleEquals), .. }),
+            Terminal::NotEquals => matches!(token, T { body: TB::Operator(O::NotEquals), .. }),
+            Terminal::LessEquals => matches!(token, T { body: TB::Operator(O::LessEquals), .. }),
+            Terminal::GreaterEquals => matches!(token, T { body: TB::Operator(O::GreaterEquals), .. }),
+            Terminal::Less => matches!(token, T { body: TB::Operator(O::Less), .. }),
+            Terminal::Greater => matches!(token, T { body: TB::Operator(O::Greater), .. }),
+            Terminal::PlusEquals => matches!(token, T { body: TB::Operator(O::PlusEquals), .. }),
+            Terminal::MinusEquals => matches!(token, T { body: TB::Operator(O::MinusEquals), .. }),
+            Terminal::TimesEquals => matches!(token, T { body: TB::Operator(O::TimesEquals), .. }),
+            Terminal::DivideEquals => matches!(token, T { body: TB::Operator(O::DivideEquals), .. }),
+            Terminal::ModulusEquals => matches!(token, T { body: TB::Operator(O::ModulusEquals), .. }),
+            Terminal::Dot => matches!(token, T { body: TB::Operator(O::Dot), .. }),
+
+            Terminal::Var => matches!(token, T { body: TB::Keyword(K::Var), .. }),
+            Terminal::Val => matches!(token, T { body: TB::Keyword(K::Val), .. }),
+            Terminal::Fn => matches!(token, T { body: TB::Keyword(K::Fn), .. }),
+            Terminal::True => matches!(token, T { body: TB::Keyword(K::True), .. }),
+            Terminal::False => matches!(token, T { body: TB::Keyword(K::False), .. }),
+            Terminal::If => matches!(token, T { body: TB::Keyword(K::If), .. }),
+            Terminal::Else => matches!(token, T { body: TB::Keyword(K::Else), .. }),
+            Terminal::Not => matches!(token, T { body: TB::Keyword(K::Not), .. }),
+            Terminal::And => matches!(token, T { body: TB::Keyword(K::And), .. }),
+            Terminal::Or => matches!(token, T { body: TB::Keyword(K::Or), .. }),
+            Terminal::While => matches!(token, T { body: TB::Keyword(K::While), .. }),
+            Terminal::Return => matches!(token, T { body: TB::Keyword(K::Return), .. }),
+            Terminal::Struct => matches!(token, T { body: TB::Keyword(K::Struct), .. }),
         })
     }
 }

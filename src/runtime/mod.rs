@@ -3,9 +3,7 @@ mod tests;
 
 use std::alloc::{alloc, dealloc, Layout};
 
-use crate::instructions::{
-    Comparison, Constant, Instruction, IntSize, IntegerBinaryOperation, IntegerUnaryOperation,
-};
+use crate::instructions::{Comparison, Constant, Instruction, IntSize, IntegerBinaryOperation, IntegerUnaryOperation};
 use crate::util::reinterpret;
 
 const STACK_SIZE: usize = 1_048_576; // In terms of u8 units. This is exactly a megabyte.
@@ -22,8 +20,7 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn new(instructions: Vec<Instruction>) -> Runtime {
-        let stack_layout =
-            Layout::array::<u64>(STACK_SIZE / 8).expect("Memory should be allocated");
+        let stack_layout = Layout::array::<u64>(STACK_SIZE / 8).expect("Memory should be allocated");
         let stack = unsafe { alloc(stack_layout) };
 
         // See Drop implementation
@@ -61,11 +58,7 @@ impl Runtime {
 
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::cast_ptr_alignment)] // Checked
-    fn eval_instruction(
-        &mut self,
-        instruction: Instruction,
-        debug_out: &mut Option<&mut dyn std::io::Write>,
-    ) {
+    fn eval_instruction(&mut self, instruction: Instruction, debug_out: &mut Option<&mut dyn std::io::Write>) {
         match instruction {
             Instruction::IntegerBinaryOperation(op, size) => {
                 self.eval_binary_int_op(op, size);
@@ -248,13 +241,7 @@ impl Runtime {
         }
     }
 
-    fn convert_integer(
-        &mut self,
-        start_size: IntSize,
-        start_sign: bool,
-        end_size: IntSize,
-        end_sign: bool,
-    ) {
+    fn convert_integer(&mut self, start_size: IntSize, start_sign: bool, end_size: IntSize, end_sign: bool) {
         match (start_size, start_sign) {
             (IntSize::OneByte, true) => self.convert_integer_impl_1::<i8>(end_size, end_sign),
             (IntSize::OneByte, false) => self.convert_integer_impl_1::<u8>(end_size, end_sign),
@@ -331,10 +318,7 @@ impl Runtime {
         T::push(val, self);
     }
 
-    fn eval_binary_int_op_impl<U: RuntimeInt, S: RuntimeInt>(
-        &mut self,
-        op: IntegerBinaryOperation,
-    ) {
+    fn eval_binary_int_op_impl<U: RuntimeInt, S: RuntimeInt>(&mut self, op: IntegerBinaryOperation) {
         let right = U::pop(self);
         let left = U::pop(self);
 
@@ -392,12 +376,7 @@ impl Runtime {
         U::push(result, self);
     }
 
-    fn eval_int_comparison(
-        &mut self,
-        comparison: crate::instructions::Comparison,
-        size: IntSize,
-        signed: bool,
-    ) {
+    fn eval_int_comparison(&mut self, comparison: crate::instructions::Comparison, size: IntSize, signed: bool) {
         match (signed, size) {
             (true, IntSize::OneByte) => self.eval_int_comparison_impl::<u8>(comparison),
             (true, IntSize::TwoByte) => self.eval_int_comparison_impl::<u16>(comparison),
@@ -470,10 +449,7 @@ impl Stackable for u8 {
 
     #[allow(clippy::int_plus_one)]
     fn pop(runtime: &mut Runtime) -> Self {
-        assert!(
-            runtime.stack_pointer as usize - 1 >= runtime.stack_bottom as usize,
-            "Consumed whole stack!"
-        );
+        assert!(runtime.stack_pointer as usize - 1 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
         // Skip alignment check
 
@@ -506,10 +482,7 @@ impl Stackable for u16 {
 
     #[allow(clippy::cast_ptr_alignment)]
     fn pop(runtime: &mut Runtime) -> Self {
-        assert!(
-            runtime.stack_pointer as usize - 2 >= runtime.stack_bottom as usize,
-            "Consumed whole stack!"
-        );
+        assert!(runtime.stack_pointer as usize - 2 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
         assert!(
             runtime.stack_pointer as usize % 2 == 0,
@@ -546,10 +519,7 @@ impl Stackable for u32 {
 
     #[allow(clippy::cast_ptr_alignment)]
     fn pop(runtime: &mut Runtime) -> Self {
-        assert!(
-            runtime.stack_pointer as usize - 4 >= runtime.stack_bottom as usize,
-            "Consumed whole stack!"
-        );
+        assert!(runtime.stack_pointer as usize - 4 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
         assert!(
             runtime.stack_pointer as usize % 4 == 0,
@@ -586,10 +556,7 @@ impl Stackable for u64 {
 
     #[allow(clippy::cast_ptr_alignment)]
     fn pop(runtime: &mut Runtime) -> Self {
-        assert!(
-            runtime.stack_pointer as usize - 8 >= runtime.stack_bottom as usize,
-            "Consumed whole stack!"
-        );
+        assert!(runtime.stack_pointer as usize - 8 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
         assert!(
             runtime.stack_pointer as usize % 8 == 0,

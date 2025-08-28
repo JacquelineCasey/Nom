@@ -39,12 +39,7 @@ fn read_file(resource: &str) -> String {
 
 // Convenience - dump an array of instructions
 pub fn dump_instructions(instrs: &[Instruction]) -> String {
-    instrs
-        .iter()
-        .enumerate()
-        .map(|(i, instr)| format!("{i:<6}  {instr:?}"))
-        .collect::<Vec<_>>()
-        .join("\n")
+    instrs.iter().enumerate().map(|(i, instr)| format!("{i:<6}  {instr:?}")).collect::<Vec<_>>().join("\n")
 }
 
 #[test_resources("samples/successful/**/*.nom")]
@@ -60,8 +55,7 @@ fn run_successful(resource: &str) {
     let mut buf = std::io::BufWriter::new(vec![]);
     runtime.run_debug(&mut buf);
 
-    let output =
-        String::from_utf8(buf.into_inner().expect("No IO Error")).expect("Good Conversion");
+    let output = String::from_utf8(buf.into_inner().expect("No IO Error")).expect("Good Conversion");
 
     assert_eq!(expected_output, output);
 }

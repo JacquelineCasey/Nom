@@ -2,7 +2,10 @@
 // For now, errors are really just strings, but I want to have user facing errors
 // at some point.
 
-use crate::{token::Token, CompilationEnvironment};
+use crate::{
+    token::{Terminal, Token},
+    CompilationEnvironment,
+};
 
 #[derive(Debug)]
 pub struct ASTError(pub String);
@@ -129,14 +132,32 @@ pub fn pretty_parse_error_msg(_env: &CompilationEnvironment, err: &parsley::Pars
         parsley::ParseError::Internal(msg) => {
             format!("Internal error occurred during parsing:\n    {msg}")
         }
-        parsley::ParseError::IncompleteParse { index, terminals } => {
+        parsley::ParseError::IncompleteParse { index, terminals: terminal_names } => {
+            let terminals = terminal_names
+                .iter()
+                .map(String::as_str)
+                .map(Terminal::try_from)
+                .collect::<Result<Vec<_>, _>>()
+                .expect("All terminal names converted.");
+
+            let (terminals, operator) = if terminals.iter().filter(|terminal| terminal.is_operator()).count() > 3 {
+                (terminals.into_iter().filter(|terminal| !terminal.is_operator()).collect(), Some("an operator"))
+            } else {
+                (terminals, None)
+            };
+
+            let terminals_to_show: Vec<&'static str> =
+                terminals.into_iter().map(Terminal::pretty_string).chain(operator).collect();
+
             format!("Error occurred during parsing:\n    Failed to parse token at {} (token type: {:?})\n    Expected one of the following tokens instead: {:?}", 
                 tokens[*index].span,
                 tokens[*index].body,  // TODO: Replace with something prettier.
-                terminals.iter().collect::<Vec<_>>(),
+                terminals_to_show.join(", "),
             )
         }
         parsley::ParseError::OutOfInput { terminals } => {
+            // TODO: Add the filter logic here as well.
+            
             format!("Error occurred during parsing:\n    Ran out of input, expected more.\n    Expected one of the following tokens: {:?}",
                 terminals.iter().collect::<Vec<_>>(),
             )

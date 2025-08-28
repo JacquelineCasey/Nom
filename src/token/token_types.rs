@@ -120,6 +120,78 @@ pub enum Punctuation {
     RightSquareBracket,
 }
 
+// Make Token compatible with parsley.
+impl parsley::Token for Token {
+    fn matches(token_type: &str, token: &Self) -> Result<bool, parsley::ParseError> {
+        /* This allows the parsley grammar to refer to types of tokens. */
+
+        use Keyword as K;
+        use Operator as O;
+        use Punctuation as P;
+        use Token as T;
+        use TokenBody as TB;
+
+        Ok(match Terminal::try_from(token_type)? {
+            Terminal::Identifier => matches!(token, T { body: TB::Identifier(_), .. }),
+
+            Terminal::NumericLiteral => matches!(token, T { body: TB::NumericLiteral(_), .. }),
+
+            Terminal::LeftCurlyBrace => matches!(token, T { body: TB::Punctuation(P::LeftCurlyBrace), .. }),
+            Terminal::RightCurlyBrace => matches!(token, T { body: TB::Punctuation(P::RightCurlyBrace), .. }),
+            Terminal::LeftParenthesis => matches!(token, T { body: TB::Punctuation(P::LeftParenthesis), .. }),
+            Terminal::RightParenthesis => matches!(token, T { body: TB::Punctuation(P::RightParenthesis), .. }),
+            Terminal::LeftSquareBracket => matches!(token, T { body: TB::Punctuation(P::LeftSquareBracket), .. }),
+            Terminal::RightSquareBracket => matches!(token, T { body: TB::Punctuation(P::RightSquareBracket), .. }),
+
+            Terminal::Semicolon => matches!(token, T { body: TB::Punctuation(P::Semicolon), .. }),
+            Terminal::Comma => matches!(token, T { body: TB::Punctuation(P::Comma), .. }),
+            Terminal::Colon => matches!(token, T { body: TB::Punctuation(P::Colon), .. }),
+
+            Terminal::Plus => matches!(token, T { body: TB::Operator(O::Plus), .. }),
+            Terminal::Minus => matches!(token, T { body: TB::Operator(O::Minus), .. }),
+            Terminal::Times => matches!(token, T { body: TB::Operator(O::Times), .. }),
+            Terminal::Divide => matches!(token, T { body: TB::Operator(O::Divide), .. }),
+            Terminal::Modulus => matches!(token, T { body: TB::Operator(O::Modulus), .. }),
+            Terminal::Equals => matches!(token, T { body: TB::Operator(O::Equals), .. }),
+            Terminal::ThinRightArrow => matches!(token, T { body: TB::Operator(O::ThinRightArrow), .. }),
+            Terminal::DoubleEquals => matches!(token, T { body: TB::Operator(O::DoubleEquals), .. }),
+            Terminal::NotEquals => matches!(token, T { body: TB::Operator(O::NotEquals), .. }),
+            Terminal::LessEquals => matches!(token, T { body: TB::Operator(O::LessEquals), .. }),
+            Terminal::GreaterEquals => matches!(token, T { body: TB::Operator(O::GreaterEquals), .. }),
+            Terminal::Less => matches!(token, T { body: TB::Operator(O::Less), .. }),
+            Terminal::Greater => matches!(token, T { body: TB::Operator(O::Greater), .. }),
+            Terminal::PlusEquals => matches!(token, T { body: TB::Operator(O::PlusEquals), .. }),
+            Terminal::MinusEquals => matches!(token, T { body: TB::Operator(O::MinusEquals), .. }),
+            Terminal::TimesEquals => matches!(token, T { body: TB::Operator(O::TimesEquals), .. }),
+            Terminal::DivideEquals => matches!(token, T { body: TB::Operator(O::DivideEquals), .. }),
+            Terminal::ModulusEquals => matches!(token, T { body: TB::Operator(O::ModulusEquals), .. }),
+            Terminal::Dot => matches!(token, T { body: TB::Operator(O::Dot), .. }),
+
+            Terminal::Var => matches!(token, T { body: TB::Keyword(K::Var), .. }),
+            Terminal::Val => matches!(token, T { body: TB::Keyword(K::Val), .. }),
+            Terminal::Fn => matches!(token, T { body: TB::Keyword(K::Fn), .. }),
+            Terminal::True => matches!(token, T { body: TB::Keyword(K::True), .. }),
+            Terminal::False => matches!(token, T { body: TB::Keyword(K::False), .. }),
+            Terminal::If => matches!(token, T { body: TB::Keyword(K::If), .. }),
+            Terminal::Else => matches!(token, T { body: TB::Keyword(K::Else), .. }),
+            Terminal::Not => matches!(token, T { body: TB::Keyword(K::Not), .. }),
+            Terminal::And => matches!(token, T { body: TB::Keyword(K::And), .. }),
+            Terminal::Or => matches!(token, T { body: TB::Keyword(K::Or), .. }),
+            Terminal::While => matches!(token, T { body: TB::Keyword(K::While), .. }),
+            Terminal::Return => matches!(token, T { body: TB::Keyword(K::Return), .. }),
+            Terminal::Struct => matches!(token, T { body: TB::Keyword(K::Struct), .. }),
+        })
+    }
+}
+
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        /* TODO: Actually fill this out. Or is this actually needed? */
+
+        f.write_str("{token}")
+    }
+}
+
 impl FromStr for Keyword {
     type Err = TokenError; // Likely ignored by algorithm.
 
@@ -221,11 +293,18 @@ impl Span {
     }
 }
 
+impl std::fmt::Display for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{}:{}:{}", self.file, self.start_line, self.start_col))
+    }
+}
+
 /* Terminals */
 
 /// Represents a supported terminal identification. Useful for processing token related errors from
 /// parsley. If we fail to convert a string representing a terminal into this type, that is an error
 /// on our part (likely an issue in grammar.parsley).
+#[derive(Clone, Copy)]
 pub enum Terminal {
     Identifier,
     NumericLiteral,
@@ -270,6 +349,19 @@ pub enum Terminal {
     While,
     Return,
     Struct,
+}
+
+impl Terminal {
+    /// Displays the terminal in a user friendly way. If it represents a single token, then provides that token in single
+    /// quotes e.g. "'->'". If it represents a category, then an unquoted description, e.g. "an identifier".
+    pub fn pretty_string(self) -> &'static str {
+        todo!()
+    }
+
+    /// Indicates whether a terminal is an operator.
+    pub fn is_operator(self) -> bool {
+        todo!();
+    }
 }
 
 /// Performs conversion from the terminal name to the enum.

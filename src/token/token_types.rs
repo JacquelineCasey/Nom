@@ -1,0 +1,327 @@
+//! Defines data structures related to [`Tokens`](Token)
+
+use std::cmp::{max, min};
+use std::rc::Rc;
+use std::str::FromStr;
+
+use super::TokenError;
+
+/// Represents a single token in a Nom program.
+#[derive(Debug, Clone)]
+pub struct Token {
+    /// Represents the primary information of the token - its type, and any info
+    /// related to that type.
+    pub body: TokenBody,
+
+    /// Represents the span of the token, i.e. where in the source file it came from.
+    pub span: Span,
+}
+
+/// Describes the information of the token, without any metadata (spans, etc.)
+///
+/// Each variant is a type of token, and comes with information specific to that
+/// type.
+#[derive(Debug, Clone)]
+pub enum TokenBody {
+    /// An identifier, or name, in the program. Used for variables, functions,
+    /// struct members, and so on. The string is naturally the name. Not allowed
+    /// to be any keyword.
+    Identifier(String),
+
+    /// A string literal in the program. The String is of course the data
+    /// of the literal. Escapes are carefully processed during tokenization, so the
+    /// string here is the processed version. The quotes that mark the literal are
+    /// not included in the data.
+    #[allow(unused)]
+    StringLiteral(String),
+
+    /// A character literal in the program. The char is of course the character
+    /// in the literal. Escapes are processed. The quotes that mark the literal
+    /// are not included in the data.
+    #[allow(unused)]
+    CharLiteral(char),
+
+    /// A numeric literal in the program. The string is the literal, and will be
+    /// converted to an actual number later once type information is available.
+    NumericLiteral(String),
+
+    /// A keyword in the program. Used in various control flow and other constructs.
+    Keyword(Keyword),
+
+    /// An operator in the program. We may someday allow users to define operators,
+    /// so we handle them separately from punctuation, although they are somewhat
+    /// similar.
+    Operator(Operator),
+
+    /// A piece of punctuation in the program. Differs from operators by being much
+    /// less complicated.
+    Punctuation(Punctuation),
+}
+
+/// Represents the possible keywords in a Nom program.
+///
+/// Using an enum here is more efficient and type safe compared to just using strings.
+#[derive(Debug, Clone)]
+pub enum Keyword {
+    Var,
+    Val,
+    Fn,
+    True,
+    False,
+    If,
+    Else,
+    Not,
+    And,
+    Or,
+    While,
+    Return,
+    Struct,
+}
+
+/// Represents an operator in the Nom Programming language.
+///
+/// Note that there is some overlap in which characters each operator uses (e.g. `+` for `Plus`, but `+=`
+/// for `PlusEquals`), so a greedy "longest match" algorithm is used to determine which
+/// operators are actually present.
+#[derive(Debug, Clone)]
+pub enum Operator {
+    Plus,
+    Minus,
+    Times,
+    Divide,
+    Modulus,
+    Equals,
+    PlusEquals,
+    MinusEquals,
+    TimesEquals,
+    DivideEquals,
+    ModulusEquals,
+    ThinRightArrow,
+    DoubleEquals,
+    NotEquals,
+    LessEquals,
+    GreaterEquals,
+    Less,
+    Greater,
+    Dot,
+}
+
+/// A piece of punctuation in a Nom Program. Each is a single character.
+#[derive(Debug, Clone)]
+pub enum Punctuation {
+    Semicolon,
+    Comma,
+    Colon,
+    LeftCurlyBrace,
+    RightCurlyBrace,
+    LeftParenthesis,
+    RightParenthesis,
+    LeftSquareBracket,
+    RightSquareBracket,
+}
+
+impl FromStr for Keyword {
+    type Err = TokenError; // Likely ignored by algorithm.
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use Keyword as K;
+
+        Ok(match s {
+            "var" => K::Var,
+            "val" => K::Val,
+            "fn" => K::Fn,
+            "true" => K::True,
+            "false" => K::False,
+            "if" => K::If,
+            "else" => K::Else,
+            "not" => K::Not,
+            "and" => K::And,
+            "or" => K::Or,
+            "while" => K::While,
+            "return" => K::Return,
+            "struct" => K::Struct,
+            _ => Err(TokenError("Not a keyword".to_string()))?,
+        })
+    }
+}
+
+impl TryFrom<char> for Punctuation {
+    type Error = (); // Likely ignored by algorithm.;
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        use Punctuation as P;
+
+        match value {
+            ';' => Ok(P::Semicolon),
+            ',' => Ok(P::Comma),
+            ':' => Ok(P::Colon),
+            '{' => Ok(P::LeftCurlyBrace),
+            '}' => Ok(P::RightCurlyBrace),
+            '(' => Ok(P::LeftParenthesis),
+            ')' => Ok(P::RightParenthesis),
+            '[' => Ok(P::LeftSquareBracket),
+            ']' => Ok(P::RightSquareBracket),
+            _ => Err(()),
+        }
+    }
+}
+
+/* Spans */
+
+/// A `Span` descibes a contigous group of characters, in a specific source file (or
+/// pseudo source file).
+///
+/// The span is given as a half open interval, though it may be represented differently
+/// in error messages.
+#[derive(Debug, Clone)]
+pub struct Span {
+    /// The path to a file, or a name representing a pseudo file, like "\<input\>".
+    pub file: Rc<String>,
+    /// The line the span starts on (1 based).
+    pub start_line: usize,
+    /// The line the span ends on (1 based).
+    pub end_line: usize,
+    /// The column the span starts on (1 based).
+    pub start_col: usize,
+    /// The column the span ends on (1 based).
+    pub end_col: usize,
+}
+
+impl Span {
+    /// Given two spans, returns a new span that includes both.
+    ///
+    /// This is used heavily in `ast`, where we determine a span for every `ASTNode`
+    /// in the program.
+    pub fn combine(a: &Span, b: &Span) -> Span {
+        assert!(*a.file == *b.file);
+
+        Span {
+            file: Rc::clone(&a.file),
+            start_line: min(a.start_line, b.start_line),
+            end_line: max(a.end_line, b.end_line),
+            start_col: min(a.start_col, a.start_col),
+            end_col: max(a.end_col, b.end_col),
+        }
+    }
+
+    /// Given a nonempty slice of Spans, returns a new Span that includes them all.
+    ///
+    /// This is used heavily in `ast`, where we determine a span for every `ASTNode`
+    /// in the program.
+    pub fn combine_all(spans: &[Span]) -> Span {
+        assert!(!spans.is_empty());
+
+        let mut final_span = spans[0].clone();
+
+        for span in &spans[1..] {
+            final_span = Span::combine(&final_span, span);
+        }
+
+        final_span
+    }
+}
+
+/* Terminals */
+
+/// Represents a supported terminal identification. Useful for processing token related errors from
+/// parsley. If we fail to convert a string representing a terminal into this type, that is an error
+/// on our part (likely an issue in grammar.parsley).
+pub enum Terminal {
+    Identifier,
+    NumericLiteral,
+    LeftCurlyBrace,
+    RightCurlyBrace,
+    LeftParenthesis,
+    RightParenthesis,
+    LeftSquareBracket,
+    RightSquareBracket,
+    Semicolon,
+    Comma,
+    Colon,
+    Plus,
+    Minus,
+    Times,
+    Divide,
+    Modulus,
+    Equals,
+    ThinRightArrow,
+    DoubleEquals,
+    NotEquals,
+    LessEquals,
+    GreaterEquals,
+    Less,
+    Greater,
+    PlusEquals,
+    MinusEquals,
+    TimesEquals,
+    DivideEquals,
+    ModulusEquals,
+    Dot,
+    Var,
+    Val,
+    Fn,
+    True,
+    False,
+    If,
+    Else,
+    Not,
+    And,
+    Or,
+    While,
+    Return,
+    Struct,
+}
+
+/// Performs conversion from the terminal name to the enum.
+impl TryFrom<&str> for Terminal {
+    type Error = String;
+
+    fn try_from(terminal_name: &str) -> Result<Self, Self::Error> {
+        Ok(match terminal_name {
+            "Identifier" => Terminal::Identifier,
+            "NumericLiteral" => Terminal::NumericLiteral,
+            "LeftCurlyBrace" => Terminal::LeftCurlyBrace,
+            "RightCurlyBrace" => Terminal::RightCurlyBrace,
+            "LeftParenthesis" => Terminal::LeftParenthesis,
+            "RightParenthesis" => Terminal::RightParenthesis,
+            "LeftSquareBracket" => Terminal::LeftSquareBracket,
+            "RightSquareBracket" => Terminal::RightSquareBracket,
+            "Semicolon" => Terminal::Semicolon,
+            "Comma" => Terminal::Comma,
+            "Colon" => Terminal::Colon,
+            "Plus" => Terminal::Plus,
+            "Minus" => Terminal::Minus,
+            "Times" => Terminal::Times,
+            "Divide" => Terminal::Divide,
+            "Modulus" => Terminal::Modulus,
+            "Equals" => Terminal::Equals,
+            "ThinRightArrow" => Terminal::ThinRightArrow,
+            "DoubleEquals" => Terminal::DoubleEquals,
+            "NotEquals" => Terminal::NotEquals,
+            "LessEquals" => Terminal::LessEquals,
+            "GreaterEquals" => Terminal::GreaterEquals,
+            "Less" => Terminal::Less,
+            "Greater" => Terminal::Greater,
+            "PlusEquals" => Terminal::PlusEquals,
+            "MinusEquals" => Terminal::MinusEquals,
+            "TimesEquals" => Terminal::TimesEquals,
+            "DivideEquals" => Terminal::DivideEquals,
+            "ModulusEquals" => Terminal::ModulusEquals,
+            "Dot" => Terminal::Dot,
+            "Var" => Terminal::Var,
+            "Val" => Terminal::Val,
+            "Fn" => Terminal::Fn,
+            "True" => Terminal::True,
+            "False" => Terminal::False,
+            "If" => Terminal::If,
+            "Else" => Terminal::Else,
+            "Not" => Terminal::Not,
+            "And" => Terminal::And,
+            "Or" => Terminal::Or,
+            "While" => Terminal::While,
+            "Return" => Terminal::Return,
+            "Struct" => Terminal::Struct,
+            _ => Err(format!("Bad token type: \"{terminal_name}\""))?,
+        })
+    }
+}

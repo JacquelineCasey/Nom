@@ -168,8 +168,6 @@ impl CodeGenerator {
         num: i128,
         node_data: &ASTNodeData,
     ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
         let num_type = &env.type_index[&node_data.id];
 
         let Type::BuiltIn(builtin) = num_type else {
@@ -178,40 +176,23 @@ impl CodeGenerator {
 
         let int_size = builtin.get_int_size().ok_or(GenerateError::from("Literal type did not fit in int"))?;
 
+        let push_constant = |constant| Ok(vec!(PI::Actual(I::PushConstant(constant))));
+        
         if builtin.is_signed() {
             match int_size {
-                IntSize::OneByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(reinterpret::<i8, u8>(num as i8)))))
-                }
-                IntSize::TwoByte => {
-                    instructions
-                        .push(PI::Actual(I::PushConstant(Constant::TwoByte(reinterpret::<i16, u16>(num as i16)))))
-                }
-                IntSize::FourByte => {
-                    instructions
-                        .push(PI::Actual(I::PushConstant(Constant::FourByte(reinterpret::<i32, u32>(num as i32)))))
-                }
-                IntSize::EightByte => instructions
-                    .push(PI::Actual(I::PushConstant(Constant::EightByte(reinterpret::<i64, u64>(num as i64))))),
+                IntSize::OneByte => push_constant(Constant::OneByte(reinterpret::<i8, u8>(num as i8))),
+                IntSize::TwoByte => push_constant(Constant::TwoByte(reinterpret::<i16, u16>(num as i16))),
+                IntSize::FourByte => push_constant(Constant::FourByte(reinterpret::<i32, u32>(num as i32))),
+                IntSize::EightByte => push_constant(Constant::EightByte(reinterpret::<i64, u64>(num as i64))),
             }
         } else {
             match int_size {
-                IntSize::OneByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(num as u8))));
-                }
-                IntSize::TwoByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::TwoByte(num as u16))));
-                }
-                IntSize::FourByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::FourByte(num as u32))));
-                }
-                IntSize::EightByte => {
-                    instructions.push(PI::Actual(I::PushConstant(Constant::EightByte(num as u64))));
-                }
+                IntSize::OneByte => push_constant(Constant::OneByte(num as u8)),
+                IntSize::TwoByte => push_constant(Constant::TwoByte(num as u16)),
+                IntSize::FourByte => push_constant(Constant::FourByte(num as u32)),
+                IntSize::EightByte => push_constant(Constant::EightByte(num as u64)),
             }
         }
-
-        Ok(instructions)
     }
 
     pub(super) fn generate_bool_literal_expr(val: bool) -> Vec<PseudoInstruction> {

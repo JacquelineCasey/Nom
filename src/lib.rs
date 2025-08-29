@@ -20,6 +20,8 @@
     clippy::upper_case_acronyms,  // Deal with it
     clippy::match_wildcard_for_single_variants,  // I do this on purpose
     clippy::comparison_chain,  // I think this is silly.
+    clippy::too_many_arguments, // I mean, maybe?
+    clippy::unit_arg, // Really only for Ok(something_unit_returning) in some match statements.
 )]
 
 mod analysis;

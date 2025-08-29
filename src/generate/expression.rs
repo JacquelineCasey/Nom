@@ -1,10 +1,12 @@
 use crate::{
     ast::{ASTNodeData, MathOperation},
     instructions::{Comparison, IntegerBinaryOperation},
+    util,
+    util::OutStream,
 };
 
 use super::{
-    get_align_shift, reinterpret, util, Borrow, CodeGenerator, CompilationEnvironment, Constant, ExprAST, FunctionInfo,
+    get_align_shift, reinterpret, Borrow, CodeGenerator, CompilationEnvironment, Constant, ExprAST, FunctionInfo,
     GenerateError, Instruction, IntSize, KindData, Location, PseudoInstruction, StatementAST, TempInstruction, Type,
     TypeInfo, Variable,
 };
@@ -24,7 +26,8 @@ impl CodeGenerator {
         right: &ExprAST,
         operation: MathOperation,
         node_data: &ASTNodeData,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         use IntegerBinaryOperation as IBO;
         use MathOperation as MO;
 
@@ -36,18 +39,16 @@ impl CodeGenerator {
             return Err("Cannot handle binary operator applied to different types".into());
         }
 
-        let mut instructions = vec![];
-
         let Type::BuiltIn(curr_type) = subtree_type else {
             return Err("Cannot run binary operator on non builtin type".into());
         };
 
         let arg_size = curr_type.get_int_size().ok_or(GenerateError("Expected builtin int type".to_string()))?;
 
-        instructions.append(&mut self.generate_expression(env, left, function_info, depth)?);
-        instructions.append(&mut self.generate_expression(env, right, function_info, depth + arg_size.to_usize())?);
+        self.generate_expression(env, left, function_info, depth, out)?;
+        self.generate_expression(env, right, function_info, depth + arg_size.to_usize(), out)?;
 
-        instructions.push(PI::Actual(I::IntegerBinaryOperation(
+        out.push(PI::Actual(I::IntegerBinaryOperation(
             match operation {
                 MO::Add if curr_type.is_unsigned() => IBO::UnsignedAddition,
                 MO::Add if curr_type.is_signed() => IBO::SignedAddition,
@@ -63,8 +64,7 @@ impl CodeGenerator {
             },
             arg_size,
         )));
-
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_comparison_expr(
@@ -75,9 +75,8 @@ impl CodeGenerator {
         left: &ExprAST,
         right: &ExprAST,
         comparison: Comparison,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         let left_type = &env.type_index[&left.get_node_data().id];
         let right_type = &env.type_index[&right.get_node_data().id];
 
@@ -95,25 +94,20 @@ impl CodeGenerator {
             return Err("Tried to compare builtin type without int_size".into());
         };
 
-        instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
+        out.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
 
-        instructions.append(&mut self.generate_expression(env, left, function_info, depth + align_shift)?);
-        instructions.append(&mut self.generate_expression(
-            env,
-            right,
-            function_info,
-            depth + align_shift + env.types[left_type].size,
-        )?);
+        self.generate_expression(env, left, function_info, depth + align_shift, out)?;
+        self.generate_expression(env, right, function_info, depth + align_shift + env.types[left_type].size, out)?;
 
-        instructions.push(PI::Actual(I::IntegerComparisonOperation {
+        out.push(PI::Actual(I::IntegerComparisonOperation {
             comparison,
             size: int_size,
             signed: builtin_type.is_signed(),
         }));
 
-        instructions.push(PI::Actual(I::RetractMoving(align_shift, IntSize::OneByte)));
+        out.push(PI::Actual(I::RetractMoving(align_shift, IntSize::OneByte)));
 
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_binary_logic_expr(
@@ -124,28 +118,27 @@ impl CodeGenerator {
         left: &ExprAST,
         right: &ExprAST,
         is_and: bool, // controls "and" vs "or"
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         let jump_id = util::next_id();
 
-        instructions.append(&mut self.generate_expression(env, left, function_info, depth)?);
+        self.generate_expression(env, left, function_info, depth, out)?;
 
-        instructions.push(PI::Actual(I::Duplicate(IntSize::OneByte)));
+        out.push(PI::Actual(I::Duplicate(IntSize::OneByte)));
 
         if is_and {
-            instructions.push(PI::Temp(TempInstruction::JumpIfFalse(jump_id)));
+            out.push(PI::Temp(TempInstruction::JumpIfFalse(jump_id)));
         } else {
-            instructions.push(PI::Temp(TempInstruction::JumpIfTrue(jump_id)));
+            out.push(PI::Temp(TempInstruction::JumpIfTrue(jump_id)));
         }
 
-        instructions.push(PI::Actual(I::RetractStackPtr(1))); // Overwrite old bool.
-        instructions.append(&mut self.generate_expression(env, right, function_info, depth)?);
+        out.push(PI::Actual(I::RetractStackPtr(1))); // Overwrite old bool.
+        self.generate_expression(env, right, function_info, depth, out)?;
 
-        instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_id)));
+        out.push(PI::Temp(TempInstruction::JumpFrom(jump_id)));
         // If we jumped, the left value is still there. Otherwise, it was repleaced with the right value.
 
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_not_expr(
@@ -154,18 +147,20 @@ impl CodeGenerator {
         function_info: &FunctionInfo,
         depth: usize,
         inner: &ExprAST,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = self.generate_expression(env, inner, function_info, depth)?;
-        instructions.push(PI::Actual(I::BooleanNot));
-        
-        Ok(instructions)
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
+        self.generate_expression(env, inner, function_info, depth, out)?;
+        out.push(PI::Actual(I::BooleanNot));
+
+        Ok(())
     }
 
     pub(super) fn generate_int_literal_expr(
         env: &CompilationEnvironment,
         num: i128,
         node_data: &ASTNodeData,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         let num_type = &env.type_index[&node_data.id];
 
         let Type::BuiltIn(builtin) = num_type else {
@@ -174,7 +169,7 @@ impl CodeGenerator {
 
         let int_size = builtin.get_int_size().ok_or(GenerateError::from("Literal type did not fit in int"))?;
 
-        let push_constant = |constant| Ok(vec![PI::Actual(I::PushConstant(constant))]);
+        let mut push_constant = |constant| out.push(PI::Actual(I::PushConstant(constant)));
         if builtin.is_signed() {
             match int_size {
                 IntSize::OneByte => push_constant(Constant::OneByte(reinterpret::<i8, u8>(num as i8))),
@@ -190,24 +185,26 @@ impl CodeGenerator {
                 IntSize::EightByte => push_constant(Constant::EightByte(num as u64)),
             }
         }
+        Ok(())
     }
 
-    pub(super) fn generate_bool_literal_expr(val: bool) -> Vec<PseudoInstruction> {
-        vec![PI::Actual(I::PushConstant(if val { Constant::OneByte(1) } else { Constant::OneByte(0) }))]
+    pub(super) fn generate_bool_literal_expr(val: bool, out: &mut OutStream<PseudoInstruction>) {
+        out.push(PI::Actual(I::PushConstant(if val { Constant::OneByte(1) } else { Constant::OneByte(0) })));
     }
 
     pub(super) fn generate_variable_expr(
         env: &CompilationEnvironment,
         function_info: &FunctionInfo,
         name: &str,
-    ) -> Vec<PseudoInstruction> {
+        out: &mut OutStream<PseudoInstruction>,
+    ) {
         // This is placing a variable's value on the stack. See statement for storing
         // a variable.
 
         // TODO: Shadowing...
 
         let (offset, size, val_type) = function_info.variable_info_by_name(name).expect("known to exist");
-        Self::generate_read_from_base(*offset, *size, env.types[val_type].alignment)
+        Self::generate_read_from_base(*offset, *size, env.types[val_type].alignment, out);
     }
 
     pub(super) fn generate_block_expr(
@@ -217,18 +214,17 @@ impl CodeGenerator {
         depth: usize,
         statements: &[StatementAST],
         expr: &Option<Box<ExprAST>>,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         for statement in statements {
-            instructions.append(&mut self.generate_statement(env, statement, function_info, depth)?);
+            self.generate_statement(env, statement, function_info, depth, out)?;
         }
 
         if let Some(expr) = expr {
-            instructions.append(&mut self.generate_expression(env, expr, function_info, depth)?);
+            self.generate_expression(env, expr, function_info, depth, out)?;
         }
 
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_function_call_expr(
@@ -238,9 +234,8 @@ impl CodeGenerator {
         depth: usize,
         name: &str,
         subexprs: &[ExprAST],
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         // We assume that the depth is already such that a value from the function
         // Can be aligned. If the alignment is not 8 though, we shift, run the function,
         // and then pull the value back.
@@ -249,7 +244,7 @@ impl CodeGenerator {
 
         let align_shift = get_align_shift(depth, 8);
 
-        instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
+        out.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
 
         let (relative_return_loc, return_size, return_type) =
             info.variables.get(&Variable::Return).expect("Known exists");
@@ -257,7 +252,7 @@ impl CodeGenerator {
         // So relative position is how far below the function we currently are.
 
         // Skip past the
-        instructions.push(PI::Actual(I::AdvanceStackPtr(*return_size)));
+        out.push(PI::Actual(I::AdvanceStackPtr(*return_size)));
         let mut relative_position = relative_return_loc + *return_size as isize;
 
         if subexprs.len() != info.parameters.len() {
@@ -272,36 +267,33 @@ impl CodeGenerator {
         for (expr, param) in subexprs.iter().zip(&info.parameters) {
             let (param_loc, size, _) = info.variables.get(param).expect("Known exists");
 
-            instructions.push(PI::Actual(I::AdvanceStackPtr((param_loc - relative_position) as usize)));
+            out.push(PI::Actual(I::AdvanceStackPtr((param_loc - relative_position) as usize)));
             relative_position = *param_loc;
 
-            instructions.append(&mut self.generate_expression(
+            self.generate_expression(
                 env,
                 expr,
                 function_info,
                 depth + align_shift + (relative_position - relative_return_loc) as usize,
-            )?);
+                out,
+            )?;
             relative_position += *size as isize;
         }
 
         // Finally align to function call.
-        instructions.push(PI::Actual(I::AdvanceStackPtr((-relative_position) as usize)));
+        out.push(PI::Actual(I::AdvanceStackPtr((-relative_position) as usize)));
 
-        instructions.push(PI::Temp(TempInstruction::Call(name.into())));
+        out.push(PI::Temp(TempInstruction::Call(name.into())));
 
-        instructions.push(PI::Actual(I::RetractStackPtr((-relative_return_loc) as usize - return_size)));
+        out.push(PI::Actual(I::RetractStackPtr((-relative_return_loc) as usize - return_size)));
 
         // Retract moving to original expression location
         match return_size {
-            0 => instructions.push(PI::Actual(I::RetractStackPtr(align_shift))),
-            _ => instructions.append(&mut Self::generate_stack_retraction(
-                align_shift,
-                *return_size,
-                env.types[return_type].alignment,
-            )),
+            0 => out.push(PI::Actual(I::RetractStackPtr(align_shift))),
+            _ => Self::generate_stack_retraction(align_shift, *return_size, env.types[return_type].alignment, out),
         }
 
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_if_expr(
@@ -312,42 +304,35 @@ impl CodeGenerator {
         condition: &ExprAST,
         block: &ExprAST,
         else_branch: &Option<Box<ExprAST>>,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         match else_branch {
             Some(else_branch) => {
-                let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
-                let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
-                let mut else_instrs = self.generate_expression(env, else_branch, function_info, depth)?;
-
                 let jump_1_id = util::next_id();
                 let jump_2_id = util::next_id();
 
-                instructions.append(&mut condition_instrs);
-                instructions.push(PI::Temp(TempInstruction::JumpIfFalse(jump_1_id)));
-                instructions.append(&mut block_instrs);
-                instructions.push(PI::Temp(TempInstruction::Jump(jump_2_id)));
+                self.generate_expression(env, condition, function_info, depth, out)?;
+                out.push(PI::Temp(TempInstruction::JumpIfFalse(jump_1_id)));
+                self.generate_expression(env, block, function_info, depth, out)?;
+                out.push(PI::Temp(TempInstruction::Jump(jump_2_id)));
 
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_1_id)));
-                instructions.append(&mut else_instrs);
+                out.push(PI::Temp(TempInstruction::JumpFrom(jump_1_id)));
+                self.generate_expression(env, else_branch, function_info, depth, out)?;
 
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(jump_2_id)));
+                out.push(PI::Temp(TempInstruction::JumpFrom(jump_2_id)));
             }
             None => {
-                let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
-                let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
                 let skip_jump_id = util::next_id();
 
-                instructions.append(&mut condition_instrs);
-                instructions.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
-                instructions.append(&mut block_instrs);
+                self.generate_expression(env, condition, function_info, depth, out)?;
+                out.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
+                self.generate_expression(env, block, function_info, depth, out)?;
 
-                instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
+                out.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
             }
         }
 
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_while_expr(
@@ -357,24 +342,21 @@ impl CodeGenerator {
         depth: usize,
         condition: &ExprAST,
         block: &ExprAST,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
-        let mut condition_instrs = self.generate_expression(env, condition, function_info, depth)?;
-        let mut block_instrs = self.generate_expression(env, block, function_info, depth)?;
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         let skip_jump_id = util::next_id();
         let back_jump_id = util::next_id();
 
-        instructions.push(PI::Temp(TempInstruction::JumpFrom(back_jump_id)));
-        instructions.append(&mut condition_instrs);
+        out.push(PI::Temp(TempInstruction::JumpFrom(back_jump_id)));
+        self.generate_expression(env, condition, function_info, depth, out)?;
 
-        instructions.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
-        instructions.append(&mut block_instrs);
-        instructions.push(PI::Temp(TempInstruction::Jump(back_jump_id)));
+        out.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
+        self.generate_expression(env, block, function_info, depth, out)?;
+        out.push(PI::Temp(TempInstruction::Jump(back_jump_id)));
 
-        instructions.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
+        out.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
 
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_return_expr(
@@ -383,9 +365,8 @@ impl CodeGenerator {
         function_info: &FunctionInfo,
         depth: usize,
         expr: &Option<Box<ExprAST>>,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         if let Some(expr) = expr {
             let expr_type = &env.type_index[&expr.get_node_data().id];
             let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
@@ -393,14 +374,14 @@ impl CodeGenerator {
             let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
             // Align
-            instructions.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(align_shift)));
+            out.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(align_shift)));
 
-            instructions.append(&mut self.generate_expression(env, expr, function_info, depth + align_shift)?);
+            self.generate_expression(env, expr, function_info, depth + align_shift, out)?;
         }
 
-        instructions.append(&mut Self::generate_return_handoff(env, function_info)?);
+        Self::generate_return_handoff(env, function_info, out)?;
 
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_struct_expr(
@@ -410,9 +391,8 @@ impl CodeGenerator {
         depth: usize,
         name: &str,
         members: &[(String, ExprAST)],
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         let TypeInfo { kind, .. } = env.types.get(&name.to_string().into()).expect("Known exists");
 
         let KindData::Struct { members: type_members } = kind else { panic!("Expected struct type") };
@@ -430,15 +410,15 @@ impl CodeGenerator {
 
         for (expr, member_type, offset) in member_exprs {
             if offset_into_struct < offset {
-                instructions.push(PI::Actual(I::AdvanceStackPtr(offset - offset_into_struct)));
+                out.push(PI::Actual(I::AdvanceStackPtr(offset - offset_into_struct)));
             }
 
-            instructions.append(&mut self.generate_expression(env, expr, function_info, depth + offset)?);
+            self.generate_expression(env, expr, function_info, depth + offset, out)?;
 
             offset_into_struct = offset + env.types[member_type].size;
         }
 
-        Ok(instructions)
+        Ok(())
     }
 
     pub(super) fn generate_member_access_expr(
@@ -447,9 +427,8 @@ impl CodeGenerator {
         function_info: &FunctionInfo,
         depth: usize,
         subtree: &ExprAST,
-    ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
         let expr_type = &env.type_index[&subtree.get_node_data().id];
         let TypeInfo { size, alignment, .. } = &env.types[expr_type];
 
@@ -459,7 +438,7 @@ impl CodeGenerator {
             Location::OffsetFrom(inner, offset) => match inner.borrow() {
                 Location::Local(name) => {
                     let (base_offset, _, _) = function_info.variable_info_by_name(name).expect("Variable Exists");
-                    instructions.append(&mut Self::generate_read_from_base(base_offset + offset, *size, *alignment));
+                    Self::generate_read_from_base(base_offset + offset, *size, *alignment, out);
                 }
                 Location::EvaluatedExpression(expr) => {
                     let struct_type = &env.type_index[&expr.get_node_data().id];
@@ -467,30 +446,21 @@ impl CodeGenerator {
 
                     let align_shift = get_align_shift(depth, *struct_alignment);
 
-                    instructions.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
+                    out.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
 
-                    instructions.append(&mut self.generate_expression(
-                        env,
-                        expr,
-                        function_info,
-                        depth + align_shift,
-                    )?);
+                    self.generate_expression(env, expr, function_info, depth + align_shift, out)?;
 
-                    instructions.push(PI::Actual(I::RetractStackPtr(
+                    out.push(PI::Actual(I::RetractStackPtr(
                         (*struct_size as isize - offset - *size as isize) as usize,
                     )));
 
-                    instructions.append(&mut Self::generate_stack_retraction(
-                        align_shift + offset as usize,
-                        *size,
-                        *alignment,
-                    ));
+                    Self::generate_stack_retraction(align_shift + offset as usize, *size, *alignment, out);
                 }
                 _ => return Err("Expected other location type".into()),
             },
             _ => return Err("Expected other location type".into()),
         }
 
-        Ok(instructions)
+        Ok(())
     }
 }

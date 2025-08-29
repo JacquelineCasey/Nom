@@ -304,7 +304,9 @@ impl std::fmt::Display for Span {
 /// Represents a supported terminal identification. Useful for processing token related errors from
 /// parsley. If we fail to convert a string representing a terminal into this type, that is an error
 /// on our part (likely an issue in grammar.parsley).
-#[derive(Clone, Copy)]
+///
+/// The order controls the order in which the elements are displayed in some error messages.
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Terminal {
     Identifier,
     NumericLiteral,
@@ -355,12 +357,71 @@ impl Terminal {
     /// Displays the terminal in a user friendly way. If it represents a single token, then provides that token in single
     /// quotes e.g. "'->'". If it represents a category, then an unquoted description, e.g. "an identifier".
     pub fn pretty_string(self) -> &'static str {
-        todo!()
+        #[allow(clippy::enum_glob_use)]
+        use Terminal::*;
+
+        match self {
+            Identifier => "an identifier",
+            NumericLiteral => "a numeric literal",
+            LeftCurlyBrace => "'{'",
+            RightCurlyBrace => "'}'",
+            LeftParenthesis => "'('",
+            RightParenthesis => "')'",
+            LeftSquareBracket => "'['",
+            RightSquareBracket => "']'",
+            Semicolon => "';'",
+            Comma => "','",
+            Colon => "':'",
+            Plus => "'+'",
+            Minus => "'-'",
+            Times => "'*'",
+            Divide => "'/'",
+            Modulus => "'%'",
+            Equals => "'='",
+            ThinRightArrow => "'->'",
+            DoubleEquals => "'=='",
+            NotEquals => "'!='",
+            LessEquals => "'<='",
+            GreaterEquals => "'>='",
+            Less => "'<'",
+            Greater => "'>'",
+            PlusEquals => "'+='",
+            MinusEquals => "'-='",
+            TimesEquals => "'*='",
+            DivideEquals => "'/='",
+            ModulusEquals => "'%='",
+            Dot => "'.'",
+            Var => "'var'",
+            Val => "'val'",
+            Fn => "'fn'",
+            True => "'true'",
+            False => "'false'",
+            If => "'if'",
+            Else => "'else'",
+            Not => "'not'",
+            And => "'&&'",
+            Or => "'||'",
+            While => "'while'",
+            Return => "'return'",
+            Struct => "'struct'",
+        }
     }
 
-    /// Indicates whether a terminal is an operator.
-    pub fn is_operator(self) -> bool {
-        todo!();
+    /// Indicates whether a terminal is an operator. We use the user understanding of an operator, not the lexical one.
+    /// In particular, some things like '.' are internally operators, but are better thought of as punctuation or
+    /// something else for user purposes.
+    pub fn is_user_operator(self) -> bool {
+        #[allow(clippy::enum_glob_use)]
+        use Terminal::*;
+
+        match self {
+            Plus | Minus | Times | Divide | Modulus | Equals | DoubleEquals | NotEquals | LessEquals
+            | GreaterEquals | Less | Greater | PlusEquals | MinusEquals | TimesEquals | DivideEquals
+            | ModulusEquals | Not | And | Or => true,
+            Identifier | NumericLiteral | LeftCurlyBrace | RightCurlyBrace | LeftParenthesis | RightParenthesis
+            | LeftSquareBracket | RightSquareBracket | Semicolon | Comma | Colon | ThinRightArrow | Dot | Var | Val
+            | Fn | True | False | If | Else | While | Return | Struct => false,
+        }
     }
 }
 

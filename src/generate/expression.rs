@@ -155,11 +155,9 @@ impl CodeGenerator {
         depth: usize,
         inner: &ExprAST,
     ) -> Result<Vec<PseudoInstruction>, GenerateError> {
-        let mut instructions = vec![];
-
-        instructions.append(&mut self.generate_expression(env, inner, function_info, depth)?);
+        let mut instructions = self.generate_expression(env, inner, function_info, depth)?;
         instructions.push(PI::Actual(I::BooleanNot));
-
+        
         Ok(instructions)
     }
 

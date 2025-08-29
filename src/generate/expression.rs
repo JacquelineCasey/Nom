@@ -203,17 +203,13 @@ impl CodeGenerator {
         function_info: &FunctionInfo,
         name: &str,
     ) -> Vec<PseudoInstruction> {
-        let mut instructions = vec![];
-
         // This is placing a variable's value on the stack. See statement for storing
         // a variable.
 
         // TODO: Shadowing...
 
         let (offset, size, val_type) = function_info.variable_info_by_name(name).expect("known to exist");
-        instructions.append(&mut Self::generate_read_from_base(*offset, *size, env.types[val_type].alignment));
-
-        instructions
+        Self::generate_read_from_base(*offset, *size, env.types[val_type].alignment)
     }
 
     pub(super) fn generate_block_expr(

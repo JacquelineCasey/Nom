@@ -195,15 +195,7 @@ impl CodeGenerator {
     }
 
     pub(super) fn generate_bool_literal_expr(val: bool) -> Vec<PseudoInstruction> {
-        let mut instructions = vec![];
-
-        if val {
-            instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(1))));
-        } else {
-            instructions.push(PI::Actual(I::PushConstant(Constant::OneByte(0))));
-        }
-
-        instructions
+        vec![PI::Actual(I::PushConstant(if val { Constant::OneByte(1) } else { Constant::OneByte(0) }))]
     }
 
     pub(super) fn generate_variable_expr(

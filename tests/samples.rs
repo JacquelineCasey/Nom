@@ -47,7 +47,7 @@ fn run_successful(resource: &str) {
     let input = read_file(resource);
     let expected_output = get_marked_comments(&input);
 
-    let code: Vec<Instruction> = compile_file(resource.to_string());
+    let code: Vec<Instruction> = compile_file(resource.to_string(), None);
     println!("{}", dump_instructions(&code));
 
     let mut runtime = Runtime::new(code);
@@ -66,7 +66,7 @@ fn run_panics(resource: &str) {
     let input = read_file(resource);
     let expected_output = get_marked_comments(&input);
 
-    let code: Vec<Instruction> = compile_file(resource.to_string());
+    let code: Vec<Instruction> = compile_file(resource.to_string(), None);
     println!("{}", dump_instructions(&code));
 
     let mut runtime = Runtime::new(code);
@@ -78,4 +78,17 @@ fn run_panics(resource: &str) {
             assert!(actual_msg == expected_output.trim());
         }
     }
+}
+
+#[test_resources("samples/compile-error/**/*.nom")]
+fn compile_errors(resource: &str) {
+    let input = read_file(resource);
+    println!("{}", input);
+    let expected_output = get_marked_comments(&input);
+
+    let mut buf = std::io::BufWriter::new(vec![]);
+    compile_file(resource.to_string(), Some(&mut buf));
+
+    let output = String::from_utf8(buf.into_inner().expect("No IO Error")).expect("Good Conversion");
+    assert_eq!(expected_output.trim(), output.trim());
 }

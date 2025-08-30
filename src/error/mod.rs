@@ -157,7 +157,8 @@ pub fn terminal_choice_description(terminal_names: &HashSet<String>) -> String {
             + ", or "
             + terminals_to_show[terminals_to_show.len() - 1]
     } else {
-        "one of ".to_owned() + &terminals_to_show.join(", ")
+        // 1 (or if something went wrong, 0)
+        (*terminals_to_show.first().expect("Some terminal")).to_string()
     }
 }
 

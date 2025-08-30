@@ -285,15 +285,15 @@ enum FileOrString {
 ///
 /// Works by placing a single goal to import the input into the compilation queue.
 /// Then completes all goals (goals can spawn more goals) until none remain.
-fn compile(file: FileOrString) -> Vec<instructions::Instruction> {
+fn compile(file: FileOrString, error_writer: &mut dyn std::io::Write) -> Vec<instructions::Instruction> {
     let mut env = CompilationEnvironment::new();
     env.queue.add_goal(CompilationGoal::ImportFile(file));
 
     match env.process_goals() {
         Ok(()) => (),
         Err(err) => {
-            println!("{}\n", error::pretty_error_msg(&env, &err));
-            panic!("Compilation Failed.")
+            writeln!(error_writer, "{}\n", error::pretty_error_msg(&env, &err)).expect("print successful");
+            return vec![];
         }
     }
 
@@ -308,8 +308,8 @@ fn compile(file: FileOrString) -> Vec<instructions::Instruction> {
 /// Returns a list of instructions.
 ///
 /// If an error occurs, it will print to the screen, and the function will panic.
-pub fn compile_file(path: String) -> Vec<instructions::Instruction> {
-    compile(FileOrString::File(path))
+pub fn compile_file(path: String, error_writer: Option<&mut dyn std::io::Write>) -> Vec<instructions::Instruction> {
+    compile(FileOrString::File(path), error_writer.unwrap_or(&mut std::io::stdout()))
 }
 
 /// Given a string input, tokenizes, parses, analyzes, and generates code for
@@ -318,6 +318,6 @@ pub fn compile_file(path: String) -> Vec<instructions::Instruction> {
 /// Returns a list of instructions.
 ///
 /// If an error occurs, it will print to the screen, and the function will panic.
-pub fn compile_string(input: String) -> Vec<instructions::Instruction> {
-    compile(FileOrString::String("<input>".to_string(), input))
+pub fn compile_string(input: String, error_writer: Option<&mut dyn std::io::Write>) -> Vec<instructions::Instruction> {
+    compile(FileOrString::String("<input>".to_string(), input), error_writer.unwrap_or(&mut std::io::stdout()))
 }

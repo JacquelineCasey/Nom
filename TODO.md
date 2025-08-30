@@ -9,5 +9,4 @@ can go here:
 - Document the language in nom_docs.md
 - Document the project in the code itself.
   - Top level done. More to follow.
-- Add tests that check for compile errors.
-  - Add Span Annotation function somewhere in error code.
+- Add Span Annotation function somewhere in error code. Errors should print out some code and underline relevant bits.

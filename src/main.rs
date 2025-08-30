@@ -10,7 +10,7 @@ fn main() {
     let mut buffer = String::new();
     std::io::stdin().read_to_string(&mut buffer).expect("Reading stdin should succeed");
 
-    let code = compile_string(buffer);
+    let code = compile_string(buffer, None);
 
     for (i, instr) in code.iter().enumerate() {
         println!("{i: <5}: {instr:?}");

@@ -1,0 +1,25 @@
+// Small example demonstrating use of pointers.
+// We show the pointer type *T, the keyword alloc_uninit!,
+// the keyword free!, and the .* dereference syntax.
+
+//! 44
+
+fn main() -> i32 {
+    val ptr: *i32 = alloc_uninit!(i32);
+    ptr.* = 32;
+    
+    var iters: i32 = 0;
+    while (ptr.* < 44) {
+        ptr.* += 1;
+        iters += 1;
+    };
+
+    val result = ptr.*;
+    free!(ptr);
+
+    if (iters == 12) {
+        result
+    } else {
+        0
+    }
+}

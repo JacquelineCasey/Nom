@@ -1,0 +1,5 @@
+// Demonstrates syntactic sugar for accessing members of a pointeed at struct.
+
+//! 5
+
+// TODO

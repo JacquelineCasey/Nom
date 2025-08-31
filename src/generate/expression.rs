@@ -110,6 +110,7 @@ impl CodeGenerator {
         Ok(())
     }
 
+    // Handles and / or lazily.
     pub(super) fn generate_binary_logic_expr(
         &self,
         env: &CompilationEnvironment,

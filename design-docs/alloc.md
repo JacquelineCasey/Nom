@@ -191,6 +191,7 @@ Stage 1 Details:
 - Adds pointer dereference `.*`.
   - Some day, we'll have syntactic sugar `.` for `.*.`, this precludes adding methods to the pointer itself though.
 - Adds `==` and `!=` on pointers.
+- TODO: Figure out how to create references from other objects. `&` is the classic choice (Stage 1.5)?
 
 For nullability... well, alloc_uninit!() is definitely a way to get unitialized data now, so we definitely have to accept
 the posibility of there not being anything good in there. However, a "good" Nom program will treat the uninit case very

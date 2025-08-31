@@ -46,7 +46,7 @@ pub fn dump_instructions(instrs: &[Instruction]) -> String {
 fn run_successful(resource: &str) {
     let input = read_file(resource);
     let expected_output = get_marked_comments(&input);
-    
+
     // For whatever reason, println!() and writeln!(stdout) behave differently under tests. We'll collect the buffer
     // and display it ourselves.
     let mut buf = std::io::BufWriter::new(vec![]);
@@ -54,11 +54,11 @@ fn run_successful(resource: &str) {
 
     match buf.into_inner() {
         Ok(values) if !values.is_empty() => {
-            assert!(false, "Compilation Failed:\n{}\n", String::from_utf8(values).expect("Got string"));
+            assert!(false, "Compilation Failed:\n{}", String::from_utf8(values).expect("Got string"));
         }
         Err(error) => {
-            assert!(false, "Compilation Failed:\nFailed to even retrieve output{}", error);
-        },
+            assert!(false, "Compilation Failed:\nFailed to even retrieve output: {}", error);
+        }
         _ => (),
     }
 

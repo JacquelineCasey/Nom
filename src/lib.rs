@@ -292,7 +292,7 @@ fn compile(file: FileOrString, error_writer: &mut dyn std::io::Write) -> Vec<ins
     match env.process_goals() {
         Ok(()) => (),
         Err(err) => {
-            writeln!(error_writer, "{}", error::pretty_error_msg(&env, &err)).expect("print successful");
+            writeln!(error_writer, "{}", error::pretty_error_message(&env, &err)).expect("print successful");
             return vec![];
         }
     }

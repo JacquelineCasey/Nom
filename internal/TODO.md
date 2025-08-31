@@ -14,6 +14,7 @@ can go here:
 - Allow ! in keywords, possibly by checking for them greedily when we fail to find a Keyword. from_str should return an
   error indicating that ! is needed?
 - The tests should eventually test for leaks as well.
+- Maybe that build_all.zsh script should be converted in build.rs?
 
 == Someday TODO ==
 

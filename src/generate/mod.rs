@@ -1,3 +1,5 @@
+//! Handles generation of instructions from an analyzed AST.
+
 mod expression; // Contains functions that generate code to evaluate each type of expression.
 mod optimize_instructions; // Makes optimizations at the instruction level.
 

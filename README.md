@@ -1,5 +1,5 @@
 
-# Nom
+# Nom: The Bite Sized Programming Language
 
 Nom is a prototype / toy programming language. I am developing it for fun, and to
 learn more about the inner workings of the compilation process.

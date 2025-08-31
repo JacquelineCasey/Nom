@@ -91,6 +91,19 @@ fn list_equals(l1: *List, l2: *List) -> bool {
     curr1 == l1.nil && curr2 == l2.nil
 }
 
+// Don't forget to free!
+fn free_list(list: *List) -> unit {
+    var curr: *ListNode = list.head;
+    while (curr != list.nil) {
+        val next = curr.next;
+        free!(curr);
+        curr = next;
+    }
+
+    free!(list.nil);
+    free!(list) // No semicolon checks that this is unit typed.
+}
+
 fn main() -> unit {
     // Unsorted list to start.
     val l1: *List = new_list();
@@ -116,9 +129,14 @@ fn main() -> unit {
     
     sort(l1);
  
-    if (sum_list(l2) == 36 and list_equals(l1, l2)) {
+    let result: i32 = if (sum_list(l2) == 36 and list_equals(l1, l2)) {
         1
     } else {
         0
     }
+
+    free_list(l1);
+    free_list(l2);
+
+    result
 }

@@ -83,3 +83,9 @@ keeping the current tests. Write dummy functions that are no-ops.
     something, definitely we should not pull function in from the standard library
     if they are never requested; however we should also compile unused functions to
     make a progressive coding style feasible...).
+
+Name (sorry but I had to write down the backronyms somewhere): 
+- Nom: The Bite Sized Programming Language.
+- Nom: Nom's Only Marvelous.
+- Bytecode is named Nibble.
+  - Nom's Instruction Bytecode Befits Lightning-fast Execution.

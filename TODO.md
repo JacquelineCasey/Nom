@@ -10,6 +10,10 @@ can go here:
 - Document the project in the code itself.
   - Top level done. More to follow.
 - Add Span Annotation function somewhere in error code. Errors should print out some code and underline relevant bits.
+- Improve the current token error when running the tests. Perhaps now we should get our annotation?
+- Allow ! in keywords, possibly by checking for them greedily when we fail to find a Keyword. from_str should return an
+  error indicating that ! is needed?
+- The tests should eventually test for leaks as well.
 
 == Someday TODO ==
 

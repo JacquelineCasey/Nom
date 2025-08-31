@@ -96,7 +96,7 @@ pub enum Operator {
     TimesEquals,
     DivideEquals,
     ModulusEquals,
-    ThinRightArrow,
+    ThinRightArrow, // This is an operator for lexical reasons. Punctuation has to be single characters.
     DoubleEquals,
     NotEquals,
     LessEquals,

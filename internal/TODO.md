@@ -16,8 +16,14 @@ can go here:
 - The tests should eventually test for leaks as well.
 - Maybe that build_all.zsh script should be converted in build.rs?
 
+
 == Someday TODO ==
 
+- Use https://doc.rust-lang.org/std/panic/struct.Location.html to write some alternatives to the various expect() or
+  unwrap calls strewn about. They could provide both the benefit of not instantly panicking and still providing source
+  location for me.
+  - E.g. we could write expect_ice("msg") (internal compile error) which returns an Internal Error (which should .into()
+    the other error types) which also tracks the source location.
 - Syntax Highlighting (based on tokens, not semantics) might be surprisingly in reach. It would require messing with 
   vscode extensions and textmate grammars, but that's about it - no real code needed.
 - Going further would require a Language Server, but let's not get ahead of ourselves. Let's get the language first.

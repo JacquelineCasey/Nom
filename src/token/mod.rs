@@ -281,7 +281,6 @@ fn take_operators(
 
             return Ok(operators);
         }
-        // This is an operator for lexical reasons. Punctuation has to be single characters.
         else if slice.starts_with("->") {
             (Operator::ThinRightArrow, 2)
         } else if slice.starts_with("==") {

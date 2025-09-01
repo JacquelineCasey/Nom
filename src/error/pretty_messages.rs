@@ -10,6 +10,8 @@ use std::collections::{BTreeSet, HashSet};
 /* Public */
 
 pub fn pretty_error_message(env: &CompilationEnvironment, err: &CompileError) -> String {
+    // TODO: Do we really need the environment here?
+
     // Much more work to be done here, but I'll do it piecemeal for now.
     // I'd like to replace all of the string error messages throughout the code with
     // enums.
@@ -28,13 +30,13 @@ pub fn pretty_error_message(env: &CompilationEnvironment, err: &CompileError) ->
 
 /* Private Helpers */
 
-fn pretty_token_error_message(env: &CompilationEnvironment, err: &TokenError) -> String {
+fn pretty_token_error_message(_env: &CompilationEnvironment, err: &TokenError) -> String {
     match err {
         TokenError::Problem(description) => {
             format!("Error occurred during tokenization: {description}")
         }
         TokenError::ProblemAtSpan(description, span) => {
-            format!("Error occurred during tokenization: {}\n{}", description, annotate(env, span))
+            format!("Error occurred during tokenization: {}\n{}", description, annotate(span))
         }
     }
 }
@@ -103,6 +105,65 @@ fn terminal_choice_description(terminal_names: &HashSet<String>) -> String {
 }
 
 /// Produce an annotation, which is a snippet of the input code with certain parts underlined.
-fn annotate(_env: &CompilationEnvironment, span: &Span) -> String {
-    format!("{span}:\n[ANNOTATION HERE]")
+fn annotate(span: &Span) -> String {
+    // This will likely become more sophisticated over time, but for now we just print the lines of a single span, with
+    // the span part underlined.
+
+    let line_number_size = span.end_line.to_string().len();
+
+    let maybe_temp_storage; // Huh, mut not needed... Has Rust gotten smarter, or has it always allowed this.
+    let source_view: &str = match &span.source {
+        crate::FileOrString::File(path) => match std::fs::read_to_string(path) {
+            Ok(str) => {
+                maybe_temp_storage = str;
+                &maybe_temp_storage
+            }
+            Err(_) => return "[Failed to open file while rendering this error.]".into(),
+        },
+        crate::FileOrString::String(_, string) => &string,
+    };
+
+    let annotations: Vec<String> = source_view
+        .lines()
+        .skip(span.start_line - 1)
+        .take(span.end_line - span.start_line + 1)
+        .zip(span.start_line..=span.end_line)
+        .map(|(line, line_number)| {
+            // Care is taken not to underline the parts that could be trimmed.
+            let mut string_started = false;
+            let mut annotation_line = String::new();
+
+            for (i, char) in line.trim().chars().enumerate() {
+                if !char.is_whitespace() {
+                    string_started = true;
+                }
+
+                if !string_started {
+                    annotation_line += " ";
+                    continue;
+                }
+
+                // How much of the line needs to be underlined depends on which line in the span we in.
+                let underline_needed = if line_number == span.start_line && line_number == span.end_line {
+                    // Note that columns are one based, and half open.
+                    i + 1 >= span.start_col && i + 1 < span.end_col
+                } else if line_number == span.start_line {
+                    i + 1 >= span.start_col
+                } else if line_number == span.end_line {
+                    i + 1 < span.end_col
+                } else {
+                    true
+                };
+
+                annotation_line += if underline_needed { "^" } else { " " };
+            }
+
+            let mut padded_line_number = line_number.to_string();
+            padded_line_number += &" ".repeat(line_number_size - padded_line_number.len());
+
+            format!("{} | {}\n{} | {}", padded_line_number, line, &" ".repeat(line_number_size), annotation_line)
+        })
+        .collect();
+
+    format!("{span}:\n{}\n", annotations.join("\n"))
 }

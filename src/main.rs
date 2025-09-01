@@ -12,6 +12,11 @@ fn main() {
 
     let code = compile_string(buffer, None);
 
+    if code.is_empty() {
+        println!("Compilation Failed\n");
+        return;
+    }
+
     for (i, instr) in code.iter().enumerate() {
         println!("{i: <5}: {instr:?}");
     }

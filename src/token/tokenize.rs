@@ -96,7 +96,7 @@ fn take_string_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
     let mut spans = vec![];
-    let (first, first_span) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let (first, first_span) = iter.next().ok_or("Expected character, found nothing")?;
     spans.push(first_span);
 
     if first != '\"' {
@@ -131,7 +131,7 @@ fn take_char_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
     let mut spans = vec![];
-    let (first, first_span) = iter.next().ok_or(TokenError("Expected character, found nothing".to_string()))?;
+    let (first, first_span) = iter.next().ok_or("Expected character, found nothing")?;
     spans.push(first_span);
 
     if first != '\'' {
@@ -305,7 +305,10 @@ fn take_operators(
         } else if slice.starts_with('.') {
             (Operator::Dot, 1)
         } else {
-            return Err(format!("Could not split operators: {slice}").into());
+            return Err(TokenError::ProblemAtSpan(
+                "Could not split operators.".to_string(),
+                Span::combine_all(span_slice),
+            ));
         };
 
         operators.push((op, Span::combine_all(&span_slice[..advance])));

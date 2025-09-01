@@ -212,7 +212,7 @@ impl FromStr for Keyword {
             "while" => K::While,
             "return" => K::Return,
             "struct" => K::Struct,
-            _ => Err(TokenError("Not a keyword".to_string()))?,
+            _ => Err("Not a keyword")?,
         })
     }
 }

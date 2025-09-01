@@ -2,7 +2,7 @@
 
 use super::{ASTError, AnalysisError, CompileError, TokenError};
 
-use crate::token::{Terminal, Token};
+use crate::token::{Span, Terminal, Token};
 use crate::CompilationEnvironment;
 
 use std::collections::{BTreeSet, HashSet};
@@ -15,10 +15,8 @@ pub fn pretty_error_message(env: &CompilationEnvironment, err: &CompileError) ->
     // enums.
     match err {
         CompileError::Direct(msg) => format!("Error occurred during compilation:\n    {msg}"),
-        CompileError::TokenError(TokenError(msg)) => {
-            format!("Error occurred during tokenization:\n    {msg}")
-        }
-        CompileError::ParseError(p_error, tokens) => pretty_parse_error_message(env, p_error, tokens),
+        CompileError::TokenError(token_error) => pretty_token_error_message(env, token_error),
+        CompileError::ParseError(parse_error, tokens) => pretty_parse_error_message(env, parse_error, tokens),
         CompileError::ASTError(ASTError(msg)) => {
             format!("Error occurred during ast construction:\n    {msg}")
         }
@@ -30,6 +28,17 @@ pub fn pretty_error_message(env: &CompilationEnvironment, err: &CompileError) ->
 
 /* Private Helpers */
 
+fn pretty_token_error_message(env: &CompilationEnvironment, err: &TokenError) -> String {
+    match err {
+        TokenError::Problem(description) => {
+            format!("Error occurred during tokenization: {description}")
+        }
+        TokenError::ProblemAtSpan(description, span) => {
+            format!("Error occurred during tokenization: {}\n{}", description, annotate(env, span))
+        }
+    }
+}
+
 fn pretty_parse_error_message(_env: &CompilationEnvironment, err: &parsley::ParseError, tokens: &[Token]) -> String {
     match err {
         parsley::ParseError::Internal(msg) => {
@@ -39,7 +48,8 @@ fn pretty_parse_error_message(_env: &CompilationEnvironment, err: &parsley::Pars
             format!(
                 "Error occurred during parsing:\
                 \n    Failed to parse token at {} (token type: {:?})\
-                \n    Expected {}.",
+                \n    Expected {}.
+                \n",
                 tokens[*index].span,
                 tokens[*index].body, // TODO: Replace with something prettier.
                 terminal_choice_description(terminals),
@@ -51,7 +61,8 @@ fn pretty_parse_error_message(_env: &CompilationEnvironment, err: &parsley::Pars
             format!(
                 "Error occurred during parsing:\
                 \n    Ran out of input, expected more.\
-                \n    Expected {}.",
+                \n    Expected {}.\
+                \n",
                 terminal_choice_description(terminals),
             )
         }
@@ -89,4 +100,9 @@ fn terminal_choice_description(terminal_names: &HashSet<String>) -> String {
         // 1 (or if something went wrong, 0)
         (*terminals_to_show.first().expect("Some terminal")).to_string()
     }
+}
+
+/// Produce an annotation, which is a snippet of the input code with certain parts underlined.
+fn annotate(_env: &CompilationEnvironment, span: &Span) -> String {
+    format!("{span}:\n[ANNOTATION HERE]")
 }

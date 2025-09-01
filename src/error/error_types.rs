@@ -9,8 +9,15 @@ use crate::token::Token;
 // For now, errors are really just strings, but I want to have user facing errors
 // at some point.
 
+use crate::token::Span;
+
 #[derive(Debug)]
-pub struct TokenError(pub String);
+pub enum TokenError {
+    /// A problem described by a string.
+    Problem(String),
+    /// A problem (described as the string) localized at a particularl span.
+    ProblemAtSpan(String, Span),
+}
 
 #[derive(Debug)]
 pub struct ASTError(pub String);
@@ -27,7 +34,7 @@ pub struct GenerateError(pub String);
 
 impl From<String> for TokenError {
     fn from(value: String) -> Self {
-        TokenError(value)
+        TokenError::Problem(value)
     }
 }
 

@@ -1,10 +1,10 @@
 //! Defines data structures related to [`Tokens`](Token)
 
-use std::cmp::{max, min};
-use std::rc::Rc;
-use std::str::FromStr;
-
 use crate::error::TokenError;
+use crate::FileOrString;
+
+use std::cmp::{max, min};
+use std::str::FromStr;
 
 /// Represents a single token in a Nom program.
 #[derive(Debug, Clone)]
@@ -247,8 +247,8 @@ impl TryFrom<char> for Punctuation {
 /// in error messages.
 #[derive(Debug, Clone)]
 pub struct Span {
-    /// The path to a file, or a name representing a pseudo file, like "\<input\>".
-    pub file: Rc<String>,
+    /// Program input.
+    pub source: FileOrString,
     /// The line the span starts on (1 based).
     pub start_line: usize,
     /// The line the span ends on (1 based).
@@ -265,10 +265,10 @@ impl Span {
     /// This is used heavily in `ast`, where we determine a span for every `ASTNode`
     /// in the program.
     pub fn combine(a: &Span, b: &Span) -> Span {
-        assert!(*a.file == *b.file);
+        assert!(*a.pseudo_path() == *b.pseudo_path());
 
         Span {
-            file: Rc::clone(&a.file),
+            source: a.source.clone(),
             start_line: min(a.start_line, b.start_line),
             end_line: max(a.end_line, b.end_line),
             start_col: min(a.start_col, a.start_col),
@@ -291,11 +291,19 @@ impl Span {
 
         final_span
     }
+
+    /// Returns the path to the held file, or the fake path in the case of string input.
+    pub fn pseudo_path(&self) -> &str {
+        match &self.source {
+            FileOrString::File(path) => path,
+            FileOrString::String(fake_path, _) => fake_path,
+        }
+    }
 }
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("{}:{}:{}", self.file, self.start_line, self.start_col))
+        f.write_str(&format!("{}:{}:{}", self.pseudo_path(), self.start_line, self.start_col))
     }
 }
 

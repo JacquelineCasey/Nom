@@ -3,22 +3,19 @@
 use super::token_types::{Keyword, Operator, Punctuation, Span, Token, TokenBody};
 
 use crate::error::TokenError;
+use crate::FileOrString;
 
-use std::rc::Rc;
 use std::str::FromStr;
 
 /* The Algorithm. */
 
 /// Tokenizes input, converting a string to a list of tokens.
 ///
-/// Accepts input as a string, and a file path for book-keeping (spans). The file
-/// path may also be a pseudo file path, like "\<input\>".
-pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> {
+/// Accepts input as a string, and a [`FileOrString`] for book-keeping (spans).
+pub fn tokenize(input: &str, source: FileOrString) -> Result<Vec<Token>, TokenError> {
     let mut tokens: Vec<Token> = vec![];
 
-    let fake_file = Rc::new(file_path.to_owned());
-
-    let mut iter = add_span_info(input, fake_file).peekable();
+    let mut iter = add_span_info(input, source).peekable();
     while let Some((ch, _)) = iter.peek() {
         if *ch == '\"' {
             let (token, span) = take_string_literal(&mut iter)?;
@@ -54,11 +51,11 @@ pub fn tokenize(input: &str, file_path: &str) -> Result<Vec<Token>, TokenError> 
 
 /// Attaches span information to an input string.
 ///
-/// Given a input string (and a filename), produces an iterator which yields the
+/// Given a input string (and a source), produces an iterator which yields the
 /// characters of the string, along with the span representing those characters.
 /// During the tokenization process, these spans are combined to produce the spans
 /// for the tokens.
-fn add_span_info(input: &str, file: Rc<String>) -> impl std::iter::Iterator<Item = (char, Span)> + '_ {
+fn add_span_info(input: &str, source: FileOrString) -> impl std::iter::Iterator<Item = (char, Span)> + '_ {
     let mut line_num = 1;
     let mut col_num = 1;
 
@@ -66,7 +63,7 @@ fn add_span_info(input: &str, file: Rc<String>) -> impl std::iter::Iterator<Item
         let ret_val = (
             ch,
             Span {
-                file: Rc::clone(&file),
+                source: source.clone(), // Fairly cheap, copies a small string and a pointer at most.
                 start_line: line_num,
                 end_line: line_num,
                 start_col: col_num,

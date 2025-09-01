@@ -26,18 +26,18 @@
 
 mod analysis;
 mod ast;
+mod error;
 mod generate;
 mod instructions;
 pub mod runtime;
 mod token;
-
-mod error;
 mod util;
-
-use std::collections::{HashMap, HashSet, VecDeque};
 
 use error::CompileError;
 pub use instructions::Instruction;
+
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::rc::Rc;
 
 /// Nom's grammar, represented in parsley's definition language (similar to Backus-Naur form).
 ///
@@ -104,12 +104,12 @@ impl CompilationEnvironment {
     ///
     /// Adds a goal to scope check any imported functions.
     fn import_file(&mut self, file: &FileOrString) -> Result<(), CompileError> {
-        let (path, input) = match file {
-            FileOrString::File(path) => (path, std::fs::read_to_string(path).map_err(|_| "Could not open file")?),
-            FileOrString::String(path, data) => (path, data.clone()),
+        let input = match file {
+            FileOrString::File(path) => Rc::new(std::fs::read_to_string(path).map_err(|_| "Could not open file")?),
+            FileOrString::String(_, data) => Rc::clone(data),
         };
 
-        let tokens = token::tokenize(&input, path)?;
+        let tokens = token::tokenize(&input, file.clone())?;
 
         let syntax_tree =
             self.parser.parse_tokens(&tokens, "Program").map_err(|err| CompileError::ParseError(err, tokens))?;
@@ -270,13 +270,13 @@ enum CompilationGoal {
 }
 
 /// A simple type wrapping either a file input, or a direct string input.
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 enum FileOrString {
     /// Represents input via a file, given by a string.
     File(String),
     /// Represents direct string input. The first string is a "Fake Path" for use
     /// in diagnostics, such as "\<input\>". The second string is the full program.
-    String(String, String),
+    String(String, Rc<String>),
 }
 
 /// Given input, generates a list of instructions.
@@ -319,5 +319,5 @@ pub fn compile_file(path: String, error_writer: Option<&mut dyn std::io::Write>)
 ///
 /// If an error occurs, it will print to the screen, and the function will panic.
 pub fn compile_string(input: String, error_writer: Option<&mut dyn std::io::Write>) -> Vec<instructions::Instruction> {
-    compile(FileOrString::String("<input>".to_string(), input), error_writer.unwrap_or(&mut std::io::stdout()))
+    compile(FileOrString::String("<input>".to_string(), Rc::new(input)), error_writer.unwrap_or(&mut std::io::stdout()))
 }

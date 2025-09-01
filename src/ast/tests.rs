@@ -1,6 +1,8 @@
 use test_generator::test_resources;
 
-use std::io::Read;
+use std::{io::Read, rc::Rc};
+
+use crate::FileOrString;
 
 use super::*;
 
@@ -16,7 +18,7 @@ fn read_file(resource: &str) -> String {
 fn validate_spans<'a>(ast: &'a mut AnyAST<'a>) {
     let span = &ast.get_node_data().span;
 
-    assert!(*span.file == "<test-input>");
+    assert!(span.pseudo_path() == "<test-input>");
     assert!(span.start_line <= span.end_line);
     assert!(span.start_col < span.end_col);
 
@@ -27,9 +29,10 @@ fn validate_spans<'a>(ast: &'a mut AnyAST<'a>) {
 
 #[test_resources("samples/successful/**/*.nom")]
 fn ast_has_spans(resource: &str) {
-    let input = read_file(resource);
+    let input = Rc::new(read_file(resource));
 
-    let tokens = crate::token::tokenize(&input, "<test-input>").unwrap();
+    let tokens =
+        crate::token::tokenize(&input, FileOrString::String("<test-input>".to_string(), Rc::clone(&input))).unwrap();
 
     let parser =
         parsley::define_parser::<crate::token::Token>(PARSER_DEFINITION).expect("Parser definition should be valid");

@@ -1,14 +1,14 @@
 //! Defines instructions for the virtual machine. Instructions are intended to be
 //! flat, and very simple, and should not contain any strings. They can contain other
 //! simple scalar constants, however.
-//! 
+//!
 //! The virtual machine uses a stack model for computation. Local variables are
 //! allocated in advance, but most of the actual computation happens with temporaries
 //! stored an operation stack. These frames are themselves organized in a call stack,
 //! which is stored in one continuous memory region.
-//! 
+//!
 //! Nom's "stack memory" actually lives in Rust's heap.
-//! 
+//!
 //! Right now, I am optimizing for instruction simplicity (which hopefully equals
 //! easily generated code). This will occur at the cost of runtime speed.
 
@@ -132,7 +132,6 @@ pub enum Instruction {
 
     // Jumps: Instead of advancing the instruction pointer by one, the instruction pointer
     // is adjusted by the i32 shift, positive or negative.
-
     /// Consumes a bool (1 byte), and jumps if it was true
     RelativeJumpIfTrue(i32),
 

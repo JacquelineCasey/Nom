@@ -1,5 +1,37 @@
 // Demonstrates syntactic sugar for accessing members of a pointeed at struct.
 
-//! 5
+//! 16
 
-// TODO
+struct Foo {
+    a: i32,
+    b: i32,
+}
+
+fn main() -> {
+    var test_sum: i32 = 0;
+
+    var foo: *Foo = alloc_uninit!(Foo);
+
+    // Pointers to structs can have members accessed conveniently like this:
+    foo.a = 4;
+
+    // Which is syntactic sugar for an expresion like this.
+    foo.*.b = 6;
+
+    // Of course, we can read out of these as rvalues.
+    test_sum += foo.a + foo.*.b;
+
+    // The .* syntax is necessary when there isn't another member to look at. So we could assign the entire Foo at once:
+    foo.* = Foo { a: 1, b: 2 };
+
+    test_sum += foo.a + foo.*.b;
+
+    // Let's read the whole thing.
+    val stack_foo = foo.*;
+
+    test_sum += stack_foo.a + stack_foo.*.b;
+
+    free!(foo);
+
+    test_sum
+}

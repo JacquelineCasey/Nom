@@ -1,8 +1,10 @@
-use test_generator::test_resources;
+//! Tests for the token module.
+
+use super::*;
 
 use std::io::Read;
 
-use super::*;
+use test_generator::test_resources;
 
 fn read_file(resource: &str) -> String {
     let mut file = std::fs::File::open(resource).expect("File opens");

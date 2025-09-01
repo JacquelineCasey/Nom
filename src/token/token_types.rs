@@ -4,7 +4,7 @@ use std::cmp::{max, min};
 use std::rc::Rc;
 use std::str::FromStr;
 
-use super::TokenError;
+use crate::error::TokenError;
 
 /// Represents a single token in a Nom program.
 #[derive(Debug, Clone)]

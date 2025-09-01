@@ -1,5 +1,34 @@
 // Demonstrates pointer equality operation.
 
-// TODO
-
 //! 4
+
+fn main() -> i32 {
+    var successes: i32 = 0;
+
+    var ptrA: u8* = alloc_uninit!(u8*);
+
+    if ptrA == ptrA {
+        successes += 1;
+    };
+
+    var ptrB: u8* = alloc_uninit!(u8*);
+
+    if ptrA != ptrB {
+        successes += 1;
+    };
+
+    var ptrC = ptrA;
+
+    if ptrA == ptrC {
+        successes += 1;
+    };
+
+    if ptrB != ptrC {
+        successes += 1;
+    };
+
+    free!(ptrA);
+    free!(ptrB);
+
+    successes
+}

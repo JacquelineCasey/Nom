@@ -58,7 +58,7 @@ fn pretty_parse_error_message(_env: &CompilationEnvironment, err: &parsley::Pars
             format!(
                 "Error occurred during parsing: Ran out of input, expected {}.\n{}",
                 terminal_choice_description(terminals),
-                tokens.last().map_or("".into(), |last_token| annotate(&last_token.span))
+                tokens.last().map_or(String::new(), |last_token| annotate(&last_token.span))
             )
         }
     }

@@ -25,9 +25,7 @@ pub fn optimize(instructions: Vec<PseudoInstruction>) -> Vec<PseudoInstruction> 
                 next_move = 0; // Stack ptr movement does not matter here
                 final_instructions.push(PI::Actual(I::Return));
             }
-            PI::Actual(I::RetractMoving(0, _)) => {
-                continue;
-            }
+            PI::Actual(I::RetractMoving(0, _)) => (),
             other => {
                 if next_move > 0 {
                     final_instructions.push(PI::Actual(I::AdvanceStackPtr(next_move as usize)));

@@ -1,3 +1,10 @@
+//! Handles generating instructions to evaluate expressions.
+
+// I get the idea behind this one, but the &Options here come from fields of structs, so doing this makes those calls
+// (modestly) more annoying (with .as_ref()), but no one is actually going to benefit from the increased generality.
+// This affects a few functions in this module.
+#![allow(clippy::ref_option)]
+
 use crate::{
     ast::{ASTNodeData, MathOperation},
     instructions::{Comparison, IntegerBinaryOperation},
@@ -307,30 +314,27 @@ impl CodeGenerator {
         else_branch: &Option<Box<ExprAST>>,
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
-        match else_branch {
-            Some(else_branch) => {
-                let jump_1_id = util::next_id();
-                let jump_2_id = util::next_id();
+        if let Some(else_branch) = else_branch {
+            let jump_1_id = util::next_id();
+            let jump_2_id = util::next_id();
 
-                self.generate_expression(env, condition, function_info, depth, out)?;
-                out.push(PI::Temp(TempInstruction::JumpIfFalse(jump_1_id)));
-                self.generate_expression(env, block, function_info, depth, out)?;
-                out.push(PI::Temp(TempInstruction::Jump(jump_2_id)));
+            self.generate_expression(env, condition, function_info, depth, out)?;
+            out.push(PI::Temp(TempInstruction::JumpIfFalse(jump_1_id)));
+            self.generate_expression(env, block, function_info, depth, out)?;
+            out.push(PI::Temp(TempInstruction::Jump(jump_2_id)));
 
-                out.push(PI::Temp(TempInstruction::JumpFrom(jump_1_id)));
-                self.generate_expression(env, else_branch, function_info, depth, out)?;
+            out.push(PI::Temp(TempInstruction::JumpFrom(jump_1_id)));
+            self.generate_expression(env, else_branch, function_info, depth, out)?;
 
-                out.push(PI::Temp(TempInstruction::JumpFrom(jump_2_id)));
-            }
-            None => {
-                let skip_jump_id = util::next_id();
+            out.push(PI::Temp(TempInstruction::JumpFrom(jump_2_id)));
+        } else {
+            let skip_jump_id = util::next_id();
 
-                self.generate_expression(env, condition, function_info, depth, out)?;
-                out.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
-                self.generate_expression(env, block, function_info, depth, out)?;
+            self.generate_expression(env, condition, function_info, depth, out)?;
+            out.push(PI::Temp(TempInstruction::JumpIfFalse(skip_jump_id)));
+            self.generate_expression(env, block, function_info, depth, out)?;
 
-                out.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
-            }
+            out.push(PI::Temp(TempInstruction::JumpFrom(skip_jump_id)));
         }
 
         Ok(())

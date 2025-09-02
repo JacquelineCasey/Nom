@@ -25,7 +25,7 @@ pub struct OutStream<'a, T> {
     buffer: &'a mut Vec<T>,
 }
 
-impl<'a, T> OutStream<'a, T> {
+impl<T> OutStream<'_, T> {
     pub fn new(buffer: &mut Vec<T>) -> OutStream<'_, T> {
         OutStream { buffer }
     }

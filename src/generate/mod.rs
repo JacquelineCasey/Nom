@@ -50,7 +50,7 @@ enum Location<'a> {
                                       // Soon - LocalUnknownOffset... maybe (String, Expr). Supporting expressions like arr[i * 2]
 }
 
-impl<'a> Location<'a> {
+impl Location<'_> {
     // Returns a new location struct where the offsets are collapsed to a single
     // level.
     fn collapse_offsets(self) -> Self {

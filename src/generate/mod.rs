@@ -3,15 +3,14 @@
 mod expression; // Contains functions that generate code to evaluate each type of expression.
 mod optimize_instructions; // Makes optimizations at the instruction level.
 
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
 use crate::analysis::types::{KindData, Type, TypeInfo};
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
 use crate::error::GenerateError;
-use crate::instructions::{Constant, Instruction, IntSize};
-use crate::util::{reinterpret, OutStream};
+use crate::instructions::{Instruction, IntSize};
+use crate::util::{OutStream};
 use crate::CompilationEnvironment;
 
 use optimize_instructions::optimize;

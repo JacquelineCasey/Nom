@@ -5,18 +5,16 @@
 // This affects a few functions in this module.
 #![allow(clippy::ref_option)]
 
-use crate::{
-    ast::{ASTNodeData, MathOperation},
-    instructions::{Comparison, IntegerBinaryOperation},
-    util,
-    util::OutStream,
-};
+use super::{get_align_shift, CodeGenerator, FunctionInfo, Location, PseudoInstruction, TempInstruction, Variable};
 
-use super::{
-    get_align_shift, reinterpret, Borrow, CodeGenerator, CompilationEnvironment, Constant, ExprAST, FunctionInfo,
-    GenerateError, Instruction, IntSize, KindData, Location, PseudoInstruction, StatementAST, TempInstruction, Type,
-    TypeInfo, Variable,
-};
+use crate::analysis::types::{KindData, Type, TypeInfo};
+use crate::ast::{ASTNodeData, ExprAST, MathOperation, StatementAST};
+use crate::error::GenerateError;
+use crate::instructions::{Comparison, IntegerBinaryOperation};
+use crate::instructions::{Constant, Instruction, IntSize};
+use crate::util;
+use crate::util::OutStream;
+use crate::CompilationEnvironment;
 
 use Instruction as I;
 use PseudoInstruction as PI;
@@ -180,10 +178,10 @@ impl CodeGenerator {
         let mut push_constant = |constant| out.push(PI::Actual(I::PushConstant(constant)));
         if builtin.is_signed() {
             match int_size {
-                IntSize::OneByte => push_constant(Constant::OneByte(reinterpret::<i8, u8>(num as i8))),
-                IntSize::TwoByte => push_constant(Constant::TwoByte(reinterpret::<i16, u16>(num as i16))),
-                IntSize::FourByte => push_constant(Constant::FourByte(reinterpret::<i32, u32>(num as i32))),
-                IntSize::EightByte => push_constant(Constant::EightByte(reinterpret::<i64, u64>(num as i64))),
+                IntSize::OneByte => push_constant(Constant::OneByte(util::reinterpret::<i8, u8>(num as i8))),
+                IntSize::TwoByte => push_constant(Constant::TwoByte(util::reinterpret::<i16, u16>(num as i16))),
+                IntSize::FourByte => push_constant(Constant::FourByte(util::reinterpret::<i32, u32>(num as i32))),
+                IntSize::EightByte => push_constant(Constant::EightByte(util::reinterpret::<i64, u64>(num as i64))),
             }
         } else {
             match int_size {
@@ -440,7 +438,7 @@ impl CodeGenerator {
         let loc = self.locate_expr(subtree, env)?.collapse_offsets();
 
         match loc {
-            Location::OffsetFrom(inner, offset) => match inner.borrow() {
+            Location::OffsetFrom(inner, offset) => match inner.as_ref() {
                 Location::Local(name) => {
                     let (base_offset, _, _) = function_info.variable_info_by_name(name).expect("Variable Exists");
                     Self::generate_read_from_base(base_offset + offset, *size, *alignment, out);

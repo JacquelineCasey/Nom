@@ -34,3 +34,13 @@ impl<'a, T> OutStream<'a, T> {
         self.buffer.push(t);
     }
 }
+
+/// A simple type wrapping either a file input, or a direct string input.
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub enum FileOrString {
+    /// Represents input via a file, given by a string.
+    File(String),
+    /// Represents direct string input. The first string is a "Fake Path" for use
+    /// in diagnostics, such as "\<input\>". The second string is the full program.
+    String(String, std::rc::Rc<String>),
+}

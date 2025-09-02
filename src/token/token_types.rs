@@ -4,6 +4,7 @@ use crate::error::TokenError;
 use crate::FileOrString;
 
 use std::cmp::{max, min};
+use std::fmt::Display;
 use std::str::FromStr;
 
 /// Represents a single token in a Nom program.
@@ -217,6 +218,26 @@ impl FromStr for Keyword {
     }
 }
 
+impl Display for Keyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Keyword::Var => "var",
+            Keyword::Val => "val",
+            Keyword::Fn => "fn",
+            Keyword::True => "true",
+            Keyword::False => "false",
+            Keyword::If => "if",
+            Keyword::Else => "else",
+            Keyword::Not => "not",
+            Keyword::And => "and",
+            Keyword::Or => "or",
+            Keyword::While => "while",
+            Keyword::Return => "return",
+            Keyword::Struct => "struct",
+        })
+    }
+}
+
 impl TryFrom<char> for Punctuation {
     type Error = (); // Likely ignored by algorithm.;
 
@@ -237,6 +258,51 @@ impl TryFrom<char> for Punctuation {
         }
     }
 }
+
+impl Display for Punctuation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Punctuation::Semicolon => ";",
+            Punctuation::Comma => ",",
+            Punctuation::Colon => ":",
+            Punctuation::LeftCurlyBrace => "{",
+            Punctuation::RightCurlyBrace => "}",
+            Punctuation::LeftParenthesis => "(",
+            Punctuation::RightParenthesis => ")",
+            Punctuation::LeftSquareBracket => "[",
+            Punctuation::RightSquareBracket => "]",
+        })
+    }
+}
+
+impl Display for Operator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Operator::Plus => "+",
+            Operator::Minus => "-",
+            Operator::Times => "*",
+            Operator::Divide => "/",
+            Operator::Modulus => "%",
+            Operator::Equals => "=",
+            Operator::PlusEquals => "+=",
+            Operator::MinusEquals => "-=",
+            Operator::TimesEquals => "*=",
+            Operator::DivideEquals => "/=",
+            Operator::ModulusEquals => "%=",
+            Operator::ThinRightArrow => "->",
+            Operator::DoubleEquals => "==",
+            Operator::NotEquals => "!=",
+            Operator::LessEquals => "<=",
+            Operator::GreaterEquals => ">=",
+            Operator::Less => "<",
+            Operator::Greater => ">",
+            Operator::Dot => ".",
+        })
+    }
+}
+
+// Note that Operators don't have a FromStr, since they are often joined together in groups that must be seperateed more
+// carefully.
 
 /* Spans */
 

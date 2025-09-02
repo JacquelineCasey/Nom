@@ -16,7 +16,7 @@ pub fn tokenize(input: &str, source: FileOrString) -> Result<Vec<Token>, TokenEr
     let mut tokens: Vec<Token> = vec![];
 
     let mut iter = add_span_info(input, source).peekable();
-    while let Some((ch, _)) = iter.peek() {
+    while let Some((ch, span)) = iter.peek() {
         if *ch == '\"' {
             let (token, span) = take_string_literal(&mut iter)?;
             tokens.push(Token { body: token, span });
@@ -40,7 +40,7 @@ pub fn tokenize(input: &str, source: FileOrString) -> Result<Vec<Token>, TokenEr
         } else if ch.is_whitespace() {
             iter.next().expect("Known");
         } else {
-            return Err(format!("Cannot start token with {}", *ch).into());
+            return Err(TokenError::ProblemAtSpan(format!("Cannot start token with '{}'.", *ch), span.clone()));
         }
     }
 

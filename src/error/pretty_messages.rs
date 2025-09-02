@@ -48,24 +48,17 @@ fn pretty_parse_error_message(_env: &CompilationEnvironment, err: &parsley::Pars
         }
         parsley::ParseError::IncompleteParse { index, terminals } => {
             format!(
-                "Error occurred during parsing:\
-                \n    Failed to parse token at {} (token type: {:?})\
-                \n    Expected {}.
-                \n",
-                tokens[*index].span,
-                tokens[*index].body, // TODO: Replace with something prettier.
+                "Error occurred during parsing: Expected {}, but found {}.\n{}",
                 terminal_choice_description(terminals),
+                token_description(&tokens[*index]),
+                annotate(&tokens[*index].span),
             )
         }
         parsley::ParseError::OutOfInput { terminals } => {
-            // TODO: Add the filter logic here as well.
-
             format!(
-                "Error occurred during parsing:\
-                \n    Ran out of input, expected more.\
-                \n    Expected {}.\
-                \n",
+                "Error occurred during parsing: Ran out of input, expected {}.\n{}",
                 terminal_choice_description(terminals),
+                tokens.last().map_or("".into(), |last_token| annotate(&last_token.span))
             )
         }
     }
@@ -104,6 +97,22 @@ fn terminal_choice_description(terminal_names: &HashSet<String>) -> String {
     }
 }
 
+/// Returns a user facing string that describes a token. (e.g. "val", "fn", "->", "the identifier \'foo\'".
+/// Note: Could feasibly live in [`crate::token`].
+fn token_description(token: &Token) -> String {
+    use crate::token::TokenBody;
+
+    match &token.body {
+        TokenBody::Identifier(name) => format!("the identifier '{name}'"),
+        TokenBody::StringLiteral(text) => format!("the string literal \"{text}\""),
+        TokenBody::CharLiteral(char) => format!("the character literal '{char}'"),
+        TokenBody::NumericLiteral(number) => format!("the numeric literal '{number}'"),
+        TokenBody::Keyword(keyword) => format!("'{keyword}'"),
+        TokenBody::Operator(operator) => format!("'{operator}'"),
+        TokenBody::Punctuation(punctuation) => format!("'{punctuation}'"),
+    }
+}
+
 /// Produce an annotation, which is a snippet of the input code with certain parts underlined.
 fn annotate(span: &Span) -> String {
     // This will likely become more sophisticated over time, but for now we just print the lines of a single span, with
@@ -120,7 +129,7 @@ fn annotate(span: &Span) -> String {
             }
             Err(_) => return "[Failed to open file while rendering this error.]".into(),
         },
-        crate::FileOrString::String(_, string) => &string,
+        crate::FileOrString::String(_, string) => string,
     };
 
     let annotations: Vec<String> = source_view

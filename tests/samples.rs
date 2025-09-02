@@ -97,7 +97,6 @@ fn run_panics(resource: &str) {
 #[test_resources("samples/compile-error/**/*.nom")]
 fn compile_errors(resource: &str) {
     let input = read_file(resource);
-    println!("{}", input);
     let expected_output = get_marked_comments(&input);
 
     let mut buf = std::io::BufWriter::new(vec![]);

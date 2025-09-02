@@ -24,17 +24,20 @@
     clippy::unit_arg, // Really only for Ok(something_unit_returning) in some match statements.
 )]
 
+pub mod runtime;
+
 mod analysis;
 mod ast;
 mod error;
 mod generate;
 mod instructions;
-pub mod runtime;
 mod token;
 mod util;
 
-use error::CompileError;
 pub use instructions::Instruction;
+
+use error::CompileError;
+use util::FileOrString;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
@@ -267,16 +270,6 @@ enum CompilationGoal {
     /// the function. After this runs, the function is ready to be passed to the
     /// code generator.
     TypeCheck(String),
-}
-
-/// A simple type wrapping either a file input, or a direct string input.
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
-enum FileOrString {
-    /// Represents input via a file, given by a string.
-    File(String),
-    /// Represents direct string input. The first string is a "Fake Path" for use
-    /// in diagnostics, such as "\<input\>". The second string is the full program.
-    String(String, Rc<String>),
 }
 
 /// Given input, generates a list of instructions.

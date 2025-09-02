@@ -1,8 +1,9 @@
 // This is the easiest semicolon to forget in almost any language
 
-//! Error occurred during parsing:
-//!     Failed to parse token at samples/compile-error/missing-semicolon.nom:15:5 (token type: Keyword(Val))
-//!     Expected one of ';', '.', or an operator.
+//! Error occurred during parsing: Expected one of ';', '.', or an operator, but found 'val'.
+//! samples/compile-error/missing-semicolon.nom:16:5:
+//! 16 |     val d: i32 = c;
+//!    |     ^^^
 
 fn main() -> unit {
     val a: i32 = 2;

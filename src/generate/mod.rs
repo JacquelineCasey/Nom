@@ -10,7 +10,7 @@ use crate::analysis::types::{KindData, Type, TypeInfo};
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
 use crate::error::GenerateError;
 use crate::instructions::{Instruction, IntSize};
-use crate::util::{OutStream};
+use crate::util::OutStream;
 use crate::CompilationEnvironment;
 
 use optimize_instructions::optimize;

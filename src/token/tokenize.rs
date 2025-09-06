@@ -1,6 +1,6 @@
 //! Provides the tokenization algorithm.
 
-use super::token_types::{Keyword, Operator, Punctuation, Span, Token, TokenBody};
+use super::token_types::{Keyword, KeywordFromStrError, Operator, Punctuation, Span, Token, TokenBody};
 
 use crate::error::TokenError;
 use crate::FileOrString;
@@ -213,9 +213,19 @@ fn take_identifier_or_keyword(
         }
     }
 
+    let span = span.expect("Known to exist");
     match Keyword::from_str(&string) {
-        Ok(keyword) => Ok((TokenBody::Keyword(keyword), span.expect("Known to exist"))),
-        Err(_) => Ok((TokenBody::Identifier(string), span.expect("Known to exist"))),
+        Ok(keyword) => Ok((TokenBody::Keyword(keyword), span)),
+        Err(KeywordFromStrError::NotKeyword) => Ok((TokenBody::Identifier(string), span)),
+        Err(KeywordFromStrError::NeedsExclamation(keyword)) => {
+            // Special handling of the case where we see an exclamation from a string that could use one to be a keyword.
+            if let Some(('!', _)) = iter.peek() {
+                let (_, exclamation_span) = iter.next().expect("Known to exist");
+                Ok((TokenBody::Keyword(keyword), Span::combine(&span, &exclamation_span)))
+            } else {
+                Ok((TokenBody::Identifier(string), span))
+            }
+        }
     }
 }
 
@@ -303,7 +313,7 @@ fn take_operators(
             (Operator::Dot, 1)
         } else {
             return Err(TokenError::ProblemAtSpan(
-                "Could not split operators.".to_string(),
+                "Could not seperate operators into tokens.".to_string(),
                 Span::combine_all(span_slice),
             ));
         };

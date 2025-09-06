@@ -1,6 +1,5 @@
 //! Defines data structures related to [`Tokens`](Token)
 
-use crate::error::TokenError;
 use crate::FileOrString;
 
 use std::cmp::{max, min};
@@ -77,6 +76,8 @@ pub enum Keyword {
     While,
     Return,
     Struct,
+    AllocUninit,
+    Free,
 }
 
 /// Represents an operator in the Nom Programming language.
@@ -193,8 +194,18 @@ impl std::fmt::Display for Token {
     }
 }
 
+/// This error actually provides useful information to the tokenization algorithm. If we fail to gather a keyword from
+/// a string, but the following '!' would make it a keyword, we will consider taking that adjacent '!'.
+pub enum KeywordFromStrError {
+    /// Not even close to being a keyword, likely an identifier instead.
+    NotKeyword,
+    /// Could be a keyword, but needs an exclamation point. The provided Keyword is the one that would be formed by
+    /// having that exclamation point.
+    NeedsExclamation(Keyword),
+}
+
 impl FromStr for Keyword {
-    type Err = TokenError; // Likely ignored by algorithm.
+    type Err = KeywordFromStrError; // Likely ignored by algorithm.
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use Keyword as K;
@@ -213,7 +224,11 @@ impl FromStr for Keyword {
             "while" => K::While,
             "return" => K::Return,
             "struct" => K::Struct,
-            _ => Err("Not a keyword")?,
+            "alloc_uninit!" => K::AllocUninit,
+            "free!" => K::Free,
+            "alloc_uninit" => Err(Self::Err::NeedsExclamation(K::AllocUninit))?,
+            "free" => Err(Self::Err::NeedsExclamation(K::Free))?,
+            _ => Err(Self::Err::NotKeyword)?,
         })
     }
 }
@@ -234,6 +249,8 @@ impl Display for Keyword {
             Keyword::While => "while",
             Keyword::Return => "return",
             Keyword::Struct => "struct",
+            Keyword::AllocUninit => "alloc_uninit!",
+            Keyword::Free => "free!",
         })
     }
 }

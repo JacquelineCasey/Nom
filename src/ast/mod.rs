@@ -267,6 +267,12 @@ impl TypeAST {
             }
         }
     }
+
+    pub fn get_node_data(&self) -> &ASTNodeData {
+        match self {
+            TypeAST::NamedType(_, ast_node_data) | TypeAST::Pointer(_, ast_node_data) => ast_node_data,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -1261,7 +1267,16 @@ fn build_type(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
 }
 
 fn build_pointer_type(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
-    todo!()
+    match assert_rule_get_children(tree, "PtrType")? {
+        [ST::TokenNode(Token { body: TB::Operator(Op::Times), span: star_span }), child_node @ ST::RuleNode { rule_name, .. }]
+            if rule_name == "Type" =>
+        {
+            let child_type = build_type(child_node)?;
+            let span = Span::combine(star_span, &child_type.get_node_data().span);
+            Ok(TypeAST::Pointer(Box::new(child_type), ASTNodeData::new(span.clone())))
+        }
+        _ => Err("Could not build PtrType node".into()),
+    }
 }
 
 /* Helpers for AST build functions */

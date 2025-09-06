@@ -106,7 +106,7 @@ fn type_check_expr(
                     }
                     StatementAST::Declaration(DeclarationAST::Variable { expr, name, type_ascription, .. }, _) => {
                         let var_type: Type = type_ascription
-                            .clone()
+                            .as_ref()
                             .ok_or(AnalysisError::from(format!(
                                 "Type inference not yet supported - give {name} (in {function_name}) an explicit type."
                             )))?

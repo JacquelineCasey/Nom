@@ -11,7 +11,7 @@ pub use type_check::type_check; // Finally, types are analyzed and decided. This
 
 use std::collections::HashMap;
 
-use crate::ast::ExprAST;
+use crate::ast::{ExprAST, TypeAST};
 use crate::CompilationEnvironment;
 
 use types::Type;
@@ -31,14 +31,14 @@ impl Function {
     pub fn new(
         _env: &CompilationEnvironment,
         ast: ExprAST,
-        params: Vec<(String, String)>,
-        return_type: String,
+        params: Vec<(String, TypeAST)>,
+        return_type: &TypeAST,
     ) -> Function {
         // Could become Result
 
         // TODO: Someday we might want this to add type generation requests to _env
 
-        let parameter_types = params.into_iter().map(|(name, type_name)| (name, type_name.into())).collect();
+        let parameter_types = params.into_iter().map(|(name, ref type_name)| (name, type_name.into())).collect();
         Function {
             ast,
             return_type: return_type.into(),

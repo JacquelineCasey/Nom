@@ -130,7 +130,7 @@ impl CompilationEnvironment {
                     }
 
                     // Expects all types in the file to be processed first.
-                    self.functions.insert(name.clone(), analysis::Function::new(self, block, params, return_type));
+                    self.functions.insert(name.clone(), analysis::Function::new(self, block, params, &return_type));
 
                     self.queue.add_goal(CompilationGoal::ScopeCheck(name));
                 }

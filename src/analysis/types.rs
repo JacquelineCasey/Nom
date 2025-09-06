@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use crate::ast::TypeAST;
+use crate::instructions::IntSize;
+use crate::{CompilationEnvironment, CompileError};
 
-use crate::{instructions::IntSize, CompilationEnvironment, CompileError};
+use std::collections::HashMap;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Type {
@@ -111,6 +113,16 @@ impl From<String> for Type {
     }
 }
 
+/// It's unclear if this method for converting to types will work forever, as type expressions become more complicated.
+impl From<&TypeAST> for Type {
+    fn from(type_ast: &TypeAST) -> Self {
+        match type_ast {
+            TypeAST::NamedType(name, ..) => name.clone().into(),
+            TypeAST::Pointer(_type_ast, ..) => todo!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TypeInfo {
     pub size: usize,      // Number of bytes the types takes on the stack.
@@ -148,7 +160,7 @@ pub fn get_default_types() -> HashMap<Type, TypeInfo> {
 pub fn add_struct_type(
     env: &mut CompilationEnvironment,
     name: &str,
-    members: Vec<(String, String)>,
+    members: Vec<(String, TypeAST)>,
 ) -> Result<(), CompileError> {
     if members.is_empty() {
         return Err("Structs with no members are not implemented. Consider `unit` instead.".into());
@@ -159,7 +171,7 @@ pub fn add_struct_type(
     /* Check type validity, determine overall struct alignment. */
 
     for (_, member_type_name) in &members {
-        let member_type = member_type_name.clone().into();
+        let member_type = member_type_name.into();
 
         let Some(TypeInfo { alignment: member_alignment, .. }) = env.types.get(&member_type) else {
             return Err("Bad Member Type. (Make sure to declare structs in right order.)".into());
@@ -172,8 +184,8 @@ pub fn add_struct_type(
     let mut processed_members: HashMap<String, (Type, usize)> = HashMap::new(); // usize is offset.
     let mut curr_offset = 0;
 
-    for (member_name, member_type_name) in members {
-        let member_type = member_type_name.clone().into();
+    for (member_name, ref member_type_name) in members {
+        let member_type = member_type_name.into();
         let TypeInfo { alignment: member_alignment, size: member_size, .. } =
             env.types.get(&member_type).expect("Known to Exist");
 

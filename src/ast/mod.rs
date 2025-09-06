@@ -45,14 +45,14 @@
 //! that occurs can be permitted to ignore some enum variants, which should have
 //! been removed during these steps.
 
+use crate::error::ASTError;
+use crate::instructions::Comparison;
+use crate::token::{Keyword as Kw, Operator as Op, Punctuation as Punc, Span, Token, TokenBody as TB};
+
 use parsley::SyntaxTree as ST;
 
 #[cfg(test)]
 mod tests;
-
-use crate::error::ASTError;
-use crate::instructions::Comparison;
-use crate::token::{Keyword as Kw, Operator as Op, Punctuation as Punc, Span, Token, TokenBody as TB};
 
 /* AST Definitions */
 
@@ -128,12 +128,12 @@ pub enum DeclarationAST {
     Function {
         /// The name of the function.
         name: String,
-        /// A list of parameters, each represented by a (name, type) pair (each a string).
-        params: Vec<(String, String)>,
+        /// A list of parameters, each represented by a (name, type) pair.
+        params: Vec<(String, TypeAST)>,
         /// The code of the function. This [`ExprAST`] should always be a block.
         block: ExprAST,
-        /// A string representing the type the function returns.
-        return_type: String,
+        /// The type the function returns
+        return_type: TypeAST,
         /// Metadata.
         node_data: ASTNodeData,
     },
@@ -149,7 +149,7 @@ pub enum DeclarationAST {
         expr: ExprAST,
         /// The type associated with the variable. This is optional, so that someday
         /// we might allow type inference to determine the type (not yet implemented).
-        type_ascription: Option<String>,
+        type_ascription: Option<TypeAST>,
         /// Metadata.
         node_data: ASTNodeData,
     },
@@ -157,9 +157,8 @@ pub enum DeclarationAST {
     Struct {
         /// The name of the struct.
         name: String,
-        /// Members of the struct. Each element is a (member name, type) pair, both
-        /// strings.
-        members: Vec<(String, String)>,
+        /// Members of the struct. The string is the name and the type is the member's type.
+        members: Vec<(String, TypeAST)>,
         /// Metadata.
         node_data: ASTNodeData,
     },
@@ -173,9 +172,9 @@ impl DeclarationAST {
         match self {
             DeclarationAST::Function { name, params, block, return_type, node_data } => DeclarationAST::Function {
                 name: name.clone(),
-                params: params.clone(),
+                params: params.iter().map(|(name, type_ast)| (name.clone(), type_ast.duplicate())).collect(),
                 block: block.duplicate(),
-                return_type: return_type.clone(),
+                return_type: return_type.duplicate(),
                 node_data: node_data.relabel(),
             },
             DeclarationAST::Variable { mutability, name, expr, type_ascription, node_data } => {
@@ -183,13 +182,15 @@ impl DeclarationAST {
                     mutability: *mutability,
                     name: name.clone(),
                     expr: expr.duplicate(),
-                    type_ascription: type_ascription.clone(),
+                    type_ascription: type_ascription.as_ref().map(TypeAST::duplicate),
                     node_data: node_data.relabel(),
                 }
             }
-            DeclarationAST::Struct { name, members, node_data } => {
-                DeclarationAST::Struct { name: name.clone(), members: members.clone(), node_data: node_data.relabel() }
-            }
+            DeclarationAST::Struct { name, members, node_data } => DeclarationAST::Struct {
+                name: name.clone(),
+                members: members.iter().map(|(name, type_ast)| (name.clone(), type_ast.duplicate())).collect(),
+                node_data: node_data.relabel(),
+            },
         }
     }
 
@@ -245,6 +246,24 @@ impl StatementAST {
             }
             StatementAST::Declaration(decl, node_data) => {
                 StatementAST::Declaration(decl.duplicate(), node_data.relabel())
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TypeAST {
+    NamedType(String, ASTNodeData),
+    Pointer(Box<TypeAST>, ASTNodeData),
+}
+
+impl TypeAST {
+    /// Creates an identical copy, except for the `node_data` which will have a new unique identifier.
+    pub fn duplicate(&self) -> TypeAST {
+        match self {
+            TypeAST::NamedType(name, node_data) => TypeAST::NamedType(name.clone(), node_data.relabel()),
+            TypeAST::Pointer(type_ast, node_data) => {
+                TypeAST::Pointer(Box::new(type_ast.duplicate()), node_data.relabel())
             }
         }
     }
@@ -1143,7 +1162,7 @@ fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 
 /* Functions that build components of AST Nodes */
 
-fn build_struct_member_list(tree: &ST<Token>) -> Result<Vec<(String, String)>, ASTError> {
+fn build_struct_member_list(tree: &ST<Token>) -> Result<Vec<(String, TypeAST)>, ASTError> {
     let children = assert_rule_get_children(tree, "StructMemberList")?;
 
     if children.is_empty() {
@@ -1172,7 +1191,7 @@ fn build_struct_member_list(tree: &ST<Token>) -> Result<Vec<(String, String)>, A
     Ok(entries)
 }
 
-fn build_struct_member_list_entry(tree: &ST<Token>) -> Result<(String, String), ASTError> {
+fn build_struct_member_list_entry(tree: &ST<Token>) -> Result<(String, TypeAST), ASTError> {
     let children = assert_rule_get_children(tree, "StructMemberListEntry")?;
 
     match children {
@@ -1185,7 +1204,7 @@ fn build_struct_member_list_entry(tree: &ST<Token>) -> Result<(String, String), 
     }
 }
 
-fn build_parameter_list(node: &ST<Token>) -> Result<Vec<(String, String)>, ASTError> {
+fn build_parameter_list(node: &ST<Token>) -> Result<Vec<(String, TypeAST)>, ASTError> {
     let ST::RuleNode { rule_name, subexpressions } = node else {
         return Err("Expected Rule node".into());
     };
@@ -1231,16 +1250,18 @@ fn build_parameter_list(node: &ST<Token>) -> Result<Vec<(String, String)>, ASTEr
     Ok(parameters)
 }
 
-fn build_type(tree: &ST<Token>) -> Result<String, ASTError> {
-    if let ST::RuleNode { rule_name, subexpressions } = tree {
-        if rule_name == "Type" {
-            if let ST::TokenNode(Token { body: TB::Identifier(ident), .. }) = &subexpressions[0] {
-                return Ok(ident.clone());
-            }
+fn build_type(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
+    match assert_rule_get_children(tree, "Type")? {
+        [ST::TokenNode(Token { body: TB::Identifier(identifier), span })] => {
+            Ok(TypeAST::NamedType(identifier.clone(), ASTNodeData::new(span.clone())))
         }
+        [child @ ST::RuleNode { rule_name, .. }] if rule_name == "PtrType" => build_pointer_type(child),
+        _ => Err("Could not build Type node".into()),
     }
+}
 
-    Err("Could not build Type node".into())
+fn build_pointer_type(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
+    todo!()
 }
 
 /* Helpers for AST build functions */

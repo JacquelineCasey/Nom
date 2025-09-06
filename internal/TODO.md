@@ -13,6 +13,7 @@ can go here:
 - Add a test for pointer to pointer?
 - The tests should eventually test for leaks as well.
 - Maybe that build_all.zsh script should be converted in build.rs?
+- Break up the AST module like we did for tokens - seperate types and ast creation.
 
 
 == Someday TODO ==

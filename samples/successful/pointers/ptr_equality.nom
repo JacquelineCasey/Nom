@@ -5,13 +5,13 @@
 fn main() -> i32 {
     var successes: i32 = 0;
 
-    var ptrA: u8* = alloc_uninit!(u8*);
+    var ptrA: *u8 = alloc_uninit!(u8);
 
     if ptrA == ptrA {
         successes += 1;
     };
 
-    var ptrB: u8* = alloc_uninit!(u8*);
+    var ptrB: *u8 = alloc_uninit!(u8);
 
     if ptrA != ptrB {
         successes += 1;

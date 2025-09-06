@@ -77,7 +77,7 @@ fn list_equals(l1: *List, l2: *List) -> bool {
     var curr1: *ListNode = l1.head;
     var curr2: *ListNode = l2.head;
 
-    while (curr1 != l1.nil && curr2 != l2.nil) {
+    while (curr1 != l1.nil and curr2 != l2.nil) {
         // Compare two values, and advance pointers.
         if (curr1.value != curr2.value) {
             return false;

@@ -10,8 +10,7 @@ can go here:
 - Document the project in the code itself.
   - Top level done. More to follow.
 - Add tests for the current token error annotation.
-- Allow ! in keywords, possibly by checking for them greedily when we fail to find a Keyword. from_str should return an
-  error indicating that ! is needed?
+- Add a test for pointer to pointer?
 - The tests should eventually test for leaks as well.
 - Maybe that build_all.zsh script should be converted in build.rs?
 

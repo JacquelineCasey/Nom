@@ -7,7 +7,7 @@ struct Foo {
     b: i32,
 }
 
-fn main() -> {
+fn main() -> unit {
     var test_sum: i32 = 0;
 
     var foo: *Foo = alloc_uninit!(Foo);

@@ -46,7 +46,13 @@
 //! been removed during these steps.
 
 mod ast_types;
+
 mod build_ast;
+mod build_ast_helpers;
+mod build_declaration_ast;
+mod build_expr_ast;
+mod build_statement_ast;
+mod build_type_ast;
 
 #[cfg(test)]
 mod tests;

@@ -8,6 +8,8 @@ use crate::token::{Operator as Op, Span, Token, TokenBody as TB};
 
 use parsley::SyntaxTree as ST;
 
+/* Public (to ast) Function that Constructs a Type */
+
 pub(super) fn build_type_ast(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
     match assert_rule_get_children(tree, "Type")? {
         [ST::TokenNode(Token { body: TB::Identifier(identifier), span })] => {
@@ -17,6 +19,8 @@ pub(super) fn build_type_ast(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
         _ => Err("Could not build Type node".into()),
     }
 }
+
+/* Functions that Construct Specific Kinds of Types */
 
 fn build_pointer_type(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
     match assert_rule_get_children(tree, "PtrType")? {

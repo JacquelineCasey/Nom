@@ -615,7 +615,7 @@ fn build_expr_ast(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
             ST::RuleNode { rule_name, .. } if rule_name == "MultiplicativeExpression" => {
                 build_multiplicative_expr(tree)
             }
-            ST::RuleNode { rule_name, .. } if rule_name == "MemberAccessExpression" => build_member_access_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "AccessExpression" => build_access_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "ComparisonExpression" => build_comparision_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "OrExpression" => build_or_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "AndExpression" => build_and_expr(tree),
@@ -820,8 +820,8 @@ fn build_multiplicative_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     })
 }
 
-fn build_member_access_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "MemberAccessExpression")?;
+fn build_access_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
+    let children = assert_rule_get_children(tree, "AccessExpression")?;
 
     let mut iter = children.iter();
 
@@ -830,7 +830,7 @@ fn build_member_access_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 
     while let Some(ST::TokenNode(Token { body: TB::Operator(Op::Dot), .. })) = iter.next() {
         let Some(ST::TokenNode(Token { body: TB::Identifier(member_name), span: new_span })) = iter.next() else {
-            return Err("Expected identifier in MemberAccessExpression".into());
+            return Err("Expected identifier in AccessExpression".into());
         };
 
         curr_span = Span::combine(&curr_span, new_span);

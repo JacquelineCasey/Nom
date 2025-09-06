@@ -182,6 +182,8 @@ impl parsley::Token for Token {
             Terminal::While => matches!(token, T { body: TB::Keyword(K::While), .. }),
             Terminal::Return => matches!(token, T { body: TB::Keyword(K::Return), .. }),
             Terminal::Struct => matches!(token, T { body: TB::Keyword(K::Struct), .. }),
+            Terminal::AllocUninit => matches!(token, T { body: TB::Keyword(K::AllocUninit), .. }),
+            Terminal::Free => matches!(token, T { body: TB::Keyword(K::Free), .. }),
         })
     }
 }
@@ -442,6 +444,8 @@ pub enum Terminal {
     While,
     Return,
     Struct,
+    AllocUninit,
+    Free,
 }
 
 impl Terminal {
@@ -495,6 +499,8 @@ impl Terminal {
             While => "'while'",
             Return => "'return'",
             Struct => "'struct'",
+            AllocUninit => "alloc_uninit!",
+            Free => "free!",
         }
     }
 
@@ -511,7 +517,7 @@ impl Terminal {
             | ModulusEquals | Not | And | Or => true,
             Identifier | NumericLiteral | LeftCurlyBrace | RightCurlyBrace | LeftParenthesis | RightParenthesis
             | LeftSquareBracket | RightSquareBracket | Semicolon | Comma | Colon | ThinRightArrow | Dot | Var | Val
-            | Fn | True | False | If | Else | While | Return | Struct => false,
+            | Fn | True | False | If | Else | While | Return | Struct | AllocUninit | Free => false,
         }
     }
 }
@@ -565,6 +571,8 @@ impl TryFrom<&str> for Terminal {
             "While" => Terminal::While,
             "Return" => Terminal::Return,
             "Struct" => Terminal::Struct,
+            "AllocUninit" => Terminal::AllocUninit,
+            "Free" => Terminal::Free,
             _ => Err(format!("Bad token type: \"{terminal_name}\""))?,
         })
     }

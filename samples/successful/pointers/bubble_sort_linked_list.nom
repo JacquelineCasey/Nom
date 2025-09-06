@@ -17,7 +17,7 @@ fn new_list() -> *List {
     val nil: *ListNode = alloc_uninit!(ListNode);
 
     // It's good to initialize all fields after an alloc_uninit, even if the values aren't that helpful.
-    nil.value = -1000000; // Should never be used.
+    nil.value = 7777777; // Should never be used.
     nil.next = nil; // Unlikely to ever be used.
 
     val list: *List = alloc_uninit!(List);
@@ -51,7 +51,7 @@ fn sum_list(list: *List) -> i32 {
 fn swap_for_min_rec(node: *ListNode, list_nil: *nil) -> unit {
     // The comparison is in fact lazy, though here it technically doesn't need to be.
     if (node == list_nil or node.next == list_nil ) {
-        return;
+        return {}
     };
 
     if (node.value > node.next.value ) {
@@ -98,7 +98,7 @@ fn free_list(list: *List) -> unit {
         val next = curr.next;
         free!(curr);
         curr = next;
-    }
+    };
 
     free!(list.nil);
     free!(list) // No semicolon checks that this is unit typed.
@@ -129,11 +129,11 @@ fn main() -> unit {
     
     sort(l1);
  
-    let result: i32 = if (sum_list(l2) == 36 and list_equals(l1, l2)) {
+    val result: i32 = if (sum_list(l2) == 36 and list_equals(l1, l2)) {
         1
     } else {
         0
-    }
+    };
 
     free_list(l1);
     free_list(l2);

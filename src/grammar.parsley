@@ -85,11 +85,12 @@ AdditiveExpression
     ;
 
 MultiplicativeExpression 
-    : MemberAccessExpression ((_Times | _Divide | _Modulus) MemberAccessExpression)* 
+    : AccessExpression ((_Times | _Divide | _Modulus) AccessExpression)* 
     ;
 
-MemberAccessExpression
-    : PrimaryExpression (_Dot _Identifier)* 
+# We'll let one rule handle both member access and pointer access, and any other similar syntax that appears later.
+AccessExpression
+    : PrimaryExpression (_Dot (_Identifier | _Times))* 
     ;
 
 PrimaryExpression 
@@ -98,13 +99,20 @@ PrimaryExpression
     | BlockExpression
     | _Identifier
     | FunctionCall
+    | AllocUninitExpression
     | IfExpression
     | WhileExpression  # Always returns unit for now, but someday might be more expression-y.
     | StructExpression
     ; 
 
+# We'll handle "Functionals" or "Function Style Keywords" here as well. Note that some keywords do not take (only)
+# expressions, so those are handled elsewhere.
 FunctionCall
-    : _Identifier _LeftParenthesis (Expression (_Comma Expression)*)? _RightParenthesis
+    : (_Identifier | _Free) _LeftParenthesis (Expression (_Comma Expression)*)? _RightParenthesis
+    ;
+
+AllocUninitExpression
+    : _AllocUninit _LeftParenthesis Type _RightParenthesis
     ;
 
 IfExpression
@@ -170,4 +178,9 @@ BooleanLiteral
 
 Type
     : _Identifier
+    | PtrType
+    ;
+
+PtrType
+    : _Times Type
     ;

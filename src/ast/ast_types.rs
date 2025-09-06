@@ -236,12 +236,12 @@ pub enum ExprAST {
     And(Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Not(Box<ExprAST>, ASTNodeData),
     MemberAccess(Box<ExprAST>, String, ASTNodeData),
-
     // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
     IntegerLiteral(i128, ASTNodeData),
     BooleanLiteral(bool, ASTNodeData),
     Variable(String, ASTNodeData),
-    FunctionCall(String, Vec<ExprAST>, ASTNodeData), // The vec contains arguments
+    // The vec contains the arguments.
+    FunctionCall(String, Vec<ExprAST>, ASTNodeData),
     Block(Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     If {
         condition: Box<ExprAST>,
@@ -255,13 +255,15 @@ pub enum ExprAST {
         data: ASTNodeData,
     },
     Return(Option<Box<ExprAST>>, ASTNodeData),
-
     StructExpression {
         name: String,
         members: Vec<(String, ExprAST)>,
         data: ASTNodeData,
     },
-
+    Free {
+        subexpr: Box<ExprAST>,
+        data: ASTNodeData,
+    },
     // This is a hack that allows us to remove an AST, operate on it, and put it back. (Blame the borrow checker for this.)
     // (See std::mem::take usage for why we need this...)
     #[default]
@@ -289,7 +291,8 @@ impl ExprAST {
             | ExprAST::While { data, .. }
             | ExprAST::Return(_, data)
             | ExprAST::MemberAccess(_, _, data)
-            | ExprAST::StructExpression { data, .. } => data,
+            | ExprAST::StructExpression { data, .. }
+            | ExprAST::Free { data, .. } => data,
             ExprAST::Moved => panic!("ExprAST was moved"),
         }
     }
@@ -362,6 +365,9 @@ impl ExprAST {
                     .collect(),
                 data: data.relabel(),
             },
+            ExprAST::Free { subexpr, data } => {
+                ExprAST::Free { subexpr: Box::new(subexpr.duplicate()), data: data.relabel() }
+            }
             ExprAST::Moved => panic!("ExprAST moved"),
         }
     }
@@ -378,16 +384,19 @@ pub enum AnyAST<'a> {
 }
 
 impl<'a> AnyAST<'a> {
-    /* This function permits recursion over the tree without inspecting the structure.
-     * Most methods that want to crawl the whole tree will use this, check to see if
-     * it is at a specific type of node, then recurse in both cases. I anticipate this
-     * being useful for applying optimizations / desugaring stages. */
+    /// This function permits recursion over the tree without inspecting the structure.
+    /// Most methods that want to crawl the whole tree will use this, check to see if
+    /// it is at a specific type of node, then recurse in both cases. I anticipate this
+    /// being useful for applying optimizations / desugaring stages.
     #[allow(clippy::match_same_arms)] // I prefer my ordering
     pub fn children(&'a mut self) -> Vec<AnyAST<'a>> {
         use AnyAST as A;
         use DeclarationAST as D;
         use ExprAST as E;
         use StatementAST as S;
+
+        // TODO: do we need to think about types? Perhaps yes if we get something like `Array<T, u64>`, though we could
+        // perhaps skip this for a while if we demand that the u64 is a literal (not even an expression like 2 * 8).
 
         match self {
             A::File(AST { declarations, .. }) => declarations.iter_mut().map(A::Declaration).collect(),
@@ -434,6 +443,9 @@ impl<'a> AnyAST<'a> {
             }
             A::Expression(E::StructExpression { members, .. }) => {
                 members.iter_mut().map(|(_, field_expr)| A::Expression(field_expr)).collect()
+            }
+            A::Expression(E::Free { subexpr, .. }) => {
+                vec![A::Expression(subexpr)]
             }
             A::Expression(E::Moved) => panic!("Expected Unmoved Value"),
         }

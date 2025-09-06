@@ -52,13 +52,14 @@ pub(super) fn build_expr_ast(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
             ST::RuleNode { rule_name, .. } if rule_name == "OrExpression" => build_or_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "AndExpression" => build_and_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "NotExpression" => build_not_expr(tree),
-            ST::RuleNode { ref rule_name, .. } if rule_name == "Literal" => build_literal_expr(tree),
-            ST::RuleNode { ref rule_name, .. } if rule_name == "FunctionCall" => build_function_call_expr(tree),
-            ST::RuleNode { ref rule_name, .. } if rule_name == "BlockExpression" => build_block_expr(tree),
-            ST::RuleNode { ref rule_name, .. } if rule_name == "IfExpression" => build_if_expr(tree),
-            ST::RuleNode { ref rule_name, .. } if rule_name == "WhileExpression" => build_while_expr(tree),
-            ST::RuleNode { ref rule_name, .. } if rule_name == "ReturnExpression" => build_return_expr(tree),
-            ST::RuleNode { ref rule_name, .. } if rule_name == "StructExpression" => build_struct_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "Literal" => build_literal_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "FunctionCall" => build_function_call_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "BlockExpression" => build_block_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "IfExpression" => build_if_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "WhileExpression" => build_while_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "ReturnExpression" => build_return_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "StructExpression" => build_struct_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "AllocUninitExpression" => build_alloc_uninit_expr(tree),
             ST::RuleNode { rule_name, subexpressions: _ } => {
                 Err(format!("Expected Expression. Unknown expression node name: {rule_name}").into())
             }
@@ -233,9 +234,7 @@ fn build_literal_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 fn build_function_call_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     let children = assert_rule_get_children(tree, "FunctionCall")?;
 
-    let ST::TokenNode(Token { body: TB::Identifier(name), span: first_span }) = &children[0] else {
-        return Err("Could not find identifier in FunctionCall".into());
-    };
+    // First child processed at the end, where we split on whether it is an identifier or a keyword (such as free!).
 
     if !matches!(&children[1], ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftParenthesis), .. })) {
         return Err("Expected left parenthesis".into());
@@ -261,7 +260,22 @@ fn build_function_call_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         }
     }
 
-    Ok(ExprAST::FunctionCall(name.clone(), expressions, ASTNodeData::new(Span::combine(first_span, last_span))))
+    match &children[0] {
+        ST::TokenNode(Token { body: TB::Identifier(name), span: first_span }) => {
+            Ok(ExprAST::FunctionCall(name.clone(), expressions, ASTNodeData::new(Span::combine(first_span, last_span))))
+        }
+        ST::TokenNode(Token { body: TB::Keyword(Kw::Free), span: first_span }) => {
+            if expressions.len() != 1 {
+                return Err("Expected exactly 1 expression in free! call".into());
+            };
+
+            Ok(ExprAST::Free {
+                subexpr: Box::new(expressions.pop().expect("known to exist")),
+                data: ASTNodeData::new(Span::combine(first_span, last_span)),
+            })
+        }
+        _ => Err("Could not find identifier in FunctionCall".into()),
+    }
 }
 
 fn build_block_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
@@ -427,6 +441,10 @@ fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         members,
         data: ASTNodeData::new(Span::combine(first_span, last_span)),
     })
+}
+
+fn build_alloc_uninit_expr(_tree: &ST<Token>) -> Result<ExprAST, ASTError> {
+    todo!()
 }
 
 /* Helpers for AST build functions */

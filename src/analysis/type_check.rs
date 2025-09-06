@@ -254,6 +254,9 @@ fn type_check_expr(
 
             member_type.clone()
         }
+        ExprAST::Free { .. } => {
+            todo!("Evaluate to unit, assert that we have a pointer.")
+        }
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 

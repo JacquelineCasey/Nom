@@ -34,6 +34,7 @@ fn scope_check_expression(
     expr: &ExprAST,
 ) -> Result<(), AnalysisError> {
     match expr {
+        // Simble Binary Expressions
         ExprAST::Add(left, right, _)
         | ExprAST::Subtract(left, right, _)
         | ExprAST::Multiply(left, right, _)
@@ -45,7 +46,8 @@ fn scope_check_expression(
             scope_check_expression(env, local_types, left)?;
             scope_check_expression(env, local_types, right)?;
         }
-        ExprAST::Not(inner, _) => {
+        // Simple Unary Expressions
+        ExprAST::Not(inner, _) | ExprAST::Free { subexpr: inner, .. } => {
             scope_check_expression(env, local_types, inner)?;
         }
         ExprAST::Block(statements, final_expr, _) => {

@@ -31,3 +31,10 @@ Rule 4: Project Organiziation.
     be `pub`, though I find I've been using that more rarely.
   - Leaf files contain the actual implementation of things, and contain no submodules, except maybe tests. 
     - A module with only a test submodule (even in a different file) doesn't count as a root module.
+  - Sometimes I want to break up a large leaf file, but not have the pieces be children of the leaf, which is annoying
+    for a few reasons - introducing more `mod.rs` files for one, which this standard indicates should contain no real
+    code themselves. In these cases, it is fine to move the broken off components to be children of the parent of the
+    large module. For instance, we might have a `build_ast` module in the `ast` module. Pieces originally in `build_ast`
+    that fit better in their own file can go into, say, `build_expr_ast`, still under `ast`. While this is a little
+    sloppy on visibility (other parts of `ast` can see these details), I've deemed this an acceptable tradoff for limiting
+    the insane nesting that might occur otherwise.

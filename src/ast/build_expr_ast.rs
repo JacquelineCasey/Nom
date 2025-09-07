@@ -19,7 +19,7 @@ pub(super) fn build_expr_ast(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
                 if subexpressions.len() == 1 {
                     build_expr_ast(&subexpressions[0])
                 } else {
-                    Err("Expected exactly on child of Expression node".into())
+                    Err("Expected exactly one child of Expression node".into())
                 }
             }
             ST::RuleNode { rule_name, subexpressions } if rule_name == "PrimaryExpression" => {
@@ -75,36 +75,34 @@ pub(super) fn build_expr_ast(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 fn build_additive_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let children = tree.assert_rule_get_children("AdditiveExpression")?;
 
-    combine_binary_ops(children, true, |left, op, right| match op {
-        ST::TokenNode(Token { body: TB::Operator(Op::Plus), .. }) => {
-            let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+    combine_binary_ops(children, true, |left, op, right| {
+        let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+
+        if op.holds(&Op::Plus) {
             Ok(ExprAST::Add(Box::new(left), Box::new(right), ASTNodeData::new(span)))
-        }
-        ST::TokenNode(Token { body: TB::Operator(Op::Minus), .. }) => {
-            let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+        } else if op.holds(&Op::Minus) {
             Ok(ExprAST::Subtract(Box::new(left), Box::new(right), ASTNodeData::new(span)))
+        } else {
+            Err("Expected + or -".into())
         }
-        _ => Err("Expected + or -".into()),
     })
 }
 
 fn build_multiplicative_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let children = tree.assert_rule_get_children("MultiplicativeExpression")?;
 
-    combine_binary_ops(children, true, |left, op, right| match op {
-        ST::TokenNode(Token { body: TB::Operator(Op::Times), .. }) => {
-            let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+    combine_binary_ops(children, true, |left, op, right| {
+        let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+
+        if op.holds(&Op::Times) {
             Ok(ExprAST::Multiply(Box::new(left), Box::new(right), ASTNodeData::new(span)))
-        }
-        ST::TokenNode(Token { body: TB::Operator(Op::Divide), .. }) => {
-            let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+        } else if op.holds(&Op::Divide) {
             Ok(ExprAST::Divide(Box::new(left), Box::new(right), ASTNodeData::new(span)))
-        }
-        ST::TokenNode(Token { body: TB::Operator(Op::Modulus), .. }) => {
-            let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+        } else if op.holds(&Op::Modulus) {
             Ok(ExprAST::Modulus(Box::new(left), Box::new(right), ASTNodeData::new(span)))
+        } else {
+            Err("Expected *, /, or %".into())
         }
-        _ => Err("Expected *, /, or %".into()),
     })
 }
 
@@ -113,7 +111,7 @@ fn build_access_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 
     let mut iter = children.iter();
 
-    let mut curr_expr = build_expr_ast(iter.next().ok_or::<ASTError>("akjgbnajgnksajn".into())?)?;
+    let mut curr_expr = build_expr_ast(iter.next().ok_or::<ASTError>("Expected a child of AccessExpression".into())?)?;
     let mut curr_span = curr_expr.get_node_data().span.clone();
 
     while let Some(ST::TokenNode(Token { body: TB::Operator(Op::Dot), .. })) = iter.next() {
@@ -160,24 +158,22 @@ fn build_comparision_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 fn build_or_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let children = tree.assert_rule_get_children("OrExpression")?;
 
-    combine_binary_ops(children, true, |left, op, right| match op {
-        ST::TokenNode(Token { body: TB::Keyword(Kw::Or), .. }) => {
-            let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
-            Ok(ExprAST::Or(Box::new(left), Box::new(right), ASTNodeData::new(span)))
-        }
-        _ => Err("Expected 'or'".into()),
+    combine_binary_ops(children, true, |left, op, right| {
+        op.expect_holds(&Kw::Or)?;
+
+        let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+        Ok(ExprAST::Or(Box::new(left), Box::new(right), ASTNodeData::new(span)))
     })
 }
 
 fn build_and_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let children = tree.assert_rule_get_children("AndExpression")?;
 
-    combine_binary_ops(children, true, |left, op, right| match op {
-        ST::TokenNode(Token { body: TB::Keyword(Kw::And), .. }) => {
-            let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
-            Ok(ExprAST::And(Box::new(left), Box::new(right), ASTNodeData::new(span)))
-        }
-        _ => Err("Expected 'and'".into()),
+    combine_binary_ops(children, true, |left, op, right| {
+        op.expect_holds(&Kw::And)?;
+
+        let span = Span::combine(&left.get_node_data().span, &right.get_node_data().span);
+        Ok(ExprAST::And(Box::new(left), Box::new(right), ASTNodeData::new(span)))
     })
 }
 
@@ -185,12 +181,10 @@ fn build_not_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let children = tree.assert_rule_get_children("NotExpression")?;
 
     if children.len() == 2 {
-        let ST::TokenNode(Token { body: TB::Keyword(Kw::Not), span: ref first_span }) = children[0] else {
-            return Err("...".into());
-        };
+        children[0].expect_holds(&Kw::Not)?;
 
         let inner = build_expr_ast(&children[1])?;
-        let span = Span::combine(first_span, &inner.get_node_data().span);
+        let span = Span::combine(children[0].span_of_token()?, &inner.get_node_data().span);
 
         Ok(ExprAST::Not(Box::new(inner), ASTNodeData::new(span)))
     } else {
@@ -199,13 +193,9 @@ fn build_not_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 }
 
 fn build_literal_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
-    let children = tree.assert_rule_get_children("Literal")?;
-
-    if children.len() != 1 {
+    let [child] = tree.assert_rule_get_children("Literal")? else {
         return Err("Wrong number of subnodes to node Literal".into());
-    }
-
-    let child = &children[0];
+    };
 
     match child {
         ST::RuleNode { rule_name, subexpressions } if rule_name == "BooleanLiteral" => {
@@ -235,15 +225,10 @@ fn build_function_call_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 
     // First child processed at the end, where we split on whether it is an identifier or a keyword (such as free!).
 
-    if !matches!(&children[1], ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftParenthesis), .. })) {
-        return Err("Expected left parenthesis".into());
-    }
+    children[1].expect_holds(&Punc::LeftParenthesis)?;
 
-    let ST::TokenNode(Token { body: TB::Punctuation(Punc::RightParenthesis), span: last_span }) =
-        &children[children.len() - 1]
-    else {
-        return Err("Expected right parenthesis".into());
-    };
+    children[children.len() - 1].expect_holds(&Punc::RightParenthesis)?;
+    let last_span = children[children.len() - 1].span_of_token()?;
 
     let arg_list = &children[2..children.len() - 1];
     let mut iter = arg_list.iter();
@@ -253,9 +238,8 @@ fn build_function_call_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
         expressions.push(build_expr_ast(node)?);
 
         match iter.next() {
-            Some(ST::TokenNode(Token { body: TB::Punctuation(Punc::Comma), .. })) => (),
-            Some(_) => return Err("Expected comma".into()),
-            None => break, // In case the iterator restarts?
+            Some(comma_node) => comma_node.expect_holds(&Punc::Comma)?,
+            None => break, // In case the iterator would restart.
         }
     }
 
@@ -280,19 +264,15 @@ fn build_function_call_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 fn build_block_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let children = tree.assert_rule_get_children("BlockExpression")?;
 
-    let ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftCurlyBrace), span: ref first_span }) = children[0] else {
-        return Err("Expected open bracket before block".into());
-    };
+    children[0].expect_holds(&Punc::LeftCurlyBrace)?;
+    let first_span = children[0].span_of_token()?;
 
-    let ST::TokenNode(Token { body: TB::Punctuation(Punc::RightCurlyBrace), span: ref last_span }) =
-        children[children.len() - 1]
-    else {
-        return Err("Expected closed bracket after block".into());
-    };
+    children[children.len() - 1].expect_holds(&Punc::RightCurlyBrace)?;
+    let last_span = children[children.len() - 1].span_of_token()?;
 
     // &Vec<...> -> Vec<&...>
     let mut subexpressions: Vec<&SyntaxTree> = children.iter().collect();
-    subexpressions.remove(subexpressions.len() - 1); // Discard last_brace
+    subexpressions.remove(subexpressions.len() - 1); // Discard last brace
 
     if subexpressions.is_empty() {
         return Ok(ExprAST::Block(vec![], None, ASTNodeData::new(Span::combine(first_span, last_span))));
@@ -326,18 +306,15 @@ fn build_if_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
         return Err("Expected 3 subexpressions for IfExpression".into());
     }
 
-    let ST::TokenNode(Token { body: TB::Keyword(Kw::If), span: ref first_span }) = children[0] else {
-        return Err("Expected keyword if".into());
-    };
+    children[0].expect_holds(&Kw::If)?;
+    let first_span = children[0].span_of_token()?;
 
     let condition = Box::new(build_expr_ast(&children[1])?);
 
     let block = Box::new(build_block_expr(&children[2])?);
 
     let (else_branch, final_span) = if children.len() == 5 {
-        if !matches!(children[3], ST::TokenNode(Token { body: TB::Keyword(Kw::Else), .. })) {
-            return Err("Expected keyword else".into());
-        }
+        children[3].expect_holds(&Kw::Else)?;
 
         let else_block = build_expr_ast(&children[4])?;
         let else_span = else_block.get_node_data().span.clone();
@@ -351,19 +328,16 @@ fn build_if_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 }
 
 fn build_while_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
-    let children = tree.assert_rule_get_children("WhileExpression")?;
-
-    if children.len() != 3 {
-        return Err("Expected 3 subexpressions for WhileExpression".into());
-    }
-
-    let ST::TokenNode(Token { body: TB::Keyword(Kw::While), span: ref first_span }) = children[0] else {
-        return Err("Expected keyword while".into());
+    let [while_node, condition_node, block_node] = tree.assert_rule_get_children("WhileExpression")? else {
+        return Err("Expected 3 children of while node".into());
     };
 
-    let condition = Box::new(build_expr_ast(&children[1])?);
+    while_node.expect_holds(&Kw::While)?;
+    let first_span = while_node.span_of_token()?;
 
-    let block = Box::new(build_block_expr(&children[2])?);
+    let condition = Box::new(build_expr_ast(condition_node)?);
+
+    let block = Box::new(build_block_expr(block_node)?);
 
     let span = Span::combine(first_span, &block.get_node_data().span);
 
@@ -373,11 +347,10 @@ fn build_while_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 fn build_return_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let children = tree.assert_rule_get_children("ReturnExpression")?;
 
-    let ST::TokenNode(Token { body: TB::Keyword(Kw::Return), span: ref return_span }) = children[0] else {
-        return Err("Expected keyword Return".into());
-    };
+    children[0].expect_holds(&Kw::Return)?;
+    let first_span = children[0].span_of_token()?;
 
-    let mut span = return_span.clone();
+    let mut span = first_span.clone();
 
     let expr = if children.len() == 2 {
         let expr = Box::new(build_expr_ast(&children[1])?);
@@ -399,39 +372,29 @@ fn build_struct_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
         return Err("Expected struct name".into());
     };
 
-    let ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftCurlyBrace), .. }) = children[1] else {
-        return Err("Expected open bracket before struct expression".into());
-    };
+    children[1].expect_holds(&Punc::LeftCurlyBrace)?;
 
     let arg_list = &children[2].assert_rule_get_children("StructExpressionMemberList")?;
 
-    let ST::TokenNode(Token { body: TB::Punctuation(Punc::RightCurlyBrace), span: ref last_span }) = children[3] else {
-        return Err("Expected closed bracket after struct expression".into());
-    };
+    children[3].expect_holds(&Punc::RightCurlyBrace)?;
+    let last_span = children[3].span_of_token()?;
 
     let mut iter = arg_list.iter();
-
     let mut members = vec![];
     while let Some(member_name_tree) = iter.next() {
         let ST::TokenNode(Token { body: TB::Identifier(member_name), .. }) = member_name_tree else {
             return Err("Expected identifier".into());
         };
 
-        match iter.next() {
-            Some(ST::TokenNode(Token { body: TB::Punctuation(Punc::Colon), .. })) => (),
-            _ => return Err("Expected colon".into()),
-        }
+        iter.next().ok_or(ASTError::from("Expected colon"))?.expect_holds(&Punc::Colon)?;
 
-        let Some(member_expression) = iter.next() else {
-            return Err("Expected expression".into());
-        };
+        let member_expression = iter.next().ok_or(ASTError::from("Expected expression"))?;
 
         members.push((member_name.clone(), build_expr_ast(member_expression)?));
 
         match iter.next() {
-            Some(ST::TokenNode(Token { body: TB::Punctuation(Punc::Comma), .. })) => (),
-            Some(_) => return Err("Expected comma".into()),
-            None => break,
+            Some(child) => child.expect_holds(&Punc::Comma)?,
+            None => break, // In case the iterator would reset.
         }
     }
 
@@ -443,29 +406,21 @@ fn build_struct_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 }
 
 fn build_alloc_uninit_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
-    let children = tree.assert_rule_get_children("AllocUninitExpression")?;
-
-    if children.len() != 4 {
+    let [alloc, leftt_paren, type_node, right_paren] = tree.assert_rule_get_children("AllocUninitExpression")? else {
         return Err("Expected 4 children.".into());
-    }
-
-    let ST::TokenNode(Token { body: TB::Keyword(Kw::AllocUninit), span: first_span }) = &children[0] else {
-        return Err("Expected alloc_uninit!".into());
     };
 
-    if !matches!(&children[1], ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftParenthesis), .. })) {
-        return Err("Expected left parenthesis".into());
-    }
+    alloc.expect_holds(&Kw::AllocUninit)?;
+    let first_span = alloc.span_of_token()?;
 
-    if !matches!(&children[2], ST::RuleNode{rule_name, .. } if rule_name == "Type") {
-        return Err("Expected type".into());
-    }
+    leftt_paren.expect_holds(&Punc::LeftParenthesis)?;
 
-    let ST::TokenNode(Token { body: TB::Punctuation(Punc::RightParenthesis), span: last_span }) = &children[3] else {
-        return Err("Expected right parenthesis".into());
-    };
+    let type_ast = build_type_ast(type_node)?;
 
-    Ok(ExprAST::AllocUninit(build_type_ast(&children[2])?, ASTNodeData::new(Span::combine(first_span, last_span))))
+    right_paren.expect_holds(&Punc::RightParenthesis)?;
+    let last_span = right_paren.span_of_token()?;
+
+    Ok(ExprAST::AllocUninit(type_ast, ASTNodeData::new(Span::combine(first_span, last_span))))
 }
 
 /* Helpers for AST build functions */

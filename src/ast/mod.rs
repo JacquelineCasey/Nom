@@ -1,4 +1,4 @@
-//! Defines the [`AST`] type, and handles specializing [`SyntaxTrees`](parsley::SyntaxTree)
+//! Defines the [`AST`] type, and handles specializing [`SyntaxTrees`](SyntaxTree)
 //! into [`ASTs`](AST)
 //!
 //! The [`AST`] (abstract syntax tree) type is a highly heterogenous tree that represents
@@ -48,11 +48,12 @@
 mod ast_types;
 
 mod build_ast;
-mod build_ast_helpers;
 mod build_declaration_ast;
 mod build_expr_ast;
 mod build_statement_ast;
 mod build_type_ast;
+
+mod syntax_tree;
 
 #[cfg(test)]
 mod tests;

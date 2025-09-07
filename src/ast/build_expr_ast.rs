@@ -1,19 +1,17 @@
 //! This module handles building [`ExprASTS`](ExprAST) from Syntax Trees.
 
-use super::build_ast_helpers::assert_rule_get_children;
 use super::build_statement_ast::build_statement_ast;
 use super::build_type_ast::build_type_ast;
+use super::syntax_tree::{SyntaxTree, SyntaxTreeExtension, ST};
 use super::{ASTNodeData, ExprAST};
 
 use crate::error::ASTError;
 use crate::instructions::Comparison;
 use crate::token::{Keyword as Kw, Operator as Op, Punctuation as Punc, Span, Token, TokenBody as TB};
 
-use parsley::SyntaxTree as ST;
-
 /* Public (to ast) Function that Constructs Expressions */
 
-pub(super) fn build_expr_ast(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
+pub(super) fn build_expr_ast(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     // Prevent stack overflow by allocating additional stack as required.
     stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
         match tree {
@@ -74,8 +72,8 @@ pub(super) fn build_expr_ast(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 
 /* Functions that Build Specific Kinds of Expressions */
 
-fn build_additive_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "AdditiveExpression")?;
+fn build_additive_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("AdditiveExpression")?;
 
     combine_binary_ops(children, true, |left, op, right| match op {
         ST::TokenNode(Token { body: TB::Operator(Op::Plus), .. }) => {
@@ -90,8 +88,8 @@ fn build_additive_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     })
 }
 
-fn build_multiplicative_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "MultiplicativeExpression")?;
+fn build_multiplicative_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("MultiplicativeExpression")?;
 
     combine_binary_ops(children, true, |left, op, right| match op {
         ST::TokenNode(Token { body: TB::Operator(Op::Times), .. }) => {
@@ -110,8 +108,8 @@ fn build_multiplicative_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     })
 }
 
-fn build_access_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "AccessExpression")?;
+fn build_access_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("AccessExpression")?;
 
     let mut iter = children.iter();
 
@@ -132,8 +130,8 @@ fn build_access_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     Ok(curr_expr)
 }
 
-fn build_comparision_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "ComparisonExpression")?;
+fn build_comparision_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("ComparisonExpression")?;
 
     if children.len() == 1 {
         build_expr_ast(&children[0])
@@ -159,8 +157,8 @@ fn build_comparision_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     }
 }
 
-fn build_or_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "OrExpression")?;
+fn build_or_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("OrExpression")?;
 
     combine_binary_ops(children, true, |left, op, right| match op {
         ST::TokenNode(Token { body: TB::Keyword(Kw::Or), .. }) => {
@@ -171,8 +169,8 @@ fn build_or_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     })
 }
 
-fn build_and_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "AndExpression")?;
+fn build_and_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("AndExpression")?;
 
     combine_binary_ops(children, true, |left, op, right| match op {
         ST::TokenNode(Token { body: TB::Keyword(Kw::And), .. }) => {
@@ -183,8 +181,8 @@ fn build_and_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     })
 }
 
-fn build_not_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "NotExpression")?;
+fn build_not_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("NotExpression")?;
 
     if children.len() == 2 {
         let ST::TokenNode(Token { body: TB::Keyword(Kw::Not), span: ref first_span }) = children[0] else {
@@ -200,8 +198,8 @@ fn build_not_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     }
 }
 
-fn build_literal_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "Literal")?;
+fn build_literal_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("Literal")?;
 
     if children.len() != 1 {
         return Err("Wrong number of subnodes to node Literal".into());
@@ -232,8 +230,8 @@ fn build_literal_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     }
 }
 
-fn build_function_call_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "FunctionCall")?;
+fn build_function_call_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("FunctionCall")?;
 
     // First child processed at the end, where we split on whether it is an identifier or a keyword (such as free!).
 
@@ -279,8 +277,8 @@ fn build_function_call_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     }
 }
 
-fn build_block_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "BlockExpression")?;
+fn build_block_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("BlockExpression")?;
 
     let ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftCurlyBrace), span: ref first_span }) = children[0] else {
         return Err("Expected open bracket before block".into());
@@ -293,7 +291,7 @@ fn build_block_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     };
 
     // &Vec<...> -> Vec<&...>
-    let mut subexpressions: Vec<&ST<Token>> = children.iter().collect();
+    let mut subexpressions: Vec<&SyntaxTree> = children.iter().collect();
     subexpressions.remove(subexpressions.len() - 1); // Discard last_brace
 
     if subexpressions.is_empty() {
@@ -321,8 +319,8 @@ fn build_block_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     Ok(ExprAST::Block(statements, opt_expr, ASTNodeData::new(Span::combine(first_span, last_span))))
 }
 
-fn build_if_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "IfExpression")?;
+fn build_if_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("IfExpression")?;
 
     if children.len() < 3 {
         return Err("Expected 3 subexpressions for IfExpression".into());
@@ -352,8 +350,8 @@ fn build_if_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     Ok(ExprAST::If { condition, block, else_branch, data: ASTNodeData::new(Span::combine(first_span, &final_span)) })
 }
 
-fn build_while_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "WhileExpression")?;
+fn build_while_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("WhileExpression")?;
 
     if children.len() != 3 {
         return Err("Expected 3 subexpressions for WhileExpression".into());
@@ -372,8 +370,8 @@ fn build_while_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     Ok(ExprAST::While { condition, block, data: ASTNodeData::new(span) })
 }
 
-fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "ReturnExpression")?;
+fn build_return_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("ReturnExpression")?;
 
     let ST::TokenNode(Token { body: TB::Keyword(Kw::Return), span: ref return_span }) = children[0] else {
         return Err("Expected keyword Return".into());
@@ -394,8 +392,8 @@ fn build_return_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     Ok(ExprAST::Return(expr, ASTNodeData::new(span)))
 }
 
-fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "StructExpression")?;
+fn build_struct_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("StructExpression")?;
 
     let ST::TokenNode(Token { body: TB::Identifier(ref name), span: ref first_span }) = children[0] else {
         return Err("Expected struct name".into());
@@ -405,7 +403,7 @@ fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         return Err("Expected open bracket before struct expression".into());
     };
 
-    let arg_list = assert_rule_get_children(&children[2], "StructExpressionMemberList")?;
+    let arg_list = &children[2].assert_rule_get_children("StructExpressionMemberList")?;
 
     let ST::TokenNode(Token { body: TB::Punctuation(Punc::RightCurlyBrace), span: ref last_span }) = children[3] else {
         return Err("Expected closed bracket after struct expression".into());
@@ -444,8 +442,8 @@ fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     })
 }
 
-fn build_alloc_uninit_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    let children = assert_rule_get_children(tree, "AllocUninitExpression")?;
+fn build_alloc_uninit_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+    let children = tree.assert_rule_get_children("AllocUninitExpression")?;
 
     if children.len() != 4 {
         return Err("Expected 4 children.".into());
@@ -472,9 +470,9 @@ fn build_alloc_uninit_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
 
 /* Helpers for AST build functions */
 
-fn combine_binary_ops<F>(subtrees: &[ST<Token>], left_to_right: bool, combine_fn: F) -> Result<ExprAST, ASTError>
+fn combine_binary_ops<F>(subtrees: &[SyntaxTree], left_to_right: bool, combine_fn: F) -> Result<ExprAST, ASTError>
 where
-    F: Fn(ExprAST, &ST<Token>, ExprAST) -> Result<ExprAST, ASTError>,
+    F: Fn(ExprAST, &SyntaxTree, ExprAST) -> Result<ExprAST, ASTError>,
 {
     if subtrees.len() == 1 {
         build_expr_ast(subtrees.iter().next().expect("Known to exist"))

@@ -61,7 +61,7 @@ pub enum TokenBody {
 /// Represents the possible keywords in a Nom program.
 ///
 /// Using an enum here is more efficient and type safe compared to just using strings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum Keyword {
     Var,
     Val,
@@ -85,7 +85,7 @@ pub enum Keyword {
 /// Note that there is some overlap in which characters each operator uses (e.g. `+` for `Plus`, but `+=`
 /// for `PlusEquals`), so a greedy "longest match" algorithm is used to determine which
 /// operators are actually present.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum Operator {
     Plus,
     Minus,
@@ -109,7 +109,7 @@ pub enum Operator {
 }
 
 /// A piece of punctuation in a Nom Program. Each is a single character.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum Punctuation {
     Semicolon,
     Comma,

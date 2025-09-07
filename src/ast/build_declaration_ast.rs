@@ -1,19 +1,17 @@
 //! This module handles construction of [`DeclarationASTs`](DeclarationAST) from Syntax Trees.
 
-use super::build_ast_helpers::assert_rule_get_children;
 use super::build_expr_ast::build_expr_ast;
 use super::build_type_ast::build_type_ast;
+use super::syntax_tree::{SyntaxTree, SyntaxTreeExtension, ST};
 use super::{ASTNodeData, DeclarationAST, Mutability, TypeAST};
 
 use crate::error::ASTError;
 use crate::token::{Keyword as Kw, Operator as Op, Punctuation as Punc, Span, Token, TokenBody as TB};
 
-use parsley::SyntaxTree as ST;
-
 /* Public (to ast) Declaration Construction */
 
-pub(super) fn build_declaration_ast(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
-    let children = assert_rule_get_children(tree, "Declaration")?;
+pub(super) fn build_declaration_ast(tree: &SyntaxTree) -> Result<DeclarationAST, ASTError> {
+    let children = tree.assert_rule_get_children("Declaration")?;
 
     match children {
         [ST::RuleNode { rule_name, .. }] if rule_name == "FunctionDeclaration" => {
@@ -34,16 +32,15 @@ pub(super) fn build_declaration_ast(tree: &ST<Token>) -> Result<DeclarationAST, 
 
 /* Functions that Construct Specific Declarations */
 
-fn build_function_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
-    let children = assert_rule_get_children(tree, "FunctionDeclaration")?;
+fn build_function_declaration(tree: &SyntaxTree) -> Result<DeclarationAST, ASTError> {
+    let children = tree.assert_rule_get_children("FunctionDeclaration")?;
 
     if children.len() != 6 {
         return Err("Incorrect number of subnodes to function node".into());
     }
 
-    let ST::TokenNode(Token { body: TB::Keyword(Kw::Fn), span: ref first_span }) = children[0] else {
-        return Err("Expected `fn` in function declaration".into());
-    };
+    children[0].expect_holds(&Kw::Fn)?;
+    let first_span = children[0].span_of_token()?;
 
     let name = if let ST::TokenNode(Token { body: TB::Identifier(name), .. }) = &children[1] {
         name.clone()
@@ -51,9 +48,7 @@ fn build_function_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTErr
         return Err("Expected function name".into());
     };
 
-    if !matches!(children[3], ST::TokenNode(Token { body: TB::Operator(Op::ThinRightArrow), .. })) {
-        return Err("Expected `->` in function declaration".into());
-    }
+    children[3].expect_holds(&Op::ThinRightArrow)?;
 
     let return_type = build_type_ast(&children[4])?;
 
@@ -65,102 +60,89 @@ fn build_function_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTErr
     Ok(DeclarationAST::Function { name, params, block, node_data: ASTNodeData::new(span), return_type })
 }
 
-fn build_type_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
-    let children = assert_rule_get_children(tree, "TypeDeclaration")?;
+fn build_type_declaration(tree: &SyntaxTree) -> Result<DeclarationAST, ASTError> {
+    let children = tree.assert_rule_get_children("TypeDeclaration")?;
 
     match children {
         [ST::RuleNode { rule_name, .. }] if rule_name == "StructDeclaration" => build_struct_declaration(&children[0]),
-
         _ => Err("Incorrect number of subnodes to type node".into()),
     }
 }
 
-fn build_struct_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
-    let children = assert_rule_get_children(tree, "StructDeclaration")?;
+fn build_struct_declaration(tree: &SyntaxTree) -> Result<DeclarationAST, ASTError> {
+    let children = tree.assert_rule_get_children("StructDeclaration")?;
 
-    match children {
-        [ST::TokenNode(Token { body: TB::Keyword(Kw::Struct), span: first_span }), ST::TokenNode(Token { body: TB::Identifier(name), .. }), ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftCurlyBrace), .. }), list_node @ ST::RuleNode { rule_name, .. }, ST::TokenNode(Token { body: TB::Punctuation(Punc::RightCurlyBrace), span: last_span })]
-            if rule_name == "StructMemberList" =>
-        {
-            let members = build_struct_member_list(list_node)?;
+    children[0].expect_holds(&Kw::Struct)?;
+    let first_span = children[0].span_of_token()?;
 
-            let span = Span::combine(first_span, last_span);
-
-            Ok(DeclarationAST::Struct { name: name.clone(), members, node_data: ASTNodeData::new(span) })
-        }
-        _ => Err("Failed to parse struct declaration".into()),
-    }
-}
-
-fn build_variable_declaration(tree: &ST<Token>) -> Result<DeclarationAST, ASTError> {
-    let children = assert_rule_get_children(tree, "VariableDeclaration")?;
-
-    let build_variable_impl = |keyword: &Kw, first_span: &Span, name: &str, expr_node: &ST<Token>| {
-        let mutability = match keyword {
-            Kw::Var => Mutability::Var,
-            Kw::Val => Mutability::Val,
-            _ => panic!("Known unreachable"),
-        };
-
-        let type_ascription = if children.len() == 6 {
-            match &children[2..4] {
-                [ST::TokenNode(Token { body: TB::Punctuation(Punc::Colon), .. }), type_node] => {
-                    Some(build_type_ast(type_node)?)
-                }
-                _ => return Err("Expected type".into()),
-            }
-        } else {
-            None
-        };
-
-        let expr = build_expr_ast(expr_node)?;
-        let span = Span::combine(first_span, &expr.get_node_data().span);
-
-        Ok(DeclarationAST::Variable {
-            mutability,
-            name: name.to_string(),
-            expr,
-            node_data: ASTNodeData::new(span),
-            type_ascription,
-        })
+    let ST::TokenNode(Token { body: TB::Identifier(name), .. }) = &children[1] else {
+        return Err("Expected identifier in struct declaration".into());
     };
 
-    match children {
-        #[rustfmt::skip]
-        [
-            ST::TokenNode(Token { body: TB::Keyword(keyword @ (Kw::Val | Kw::Var)), span: first_span }),
-            ST::TokenNode(Token { body: TB::Identifier(name), .. }),
-            ..,
-            ST::TokenNode(Token { body: TB::Operator(Op::Equals), .. }),
-            expr_node @ ST::RuleNode { rule_name: last_rule_name, .. }
-        ] if last_rule_name == "Expression" => build_variable_impl(keyword, first_span, name, expr_node),
-        _ => Err("Failed to parse variable declaration".into()),
-    }
+    children[2].expect_holds(&Punc::LeftCurlyBrace)?;
+
+    let members = build_struct_member_list(&children[3])?;
+
+    children[4].expect_holds(&Punc::RightCurlyBrace)?;
+    let last_span = children[4].span_of_token()?;
+
+    Ok(DeclarationAST::Struct {
+        name: name.clone(),
+        members,
+        node_data: ASTNodeData::new(Span::combine(first_span, last_span)),
+    })
+}
+
+fn build_variable_declaration(tree: &SyntaxTree) -> Result<DeclarationAST, ASTError> {
+    let children = tree.assert_rule_get_children("VariableDeclaration")?;
+
+    let ST::TokenNode(Token { body: TB::Keyword(keyword @ (Kw::Val | Kw::Var)), span: first_span }) = &children[0]
+    else {
+        return Err("Expected var or val in VariableDeclaration node.".into());
+    };
+
+    let ST::TokenNode(Token { body: TB::Identifier(name), .. }) = &children[1] else {
+        return Err("Expected identifier in VariableDeclaration node.".into());
+    };
+
+    let type_ascription = if children.len() == 6 {
+        children[2].expect_holds(&Punc::Colon)?;
+        Some(build_type_ast(&children[3])?)
+    } else {
+        None
+    };
+
+    children[children.len() - 2].expect_holds(&Op::Equals)?;
+
+    let expr = build_expr_ast(&children[children.len() - 1])?;
+
+    let mutability = match keyword {
+        Kw::Var => Mutability::Var,
+        Kw::Val => Mutability::Val,
+        _ => panic!("Known unreachable"),
+    };
+
+    let span = Span::combine(first_span, &expr.get_node_data().span);
+
+    Ok(DeclarationAST::Variable {
+        mutability,
+        name: name.to_string(),
+        expr,
+        node_data: ASTNodeData::new(span),
+        type_ascription,
+    })
 }
 
 /* Helpers that Build Parts of Declarations */
 
-fn build_parameter_list(node: &ST<Token>) -> Result<Vec<(String, TypeAST)>, ASTError> {
-    let ST::RuleNode { rule_name, subexpressions } = node else {
-        return Err("Expected Rule node".into());
-    };
+fn build_parameter_list(tree: &SyntaxTree) -> Result<Vec<(String, TypeAST)>, ASTError> {
+    let children = tree.assert_rule_get_children("ParameterList")?;
 
-    if rule_name != "ParameterList" {
-        return Err("Expected parameter list in function declaration".into());
-    }
+    children[0].expect_holds(&Punc::LeftParenthesis)?;
+    children[children.len() - 1].expect_holds(&Punc::RightParenthesis)?;
 
-    if !matches!(&subexpressions[0], ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftParenthesis), .. })) {
-        return Err("Expected left parenthesis".into());
-    }
-    if !matches!(
-        &subexpressions[subexpressions.len() - 1],
-        ST::TokenNode(Token { body: TB::Punctuation(Punc::RightParenthesis), .. })
-    ) {
-        return Err("Expected right parenthesis".into());
-    }
-
-    let list = &subexpressions[1..subexpressions.len() - 1];
-    let mut iter = list.iter().peekable();
+    let list = &children[1..children.len() - 1];
+    let mut iter = list.iter();
 
     let mut parameters = vec![];
     while let Some(node) = iter.next() {
@@ -168,17 +150,14 @@ fn build_parameter_list(node: &ST<Token>) -> Result<Vec<(String, TypeAST)>, ASTE
             return Err("Expected name".into());
         };
 
-        let Some(ST::TokenNode(Token { body: TB::Punctuation(Punc::Colon), .. })) = iter.next() else {
-            return Err("Expected colon".into());
-        };
+        iter.next().ok_or(ASTError::from("Expected Another Token"))?.expect_holds(&Punc::Colon)?;
 
         let param_type = build_type_ast(iter.next().ok_or(ASTError::from("Expected type node"))?)?;
 
         parameters.push((name.clone(), param_type));
 
         match iter.next() {
-            Some(ST::TokenNode(Token { body: TB::Punctuation(Punc::Comma), .. })) => (),
-            Some(_) => return Err("Expected comma".into()),
+            Some(child) => child.expect_holds(&Punc::Comma)?,
             None => break, // In case the iterator restarts?
         }
     }
@@ -186,8 +165,8 @@ fn build_parameter_list(node: &ST<Token>) -> Result<Vec<(String, TypeAST)>, ASTE
     Ok(parameters)
 }
 
-fn build_struct_member_list(tree: &ST<Token>) -> Result<Vec<(String, TypeAST)>, ASTError> {
-    let children = assert_rule_get_children(tree, "StructMemberList")?;
+fn build_struct_member_list(tree: &SyntaxTree) -> Result<Vec<(String, TypeAST)>, ASTError> {
+    let children = tree.assert_rule_get_children("StructMemberList")?;
 
     if children.is_empty() {
         return Ok(vec![]);
@@ -205,25 +184,21 @@ fn build_struct_member_list(tree: &ST<Token>) -> Result<Vec<(String, TypeAST)>, 
         }
 
         if let Some(node) = iter.next() {
-            match node {
-                ST::TokenNode(Token { body: TB::Punctuation(Punc::Comma), .. }) => (),
-                _ => return Err("Expected comma".into()),
-            }
+            node.expect_holds(&Punc::Comma)?;
         }
     }
 
     Ok(entries)
 }
 
-fn build_struct_member_list_entry(tree: &ST<Token>) -> Result<(String, TypeAST), ASTError> {
-    let children = assert_rule_get_children(tree, "StructMemberListEntry")?;
+fn build_struct_member_list_entry(tree: &SyntaxTree) -> Result<(String, TypeAST), ASTError> {
+    let children = tree.assert_rule_get_children("StructMemberListEntry")?;
 
-    match children {
-        [ST::TokenNode(Token { body: TB::Identifier(name), .. }), ST::TokenNode(Token { body: TB::Punctuation(Punc::Colon), .. }), type_node @ ST::RuleNode { rule_name, .. }]
-            if rule_name == "Type" =>
-        {
-            Ok((name.clone(), build_type_ast(type_node)?))
-        }
-        _ => Err("Could not parse struct member".into()),
-    }
+    let ST::TokenNode(Token { body: TB::Identifier(name), .. }) = &children[0] else {
+        return Err("Expected identifier in struct member list entry".into());
+    };
+
+    children[1].expect_holds(&Punc::Colon)?;
+
+    Ok((name.clone(), build_type_ast(&children[2])?))
 }

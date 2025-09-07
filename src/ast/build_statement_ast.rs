@@ -1,8 +1,8 @@
 //! This module handles building [`StatementASTs`](StatementAST) from Syntax Trees.
 
-use super::build_ast_helpers::assert_rule_get_children;
 use super::build_declaration_ast::build_declaration_ast;
 use super::build_expr_ast::build_expr_ast;
+use super::syntax_tree::SyntaxTreeExtension;
 use super::{ASTNodeData, MathOperation, StatementAST};
 
 use crate::error::ASTError;
@@ -13,7 +13,7 @@ use parsley::SyntaxTree as ST;
 /* Public (to ast) Function to Construct Statements */
 
 pub(super) fn build_statement_ast(tree: &ST<Token>) -> Result<StatementAST, ASTError> {
-    let children = assert_rule_get_children(tree, "Statement")?;
+    let children = tree.assert_rule_get_children("Statement")?;
 
     match children {
         [ST::RuleNode { rule_name, subexpressions }, ST::TokenNode(Token { body: TB::Punctuation(Punc::Semicolon), span: semicolon_span })]
@@ -50,7 +50,7 @@ pub(super) fn build_statement_ast(tree: &ST<Token>) -> Result<StatementAST, ASTE
 /* Functions that Construct Specific Kinds of Assignments */
 
 fn build_assignment_statement(tree: &ST<Token>) -> Result<StatementAST, ASTError> {
-    let children = assert_rule_get_children(tree, "AssignmentStatement")?;
+    let children = tree.assert_rule_get_children("AssignmentStatement")?;
 
     match children {
         [ST::RuleNode { rule_name: rule_1, subexpressions: ref sub_expr_1 }, ST::TokenNode(Token { body: TB::Operator(Op::Equals), .. }), ST::RuleNode { rule_name: rule_2, subexpressions: ref sub_expr_2 }]
@@ -68,7 +68,7 @@ fn build_assignment_statement(tree: &ST<Token>) -> Result<StatementAST, ASTError
 }
 
 fn build_compound_assignment_statement(tree: &ST<Token>) -> Result<StatementAST, ASTError> {
-    let children = assert_rule_get_children(tree, "CompoundAssignmentStatement")?;
+    let children = tree.assert_rule_get_children("CompoundAssignmentStatement")?;
 
     match children {
         [ST::RuleNode { rule_name: rule_1, subexpressions: ref sub_expr_1 }, ST::TokenNode(Token { body: TB::Operator(op), .. }), ST::RuleNode { rule_name: rule_2, subexpressions: ref sub_expr_2 }]

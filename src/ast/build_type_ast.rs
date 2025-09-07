@@ -1,17 +1,15 @@
 //! This module handles constructing [`TypeASTs`](TypeAST) from Syntax Trees.
 
-use super::build_ast_helpers::assert_rule_get_children;
+use super::syntax_tree::{SyntaxTree, SyntaxTreeExtension, ST};
 use super::{ASTNodeData, TypeAST};
 
 use crate::error::ASTError;
 use crate::token::{Operator as Op, Span, Token, TokenBody as TB};
 
-use parsley::SyntaxTree as ST;
-
 /* Public (to ast) Function that Constructs a Type */
 
-pub(super) fn build_type_ast(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
-    match assert_rule_get_children(tree, "Type")? {
+pub(super) fn build_type_ast(tree: &SyntaxTree) -> Result<TypeAST, ASTError> {
+    match tree.assert_rule_get_children("Type")? {
         [ST::TokenNode(Token { body: TB::Identifier(identifier), span })] => {
             Ok(TypeAST::NamedType(identifier.clone(), ASTNodeData::new(span.clone())))
         }
@@ -22,8 +20,8 @@ pub(super) fn build_type_ast(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
 
 /* Functions that Construct Specific Kinds of Types */
 
-fn build_pointer_type(tree: &ST<Token>) -> Result<TypeAST, ASTError> {
-    match assert_rule_get_children(tree, "PtrType")? {
+fn build_pointer_type(tree: &SyntaxTree) -> Result<TypeAST, ASTError> {
+    match tree.assert_rule_get_children("PtrType")? {
         [ST::TokenNode(Token { body: TB::Operator(Op::Times), span: star_span }), child_node @ ST::RuleNode { rule_name, .. }]
             if rule_name == "Type" =>
         {

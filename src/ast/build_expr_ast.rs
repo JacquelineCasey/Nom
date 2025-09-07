@@ -2,6 +2,7 @@
 
 use super::build_ast_helpers::assert_rule_get_children;
 use super::build_statement_ast::build_statement_ast;
+use super::build_type_ast::build_type_ast;
 use super::{ASTNodeData, ExprAST};
 
 use crate::error::ASTError;
@@ -267,7 +268,7 @@ fn build_function_call_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
         ST::TokenNode(Token { body: TB::Keyword(Kw::Free), span: first_span }) => {
             if expressions.len() != 1 {
                 return Err("Expected exactly 1 expression in free! call".into());
-            };
+            }
 
             Ok(ExprAST::Free {
                 subexpr: Box::new(expressions.pop().expect("known to exist")),
@@ -443,8 +444,30 @@ fn build_struct_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
     })
 }
 
-fn build_alloc_uninit_expr(_tree: &ST<Token>) -> Result<ExprAST, ASTError> {
-    todo!()
+fn build_alloc_uninit_expr(tree: &ST<Token>) -> Result<ExprAST, ASTError> {
+    let children = assert_rule_get_children(tree, "AllocUninitExpression")?;
+
+    if children.len() != 4 {
+        return Err("Expected 4 children.".into());
+    }
+
+    let ST::TokenNode(Token { body: TB::Keyword(Kw::AllocUninit), span: first_span }) = &children[0] else {
+        return Err("Expected alloc_uninit!".into());
+    };
+
+    if !matches!(&children[1], ST::TokenNode(Token { body: TB::Punctuation(Punc::LeftParenthesis), .. })) {
+        return Err("Expected left parenthesis".into());
+    }
+
+    if !matches!(&children[2], ST::RuleNode{rule_name, .. } if rule_name == "Type") {
+        return Err("Expected type".into());
+    }
+
+    let ST::TokenNode(Token { body: TB::Punctuation(Punc::RightParenthesis), span: last_span }) = &children[3] else {
+        return Err("Expected right parenthesis".into());
+    };
+
+    Ok(ExprAST::AllocUninit(build_type_ast(&children[2])?, ASTNodeData::new(Span::combine(first_span, last_span))))
 }
 
 /* Helpers for AST build functions */

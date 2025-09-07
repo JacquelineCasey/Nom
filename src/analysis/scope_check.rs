@@ -153,6 +153,11 @@ fn scope_check_expression(
              * type of the expression. */
             scope_check_expression(env, local_types, expr)?;
         }
+        ExprAST::AllocUninit(type_ast_to_alloc, _) => {
+            if !env.types.contains_key(&type_ast_to_alloc.into()) {
+                return Err("Type in AllocUninit not found.".into());
+            }
+        }
         ExprAST::Moved => panic!("ExprAST was moved"),
     }
 

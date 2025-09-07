@@ -260,6 +260,7 @@ pub enum ExprAST {
         members: Vec<(String, ExprAST)>,
         data: ASTNodeData,
     },
+    AllocUninit(TypeAST, ASTNodeData),
     Free {
         subexpr: Box<ExprAST>,
         data: ASTNodeData,
@@ -292,6 +293,7 @@ impl ExprAST {
             | ExprAST::Return(_, data)
             | ExprAST::MemberAccess(_, _, data)
             | ExprAST::StructExpression { data, .. }
+            | ExprAST::AllocUninit(_, data)
             | ExprAST::Free { data, .. } => data,
             ExprAST::Moved => panic!("ExprAST was moved"),
         }
@@ -365,6 +367,9 @@ impl ExprAST {
                     .collect(),
                 data: data.relabel(),
             },
+            ExprAST::AllocUninit(type_to_alloc, data) => {
+                ExprAST::AllocUninit(type_to_alloc.duplicate(), data.relabel())
+            }
             ExprAST::Free { subexpr, data } => {
                 ExprAST::Free { subexpr: Box::new(subexpr.duplicate()), data: data.relabel() }
             }
@@ -446,6 +451,10 @@ impl<'a> AnyAST<'a> {
             }
             A::Expression(E::Free { subexpr, .. }) => {
                 vec![A::Expression(subexpr)]
+            }
+            A::Expression(E::AllocUninit(_, _)) => {
+                // Still not doing types here
+                vec![]
             }
             A::Expression(E::Moved) => panic!("Expected Unmoved Value"),
         }

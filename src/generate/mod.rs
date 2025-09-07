@@ -283,86 +283,87 @@ impl CodeGenerator {
 
         match subtree {
             E::Add(left, right, node_data) => self.generate_math_expr(
-                        env,
-                        function_info,
-                        depth,
-                        left,
-                        right,
-                        crate::ast::MathOperation::Add,
-                        node_data,
-                        out,
-                    ),
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Add,
+                node_data,
+                out,
+            ),
             E::Subtract(left, right, node_data) => self.generate_math_expr(
-                        env,
-                        function_info,
-                        depth,
-                        left,
-                        right,
-                        crate::ast::MathOperation::Subtract,
-                        node_data,
-                        out,
-                    ),
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Subtract,
+                node_data,
+                out,
+            ),
             E::Multiply(left, right, node_data) => self.generate_math_expr(
-                        env,
-                        function_info,
-                        depth,
-                        left,
-                        right,
-                        crate::ast::MathOperation::Multiply,
-                        node_data,
-                        out,
-                    ),
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Multiply,
+                node_data,
+                out,
+            ),
             E::Divide(left, right, node_data) => self.generate_math_expr(
-                        env,
-                        function_info,
-                        depth,
-                        left,
-                        right,
-                        crate::ast::MathOperation::Divide,
-                        node_data,
-                        out,
-                    ),
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Divide,
+                node_data,
+                out,
+            ),
             E::Modulus(left, right, node_data) => self.generate_math_expr(
-                        env,
-                        function_info,
-                        depth,
-                        left,
-                        right,
-                        crate::ast::MathOperation::Modulus,
-                        node_data,
-                        out,
-                    ),
+                env,
+                function_info,
+                depth,
+                left,
+                right,
+                crate::ast::MathOperation::Modulus,
+                node_data,
+                out,
+            ),
             E::Comparison(left, right, comparison, ..) => {
-                        self.generate_comparison_expr(env, function_info, depth, left, right, *comparison, out)
-                    }
+                self.generate_comparison_expr(env, function_info, depth, left, right, *comparison, out)
+            }
             E::And(left, right, _) => {
-                        self.generate_binary_logic_expr(env, function_info, depth, left, right, true, out)
-                    }
+                self.generate_binary_logic_expr(env, function_info, depth, left, right, true, out)
+            }
             E::Or(left, right, _) => {
-                        self.generate_binary_logic_expr(env, function_info, depth, left, right, false, out)
-                    }
+                self.generate_binary_logic_expr(env, function_info, depth, left, right, false, out)
+            }
             E::Not(inner, _) => self.generate_not_expr(env, function_info, depth, inner, out),
             E::IntegerLiteral(num, data) => Self::generate_int_literal_expr(env, *num, data, out),
             E::BooleanLiteral(val, ..) => Ok(Self::generate_bool_literal_expr(*val, out)),
             E::Variable(name, ..) => Ok(Self::generate_variable_expr(env, function_info, name, out)),
             E::Block(statements, expr, ..) => {
-                        self.generate_block_expr(env, function_info, depth, statements, expr, out)
-                    }
+                self.generate_block_expr(env, function_info, depth, statements, expr, out)
+            }
             E::FunctionCall(name, subexprs, ..) => {
-                        self.generate_function_call_expr(env, function_info, depth, name, subexprs, out)
-                    }
+                self.generate_function_call_expr(env, function_info, depth, name, subexprs, out)
+            }
             E::If { condition, block, else_branch, .. } => {
-                        self.generate_if_expr(env, function_info, depth, condition, block, else_branch, out)
-                    }
+                self.generate_if_expr(env, function_info, depth, condition, block, else_branch, out)
+            }
             E::While { condition, block, .. } => {
-                        self.generate_while_expr(env, function_info, depth, condition, block, out)
-                    }
+                self.generate_while_expr(env, function_info, depth, condition, block, out)
+            }
             E::Return(expr, _) => self.generate_return_expr(env, function_info, depth, expr, out),
             E::StructExpression { name, members, .. } => {
-                        self.generate_struct_expr(env, function_info, depth, name, members, out)
-                    }
+                self.generate_struct_expr(env, function_info, depth, name, members, out)
+            }
             E::MemberAccess(..) => self.generate_member_access_expr(env, function_info, depth, subtree, out),
             E::Free { .. } => todo!(),
+            E::AllocUninit(_, _) => todo!(),
             E::Moved => panic!("ExprAST Moved"),
         }
     }
@@ -572,42 +573,43 @@ impl CodeGenerator {
     fn locate_expr<'a>(&self, expr: &'a ExprAST, env: &CompilationEnvironment) -> Result<Location<'a>, GenerateError> {
         match expr {
             ExprAST::Add(..)
-                    | ExprAST::Subtract(..)
-                    | ExprAST::Multiply(..)
-                    | ExprAST::Divide(..)
-                    | ExprAST::Modulus(..)
-                    | ExprAST::Comparison(..)
-                    | ExprAST::Or(..)
-                    | ExprAST::And(..)
-                    | ExprAST::Not(..)
-                    | ExprAST::IntegerLiteral(..)
-                    | ExprAST::BooleanLiteral(..)
-                    | ExprAST::FunctionCall(..)
-                    | ExprAST::Block(..)
-                    | ExprAST::If { .. }
-                    | ExprAST::While { .. }
-                    | ExprAST::Return(..)
-                    | ExprAST::StructExpression { .. } => {
-                        Ok(Location::EvaluatedExpression(expr)) // These are never lvalues, basically.
-                    }
+            | ExprAST::Subtract(..)
+            | ExprAST::Multiply(..)
+            | ExprAST::Divide(..)
+            | ExprAST::Modulus(..)
+            | ExprAST::Comparison(..)
+            | ExprAST::Or(..)
+            | ExprAST::And(..)
+            | ExprAST::Not(..)
+            | ExprAST::IntegerLiteral(..)
+            | ExprAST::BooleanLiteral(..)
+            | ExprAST::FunctionCall(..)
+            | ExprAST::Block(..)
+            | ExprAST::If { .. }
+            | ExprAST::While { .. }
+            | ExprAST::Return(..)
+            | ExprAST::StructExpression { .. } => {
+                Ok(Location::EvaluatedExpression(expr)) // These are never lvalues, basically.
+            }
             ExprAST::Variable(name, _) => Ok(Location::Local(name.clone())),
             ExprAST::MemberAccess(struct_expr, member_name, _) => {
-                        let struct_type = &env.type_index[&struct_expr.get_node_data().id];
-                        let struct_info = &env.types[struct_type];
+                let struct_type = &env.type_index[&struct_expr.get_node_data().id];
+                let struct_info = &env.types[struct_type];
 
-                        let KindData::Struct { members } = &struct_info.kind else {
-                            return Err("Expected struct type".into());
-                        };
+                let KindData::Struct { members } = &struct_info.kind else {
+                    return Err("Expected struct type".into());
+                };
 
-                        let (_, field_alignment) = members[member_name];
+                let (_, field_alignment) = members[member_name];
 
-                        let inner_location = self.locate_expr(struct_expr, env)?;
-                        Ok(Location::OffsetFrom(
-                            Box::new(inner_location),
-                            isize::try_from(field_alignment).expect("Small enough"),
-                        ))
-                    }
-                    ExprAST::Free { .. } => todo!(),
+                let inner_location = self.locate_expr(struct_expr, env)?;
+                Ok(Location::OffsetFrom(
+                    Box::new(inner_location),
+                    isize::try_from(field_alignment).expect("Small enough"),
+                ))
+            }
+            ExprAST::Free { .. } => todo!(),
+            ExprAST::AllocUninit(_, _) => todo!(),
             ExprAST::Moved => panic!("Moved Expression"),
         }
     }

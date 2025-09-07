@@ -12,8 +12,10 @@ can go here:
 - Add tests for the current token error annotation.
 - Add a test for pointer to pointer?
 - The tests should eventually test for leaks as well.
+- Add handling for .* in ast. We are in the same rule_node as .foo style expressions, but we should likely return a 
+  different AST variant. We'll have to desugar `ptr.foo` style expressions, I suppose *during* typechecking, which does
+  have a mutable ast in anticipation of inserting implicit conversions.
 - Maybe that build_all.zsh script should be converted in build.rs?
-- Break up the AST module like we did for tokens - seperate types and ast creation.
 
 
 == Someday TODO ==

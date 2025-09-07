@@ -257,6 +257,9 @@ fn type_check_expr(
         ExprAST::Free { .. } => {
             todo!("Evaluate to unit, assert that we have a pointer.")
         }
+        ExprAST::AllocUninit(_, _) => {
+            todo!("Evaluate to a pointer of the held type.")
+        }
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 

@@ -22,7 +22,7 @@ pub(super) fn build_type_ast(tree: &SyntaxTree) -> Result<TypeAST, ASTError> {
 
 fn build_pointer_type(tree: &SyntaxTree) -> Result<TypeAST, ASTError> {
     let children = tree.assert_rule_get_children("PtrType")?;
-    
+
     children[0].expect_holds(&Op::Times)?;
     let star_span = children[0].span_of_token()?;
 

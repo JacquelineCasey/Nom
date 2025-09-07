@@ -21,14 +21,12 @@ pub(super) fn build_type_ast(tree: &SyntaxTree) -> Result<TypeAST, ASTError> {
 /* Functions that Construct Specific Kinds of Types */
 
 fn build_pointer_type(tree: &SyntaxTree) -> Result<TypeAST, ASTError> {
-    match tree.assert_rule_get_children("PtrType")? {
-        [ST::TokenNode(Token { body: TB::Operator(Op::Times), span: star_span }), child_node @ ST::RuleNode { rule_name, .. }]
-            if rule_name == "Type" =>
-        {
-            let child_type = build_type_ast(child_node)?;
-            let span = Span::combine(star_span, &child_type.get_node_data().span);
-            Ok(TypeAST::Pointer(Box::new(child_type), ASTNodeData::new(span.clone())))
-        }
-        _ => Err("Could not build PtrType node".into()),
-    }
+    let children = tree.assert_rule_get_children("PtrType")?;
+    
+    children[0].expect_holds(&Op::Times)?;
+    let star_span = children[0].span_of_token()?;
+
+    let child_type = build_type_ast(&children[1])?;
+    let span = Span::combine(star_span, &child_type.get_node_data().span);
+    Ok(TypeAST::Pointer(Box::new(child_type), ASTNodeData::new(span.clone())))
 }

@@ -16,8 +16,8 @@ can go here:
   different AST variant. We'll have to desugar `ptr.foo` style expressions, I suppose *during* typechecking, which does
   have a mutable ast in anticipation of inserting implicit conversions.
 - Maybe that build_all.zsh script should be converted in build.rs?
-- Starting from in build {expr, statement, type}, go through and use the new SyntaxTree helpers to avoid repetive 
-  pattern matching and error handling.
+- Go through build_expr_ast and use the new SyntaxTree helpers to avoid repetive pattern matching and error handling.
+  - We could add an Identifier eliminating helper.
 
 
 == Someday TODO ==

@@ -24,7 +24,7 @@ If desired, users could probably follow this pattern themselves though.
 val fooPtr: *Foo = Foo::init(alloc!())
 ```
 
-Do we need seperate syntax to allocate an unitialized pointer?
+Do we need separate syntax to allocate an uninitialized pointer?
 
 Perhaps we provide `alloc!( TYPE )` to allocate (buf do nothing with) memory for a type. Then we provide the more user
 friendly `heap!( VALUE )` which performs construction on the stack, and lifts the value to heap after?
@@ -112,13 +112,13 @@ that a constructor is called I believe, and will only allow copying onto the hea
 seems reasonable to me.
 
 At some point, allocating uninitialized memory is reasonable - e.g. if an user wants to do something more memory 
-manage-y themselves, or maybe to interface with foreign code. Allocating unitialized memory is usually scarier, so I
+manage-y themselves, or maybe to interface with foreign code. Allocating uninitialized memory is usually scarier, so I
 wouldn't mind if it was a little clunkier to call. It is easier to implement this form of allocation, and it could 
 ultimately be treated as a building block for the constructor based allocation idea later.
 
 Proposed syntax:
 ```
-    // Stage one - allocation of unitialized memory.
+    // Stage one - allocation of uninitialized memory.
     val fooPtr: *Foo = alloc_uninit!(Foo);
 
     // Stage two (more fuzzy) - allocation of objects on the heap (constructed immediately).
@@ -129,14 +129,14 @@ Proposed syntax:
 
 Deferring questions of constness. Val and Var no longer look as appealing as modifiers of pointers. Maybe we should do
 let and mut, with mut also being the pointer modifier. Zig has `const` and `var`, which looks pretty good. Rust has 
-`let` and `let mut`, which addmitedly is appealing if we are going to treat `mut` as the pointer modifier.
+`let` and `let mut`, which admittedly is appealing if we are going to treat `mut` as the pointer modifier.
 
 Then there's a question - does constness go on the type, or not? Is `const T` a real thing, or are there only `ptr-to-const<T>`?
 For variables, is constness an attribute of the variable, or the value. It seems like Rust is able to make it go on the
 bindings, though this may complicate const analysis? It also means lots of methods have a _mut counterpart... which might
 be fine. And that may have more to do with the borrow checker making mut trickier as well. And C++ has the same thing, it
 just uses overloading to hide it. (Maybe fixable, something like `pub method get() -> *const[this] i32` or similar, 
-where the const is inheritted from this?.) And how do we const check expressions like `foo.mInt` if we can't piggyback 
+where the const is inherited from this?.) And how do we const check expressions like `foo.mInt` if we can't piggyback 
 off of the type system for this. (I think I slightly favor constness on bindings, but I am still thinking about it...). 
 Deferring for now.
 
@@ -151,7 +151,7 @@ Or alternatively, `val fooPtr = alloc_uninit(Foo)`. Honestly, we might be able t
 break with one of these though (maybe?).
 
 What do we do with pointers once we have them? Well, we can step through to the underlying value, of course. Postfix
-dereference makes too much sense. With the prefix form, you occassional write stuff like `*abc.foo` to dereference the
+dereference makes too much sense. With the prefix form, you occasional write stuff like `*abc.foo` to dereference the
 foo part. But that's silly, it looks like you are dereferencing the abc part. We read left to right, let's develop the
 language to work primarily in that direction wherever possible. So we'd try `fooPtr*` to dereference `fooPtr`. The main
 concern is multiplication, in fact `*=` is particularly nasty here. We could switch to another symbol (pascal supposedly
@@ -166,11 +166,11 @@ The only other question is what should be done to the `fooPtr`, using it after f
 be set to all zeros (null) here, with the understanding that this is actually safe. However, the null here will be 
 observable, which is undesirable. Best to just leave the pointer alone (Zig does that), and call it an error (undefined
 behavior) if it is used. Nom will have the ability to validate that a pointer goes to some allocated memory, though it
-will be impossible to gaurantee that the memory isn't reused elsewhere. Rust also leaves the pointer alone, it may be
+will be impossible to guarantee that the memory isn't reused elsewhere. Rust also leaves the pointer alone, it may be
 best to defer to that. An alternative is to use another error value, Zig's undefined is `aaaaaaa` in hex, we might steal
 that here. We could then look for that value during pointer comparisons (and say such comparisons are undefined, perhaps
 panic-ing a debug build)? That seems a bit more appealing, let's at least give it a shot. How this will interact with
-the ineivitable nullable pointer type is unclear - if we build it out of Option<>, we probably just defer to whatever 
+the inevitable nullable pointer type is unclear - if we build it out of Option<>, we probably just defer to whatever 
 option says.
 
 On the other hand, working with const pointers down the line (i.e. const address, maybe mutable value) will be supremely
@@ -193,11 +193,11 @@ Stage 1 Details:
 - Adds `==` and `!=` on pointers.
 - TODO: Figure out how to create references from other objects. `&` is the classic choice (Stage 1.5)?
 
-For nullability... well, alloc_uninit!() is definitely a way to get unitialized data now, so we definitely have to accept
-the posibility of there not being anything good in there. However, a "good" Nom program will treat the uninit case very
+For nullability... well, alloc_uninit!() is definitely a way to get uninitialized data now, so we definitely have to accept
+the possibility of there not being anything good in there. However, a "good" Nom program will treat the uninit case very
 carefully, and the alloc!() case will ensure that all values are actually initialized (perhaps that should be checked).
 So we don't actually have to implement `null` yet. Someday, we'll probably use generics and Optional<*T> to represent 
-nullability. Where desirable, we can use other tricks to represnet nullability, like an explicit `nil` linked list
+nullability. Where desirable, we can use other tricks to represent nullability, like an explicit `nil` linked list
 element.
 
 After all of this is implemented, we will be able to express linked lists (with a bit of nil node shenanigans). 

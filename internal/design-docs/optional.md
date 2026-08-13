@@ -2,7 +2,7 @@
 Proposed optional syntax.
 
 
-Stealling the null forgiving operators from C#
+Stealing the null forgiving operators from C#
 ```
     optFoo.! = ...
     // (Note: optFoo! = ... doesn't really work, looks like !=. Or != looks like it.)
@@ -12,7 +12,7 @@ Stealling the null forgiving operators from C#
     optFooPtr!.* = ...
     optFooPtr!.baz (which is optFoo.!.*.baz)
 
-    All of which unwrap optional, yielding an l-value, or panicing if it is null.
+    All of which unwrap optional, yielding an l-value, or panicking if it is null.
 ```
 
 We could do something similar to rust with ? then, returning nullopt from an option returning function if the inspected

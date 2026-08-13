@@ -1,4 +1,4 @@
-//! This module provides a wrapper around Parsely's syntax tree, with convenience functions for querrying and retrieving
+//! This module provides a wrapper around Parsley's syntax tree, with convenience functions for querying and retrieving
 //! components.
 
 use std::fmt::Display;

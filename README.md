@@ -20,7 +20,7 @@ Then, you can have the project compile and run your Nom code. For instance:
 Nom is a compiled programming language, in the same sense that Java is compiled.
 A Nom program is transformed into a simple set of instructions, which run on a virtual
 machine (the Nom VM, or the Nom runtime.) You could split hairs and say that it is
-interpretted, but you can do the same thing for Java, C#, etc (although they do have a JIT, and
+interpreted, but you can do the same thing for Java, C#, etc (although they do have a JIT, and
 Nom certainly does not).
 
 Here is a small program in Nom.
@@ -131,8 +131,8 @@ below, but each of these primary modules may be further broken up into submodule
 - One stage of compilation is not handled by code in this crate: Parsing. By parsing,
   I mean specifically the process of discovering the structure of the program from
   a string of tokens. This step is handled by a separate, standalone crate I wrote
-  called [`Parsley`](https://github.com/JacquelineCasey/Parsley.git#beb70bfb). Parsely
-  has evolved in tandem with Nom, but Parsely is a far more general (and far more
+  called [`Parsley`](https://github.com/JacquelineCasey/Parsley.git#beb70bfb). Parsley
+  has evolved in tandem with Nom, but Parsley is a far more general (and far more
   complete) tool. In this stage of compilation, the token string is transformed into
   a `parsley::SyntaxTree<Token>`. This only captures the structure, and almost nothing
   else, of the program. That structure is described in `grammar.parsley`, which
@@ -162,7 +162,7 @@ below, but each of these primary modules may be further broken up into submodule
   based, so there are no registers beyond an instruction pointer, a stack frame
   base pointer, and a top of stack pointer. Nom's stack lives in Rust's heap, but
   it is actual memory which (in the future) can be manipulated directly by Nom programs,
-  and perhaps someday even passed to extenal code (i.e. `C` code).
+  and perhaps someday even passed to external code (i.e. `C` code).
 - The other modules, `error` and `util`, are helper modules. As the language grows
   more complicated, I find I need to add more prettier error reporting facilities in
   `error` in order to successfully write new tests / samples. In time, I hope that

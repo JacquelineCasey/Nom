@@ -20,7 +20,7 @@ use Instruction as I;
 use PseudoInstruction as PI;
 
 impl CodeGenerator {
-    // Handles Add, Substract, Multiply, Divide, Modulus enum variants
+    // Handles Add, Subtract, Multiply, Divide, Modulus enum variants
     #[allow(clippy::too_many_arguments)]
     pub(super) fn generate_math_expr(
         &self,
@@ -142,7 +142,7 @@ impl CodeGenerator {
         self.generate_expression(env, right, function_info, depth, out)?;
 
         out.push(PI::Temp(TempInstruction::JumpFrom(jump_id)));
-        // If we jumped, the left value is still there. Otherwise, it was repleaced with the right value.
+        // If we jumped, the left value is still there. Otherwise, it was replaced with the right value.
 
         Ok(())
     }

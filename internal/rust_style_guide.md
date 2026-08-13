@@ -23,9 +23,9 @@ Rule 3: File Order, from top to bottom:
     - Simple trait implementations go with the types, before the interesting functions.
   - Public should Precede private wherever possible.
   - Grouping by idea with `/* ... */` section comments works well for me.
-  - All these heuristics are good, but I haven't worked out which ones supercede others yet. 
+  - All these heuristics are good, but I haven't worked out which ones supersede others yet. 
 
-Rule 4: Project Organiziation.
+Rule 4: Project Organization.
 - I am moving towards strictly distinguishing between root files and leaf files, though the conversion is not yet complete.
   - Root files are `mod.rs` and `lib.rs`, and only contain `mod` declarations and `pub use` declarations. Submodules can
     be `pub`, though I find I've been using that more rarely.
@@ -36,5 +36,5 @@ Rule 4: Project Organiziation.
     code themselves. In these cases, it is fine to move the broken off components to be children of the parent of the
     large module. For instance, we might have a `build_ast` module in the `ast` module. Pieces originally in `build_ast`
     that fit better in their own file can go into, say, `build_expr_ast`, still under `ast`. While this is a little
-    sloppy on visibility (other parts of `ast` can see these details), I've deemed this an acceptable tradoff for limiting
+    sloppy on visibility (other parts of `ast` can see these details), I've deemed this an acceptable tradeoff for limiting
     the insane nesting that might occur otherwise.

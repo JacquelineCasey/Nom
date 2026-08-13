@@ -464,7 +464,7 @@ impl CodeGenerator {
     /// mutable argument).
     ///
     /// `base_offset` is the location of the target. `val_size` is the size of the value
-    /// (and implicitely, the target). `alignment` is the alignment of the type.
+    /// (and implicitly, the target). `alignment` is the alignment of the type.
     fn generate_write_to_base(
         base_offset: isize,
         val_size: usize,
@@ -499,7 +499,7 @@ impl CodeGenerator {
     /// mutable argument) to the stack.
     ///
     /// `base_offset` is the location of the target. `val_size` is the size of the value
-    /// (and implicitely, the target). `alignment` is the alignment of the type.
+    /// (and implicitly, the target). `alignment` is the alignment of the type.
     /// We assume we are already aligned for that type (as is typical).
     fn generate_read_from_base(
         base_offset: isize,

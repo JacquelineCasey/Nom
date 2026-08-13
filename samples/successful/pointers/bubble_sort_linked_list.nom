@@ -67,7 +67,7 @@ fn sort(list: *List) -> unit {
     // We'll demonstrate a non-recursive algorithm for this part.
     var curr: *ListNode = list.head;
     while (curr != list.nil) {
-        swarp_for_min_rec(curr, list.nil);
+        swap_for_min_rec(curr, list.nil);
         curr = curr.next;
     };
 }

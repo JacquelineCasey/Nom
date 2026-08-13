@@ -15,7 +15,7 @@ use crate::token::Span;
 pub enum TokenError {
     /// A problem described by a string.
     Problem(String),
-    /// A problem (described as the string) localized at a particularl span.
+    /// A problem (described as the string) localized at a particular span.
     ProblemAtSpan(String, Span),
 }
 

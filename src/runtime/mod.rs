@@ -50,7 +50,7 @@ impl Runtime {
         while self.running {
             let instruction = self.instructions[self.instruction_index];
 
-            self.instruction_index += 1; // Might be overriden by running a jump
+            self.instruction_index += 1; // Might be overridden by running a jump
 
             self.eval_instruction(instruction, &mut debug_out);
         }

@@ -6,7 +6,7 @@ I'll definitely want to organize documentation better later on.
 
 Features:
 - 1 whole type: i32
-- Arithemetic Operators with the usual precedence.
+- Arithmetic Operators with the usual precedence.
 - Grouping with parentheses
 - Blocks are expressions, they evaluate to the expression written after the
   final statement. No semicolon. It's like Rust.

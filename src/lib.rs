@@ -16,7 +16,7 @@
     clippy::cast_sign_loss,  // I know
     clippy::cast_possible_truncation,  // I know
     clippy::cast_possible_wrap,  // I know
-    clippy::if_not_else,  // Actually I like this, its the gaurd pattern
+    clippy::if_not_else,  // Actually I like this, its the guard pattern
     clippy::upper_case_acronyms,  // Deal with it
     clippy::match_wildcard_for_single_variants,  // I do this on purpose
     clippy::comparison_chain,  // I think this is silly.
@@ -47,7 +47,7 @@ use std::rc::Rc;
 /// See `src/grammar.parsley` for this grammar.
 static PARSER_DEFINITION: &str = include_str!("grammar.parsley"); // Drops the string right into the binary.
 
-/// `CompilationEnviornment` tracks all learned information about the compiling program.
+/// `CompilationEnvironment` tracks all learned information about the compiling program.
 ///
 /// It should be understood that this represents all of the *currently known* information,
 /// so at different stages of compilation, different fields should be complete and accurate.
@@ -147,7 +147,7 @@ impl CompilationEnvironment {
     /// items exist.
     ///
     /// Confirms that all variables in the function obey scope rules, and const
-    /// rules. Ensures that uses of external objects (functions, varaibles) can be
+    /// rules. Ensures that uses of external objects (functions, variables) can be
     /// resolved, and adds goals to define them if needed. Builds a list of local variables.
     ///
     /// Adds a goal to type check the function upon completion.
@@ -191,7 +191,7 @@ struct CompilationQueue {
 }
 
 impl CompilationQueue {
-    /// Creates an empty `CompliationQueue`.
+    /// Creates an empty `CompilationQueue`.
     fn new() -> Self {
         CompilationQueue { queue: VecDeque::new(), processed: HashSet::new() }
     }
@@ -245,7 +245,7 @@ impl CompilationQueue {
     }
 }
 
-/// A `CompliationGoal` expresses a single step of the compilation process.
+/// A `CompilationGoal` expresses a single step of the compilation process.
 ///
 /// We divide these steps so that they can be completed independently as needed for
 /// different files, or even items within files. For instance, we may only need to

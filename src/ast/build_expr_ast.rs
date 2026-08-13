@@ -47,7 +47,7 @@ pub(super) fn build_expr_ast(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
                 build_multiplicative_expr(tree)
             }
             ST::RuleNode { rule_name, .. } if rule_name == "AccessExpression" => build_access_expr(tree),
-            ST::RuleNode { rule_name, .. } if rule_name == "ComparisonExpression" => build_comparision_expr(tree),
+            ST::RuleNode { rule_name, .. } if rule_name == "ComparisonExpression" => build_comparison_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "OrExpression" => build_or_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "AndExpression" => build_and_expr(tree),
             ST::RuleNode { rule_name, .. } if rule_name == "NotExpression" => build_not_expr(tree),
@@ -128,7 +128,7 @@ fn build_access_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     Ok(curr_expr)
 }
 
-fn build_comparision_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
+fn build_comparison_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let children = tree.assert_rule_get_children("ComparisonExpression")?;
 
     if children.len() == 1 {
@@ -406,14 +406,14 @@ fn build_struct_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
 }
 
 fn build_alloc_uninit_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
-    let [alloc, leftt_paren, type_node, right_paren] = tree.assert_rule_get_children("AllocUninitExpression")? else {
+    let [alloc, left_paren, type_node, right_paren] = tree.assert_rule_get_children("AllocUninitExpression")? else {
         return Err("Expected 4 children.".into());
     };
 
     alloc.expect_holds(&Kw::AllocUninit)?;
     let first_span = alloc.span_of_token()?;
 
-    leftt_paren.expect_holds(&Punc::LeftParenthesis)?;
+    left_paren.expect_holds(&Punc::LeftParenthesis)?;
 
     let type_ast = build_type_ast(type_node)?;
 

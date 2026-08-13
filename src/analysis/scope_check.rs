@@ -34,7 +34,7 @@ fn scope_check_expression(
     expr: &ExprAST,
 ) -> Result<(), AnalysisError> {
     match expr {
-        // Simble Binary Expressions
+        // Simple Binary Expressions
         ExprAST::Add(left, right, _)
         | ExprAST::Subtract(left, right, _)
         | ExprAST::Multiply(left, right, _)

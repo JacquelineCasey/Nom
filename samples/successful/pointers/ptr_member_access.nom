@@ -1,4 +1,4 @@
-// Demonstrates syntactic sugar for accessing members of a pointeed at struct.
+// Demonstrates syntactic sugar for accessing members of a pointed at struct.
 
 //! 16
 
@@ -15,7 +15,7 @@ fn main() -> unit {
     // Pointers to structs can have members accessed conveniently like this:
     foo.a = 4;
 
-    // Which is syntactic sugar for an expresion like this.
+    // Which is syntactic sugar for an expression like this.
     foo.*.b = 6;
 
     // Of course, we can read out of these as rvalues.

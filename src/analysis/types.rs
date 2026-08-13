@@ -23,7 +23,7 @@ pub enum BuiltIn {
     I64,
     Unit,
     Boolean,
-    Bottom, // The type of return expressions - this type is uninhabitted.
+    Bottom, // The type of return expressions - this type is uninhabited.
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]

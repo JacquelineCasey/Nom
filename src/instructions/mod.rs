@@ -70,7 +70,7 @@ pub enum Instruction {
     /// Pops one operand, pushes one as the result
     UnaryOperation(IntegerUnaryOperation, IntSize),
 
-    /// Pops one value from the stack, and pushs the result.
+    /// Pops one value from the stack, and push the result.
     BooleanNot,
 
     /// Moves stack pointer up, for alignment purposes

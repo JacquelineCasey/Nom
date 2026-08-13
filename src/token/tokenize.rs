@@ -47,7 +47,7 @@ pub fn tokenize(input: &str, source: FileOrString) -> Result<Vec<Token>, TokenEr
     Ok(tokens)
 }
 
-/* Consruction and Manipulation of the (char, Span) iterator. */
+/* Construction and Manipulation of the (char, Span) iterator. */
 
 /// Attaches span information to an input string.
 ///
@@ -231,7 +231,7 @@ fn take_identifier_or_keyword(
 
 /// Given an iterator from `tokenize()`, extracts a sequence of operator tokens.
 ///
-/// Important: a single foward slash looks like an operator, but could be a comment.
+/// Important: a single forward slash looks like an operator, but could be a comment.
 /// Still, the iterator can be passed to this function, and in the event it is a comment,
 /// the full line is consumed and discarded, and an empty vector is returned.
 ///
@@ -313,7 +313,7 @@ fn take_operators(
             (Operator::Dot, 1)
         } else {
             return Err(TokenError::ProblemAtSpan(
-                "Could not seperate operators into tokens.".to_string(),
+                "Could not separate operators into tokens.".to_string(),
                 Span::combine_all(span_slice),
             ));
         };

@@ -31,7 +31,7 @@ pub struct AST {
 /// `id` field.
 #[derive(Debug)]
 pub struct ASTNodeData {
-    /// A unique id. The only gaurantee is that these are unique, there is no promise
+    /// A unique id. The only guarantee is that these are unique, there is no promise
     /// that a given number is somewhere in the tree. Useful for associating additional
     /// information (like type info) outside of the tree, which is slightly better
     /// for borrowing / const correctness purposes.
@@ -52,7 +52,7 @@ impl ASTNodeData {
 
     /// Clones the [`ASTNodeData`], but gives it a new id.
     ///
-    /// Notice that [`ASTNodeData`] lacks a Clone implentation. This is the analog.
+    /// Notice that [`ASTNodeData`] lacks a Clone implementation. This is the analog.
     /// While clone would imply that the type is fully copied (more or less), this
     /// function is not a true copy. All fields are cloned, except for `id`, which
     /// receives a new id. This way, the cloned subtree can be added to the AST
@@ -67,7 +67,7 @@ impl ASTNodeData {
 /// This AST type handles declarations, which include functions, variables, and
 /// types.
 ///
-/// Note that this type is explicitely not [`Clone`]. Instead, you should use
+/// Note that this type is explicitly not [`Clone`]. Instead, you should use
 /// [`duplicate()`](DeclarationAST::duplicate), which acts like clone except the
 /// [`ASTNodeData`] is provided a new id.
 #[derive(Debug)]
@@ -116,7 +116,7 @@ pub enum DeclarationAST {
 impl DeclarationAST {
     /// Creates an identical copy, except for the `node_data` which is intended to be unique.
     ///
-    /// The `node_data` field recieves a value which is gauranteed to be completely new.
+    /// The `node_data` field receives a value which is guaranteed to be completely new.
     pub fn duplicate(&self) -> DeclarationAST {
         match self {
             DeclarationAST::Function { name, params, block, return_type, node_data } => DeclarationAST::Function {
@@ -181,7 +181,7 @@ pub enum StatementAST {
 impl StatementAST {
     /// Creates an identical copy, except for the `node_data` which is intended to be unique.
     ///
-    /// The `node_data` field recieves a value which is gauranteed to be completely new.
+    /// The `node_data` field receives a value which is guaranteed to be completely new.
     pub fn duplicate(&self) -> StatementAST {
         match self {
             StatementAST::ExpressionStatement(expr, node_data) => {

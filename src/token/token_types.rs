@@ -320,12 +320,12 @@ impl Display for Operator {
     }
 }
 
-// Note that Operators don't have a FromStr, since they are often joined together in groups that must be seperateed more
+// Note that Operators don't have a FromStr, since they are often joined together in groups that must be separated more
 // carefully.
 
 /* Spans */
 
-/// A `Span` descibes a contigous group of characters, in a specific source file (or
+/// A `Span` describes a contiguous group of characters, in a specific source file (or
 /// pseudo source file).
 ///
 /// The span is given as a half open interval, though it may be represented differently

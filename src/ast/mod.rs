@@ -32,8 +32,8 @@
 //! come from sequences of [`Tokens`][Token] from [`tokenize()`](super::token::tokenize))
 //! into abstract syntax trees. [`parsley`] determines the structure of the code,
 //! but this module ensures the structure follows more rules, and gathers information
-//! into a more manipulatable and typesafe format. While types of nodes are expressed
-//! as strings in syntax trees, in AST's they are expressed as typesafe enum variants.
+//! into a more manipulatable and type-safe format. While types of nodes are expressed
+//! as strings in syntax trees, in AST's they are expressed as type-safe enum variants.
 //!
 //! While the main way to generate an [`AST`] is by passing it a syntax tree, it is
 //! also permitted to modify the tree at later stages. This is done during the desugaring

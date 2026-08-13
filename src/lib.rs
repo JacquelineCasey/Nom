@@ -140,6 +140,19 @@ impl CompilationEnvironment {
             }
         }
 
+        // Struct completion rules (tentative):
+        // Struct order matters for members that name structs directly - you can't use an "incomplete" struct directly.
+        // Struct order does not matter for pointer members. During the pass above, pointers can point to literally any
+        // type, even if it never ends up getting declared later.
+        // We should add a pass here to ensure that all members have types that actually exist.
+        // Functions and variables are processed later.
+        //
+        // Some day we could break the "incomplete" rule by doing some sort of graph search on structs and processing
+        // them in order of dependencies. That appears to be what Rust does. For the time being though, we can just
+        // require the usages be direct.
+
+        // TODO! - implement the second pass to catch typo'd struct pointer member types.
+
         Ok(())
     }
 

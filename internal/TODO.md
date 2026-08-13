@@ -6,14 +6,19 @@ can go here:
 
 == Immediate TODO ==
 
+- Get run_successful_samples_successful_pointers_simple_nom passing.
+  - We need to wrap the types map in Compilation environment, filling it up with pointer types feels silly. Perhaps it matches,
+    and uses a list for the user defined types? Luckily all the type info for pointer itself does not require further info, so
+    no need to drill further into the types for circular / mutual pointers in structs (though some handling will be needed there
+    in the type checker to ensure the member pointer has a type somewhere - but that can be after all the declarations, again in
+    the type checker. I guess the type checker needs to run over declarations somewhere...).
 - Document the language in nom_docs.md
 - Document the project in the code itself.
   - Top level done. More to follow.
 - Add tests for the current token error annotation.
 - Add a test for pointer to pointer?
 - The tests should eventually test for leaks as well.
-- Add handling for .* in ast. We are in the same rule_node as .foo style expressions, but we should likely return a 
-  different AST variant. We'll have to desugar `ptr.foo` style expressions, I suppose *during* typechecking, which does
+- We'll have to desugar `ptr.foo` style expressions, I suppose *during* typechecking, which does
   have a mutable ast in anticipation of inserting implicit conversions.
 - Maybe that build_all.zsh script should be converted in build.rs?
 - We could add an Identifier eliminating helper to syntax_tree.rs.

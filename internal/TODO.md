@@ -29,3 +29,8 @@ can go here:
 - Syntax Highlighting (based on tokens, not semantics) might be surprisingly in reach. It would require messing with 
   vscode extensions and textmate grammars, but that's about it - no real code needed.
 - Going further would require a Language Server, but let's not get ahead of ourselves. Let's get the language first.
+- Builtins might be surprisingly fun to implement in rust. We'd like to register type erased objects that "generate"
+  (via templates, perhaps with fixed sized tuples :/) code to extract and cast values from the Nom stack. The registration
+  also needs to declare a name, maybe a Nom type (or is that generated), maybe some docs?
+  Honestly, the most general way to get that working is to define some sort of "Rust extension" system, not unlike the
+  C extensions available in some flavors of python.

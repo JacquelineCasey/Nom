@@ -115,14 +115,23 @@ fn build_access_expr(tree: &SyntaxTree) -> Result<ExprAST, ASTError> {
     let mut curr_span = curr_expr.get_node_data().span.clone();
 
     while let Some(ST::TokenNode(Token { body: TB::Operator(Op::Dot), .. })) = iter.next() {
-        let Some(ST::TokenNode(Token { body: TB::Identifier(member_name), span: new_span })) = iter.next() else {
-            return Err("Expected identifier in AccessExpression".into());
-        };
+        match iter.next() {
+            Some(ST::TokenNode(Token { body: TB::Identifier(member_name), span: new_span })) => {
+                curr_span = Span::combine(&curr_span, new_span);
 
-        curr_span = Span::combine(&curr_span, new_span);
+                curr_expr = ExprAST::MemberAccess(
+                    Box::new(curr_expr),
+                    member_name.clone(),
+                    ASTNodeData::new(curr_span.clone()),
+                );
+            }
+            Some(ST::TokenNode(Token { body: TB::Operator(Op::Times), span: new_span })) => {
+                curr_span = Span::combine(&curr_span, new_span);
 
-        curr_expr =
-            ExprAST::MemberAccess(Box::new(curr_expr), member_name.clone(), ASTNodeData::new(curr_span.clone()));
+                curr_expr = ExprAST::PointerAccess(Box::new(curr_expr), ASTNodeData::new(curr_span.clone()));
+            }
+            _ => return Err("Expected identifier in AccessExpression".into()),
+        }
     }
 
     Ok(curr_expr)

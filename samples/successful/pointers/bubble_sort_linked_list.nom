@@ -7,6 +7,8 @@ struct List {
     nil: *ListNode // Without globals, we'll want a nil per list. nil will also point at itself.
 }
 
+// Note that this is declared second. We do not require that ListNode be declared first to be used
+// as a pointer in List. (No forward declaration needed either, nor is one possible at the moment.)
 struct ListNode {
     value: i32,
     next: *ListNode

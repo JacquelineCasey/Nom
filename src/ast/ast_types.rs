@@ -236,6 +236,8 @@ pub enum ExprAST {
     And(Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Not(Box<ExprAST>, ASTNodeData),
     MemberAccess(Box<ExprAST>, String, ASTNodeData),
+    // A pointer, followed by .*, to dereference it to an lvalue.
+    PointerAccess(Box<ExprAST>, ASTNodeData),
     // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
     IntegerLiteral(i128, ASTNodeData),
     BooleanLiteral(bool, ASTNodeData),
@@ -292,6 +294,7 @@ impl ExprAST {
             | ExprAST::While { data, .. }
             | ExprAST::Return(_, data)
             | ExprAST::MemberAccess(_, _, data)
+            | ExprAST::PointerAccess(_, data)
             | ExprAST::StructExpression { data, .. }
             | ExprAST::AllocUninit(_, data)
             | ExprAST::Free { data, .. } => data,
@@ -328,6 +331,9 @@ impl ExprAST {
             }
             ExprAST::MemberAccess(expr, name, node_data) => {
                 ExprAST::MemberAccess(Box::new(expr.duplicate()), name.clone(), node_data.relabel())
+            }
+            ExprAST::PointerAccess(expr, node_data) => {
+                ExprAST::PointerAccess(Box::new(expr.duplicate()), node_data.relabel())
             }
             ExprAST::Not(inner, node_data) => ExprAST::Not(Box::new(inner.duplicate()), node_data.relabel()),
             ExprAST::IntegerLiteral(num, node_data) => ExprAST::IntegerLiteral(*num, node_data.relabel()),
@@ -418,7 +424,9 @@ impl<'a> AnyAST<'a> {
             A::Expression(E::IntegerLiteral(..) | E::BooleanLiteral(..) | E::Variable(..) | E::Return(None, ..)) => {
                 vec![]
             }
-            A::Expression(E::Not(expr, ..) | E::Return(Some(expr), ..) | E::MemberAccess(expr, ..)) => {
+            A::Expression(
+                E::Not(expr, ..) | E::Return(Some(expr), ..) | E::MemberAccess(expr, ..) | E::PointerAccess(expr, ..),
+            ) => {
                 vec![A::Expression(expr.as_mut())]
             }
             A::Expression(

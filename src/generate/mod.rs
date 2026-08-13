@@ -362,6 +362,7 @@ impl CodeGenerator {
                 self.generate_struct_expr(env, function_info, depth, name, members, out)
             }
             E::MemberAccess(..) => self.generate_member_access_expr(env, function_info, depth, subtree, out),
+            E::PointerAccess(..) => todo!("Pointer access generate_expression"),
             E::Free { .. } => todo!(),
             E::AllocUninit(_, _) => todo!(),
             E::Moved => panic!("ExprAST Moved"),
@@ -443,7 +444,7 @@ impl CodeGenerator {
                 Location::Local(name) => (name, offset),
                 _ => return Err("Cannot assign into an arbitrary expression".into()),
             },
-            _ => return Err("Cannot assign into an arbitrary expression".into()),
+            _ => return Err("Cannot assign into an arbitrary expression".into()), // TODO make a compile time error somehow
         };
 
         let (var_offset, _, _) = function_info
@@ -607,6 +608,9 @@ impl CodeGenerator {
                     Box::new(inner_location),
                     isize::try_from(field_alignment).expect("Small enough"),
                 ))
+            }
+            ExprAST::PointerAccess(_, _) => {
+                todo!("Pointer Access locate_expr...")
             }
             ExprAST::Free { .. } => todo!(),
             ExprAST::AllocUninit(_, _) => todo!(),

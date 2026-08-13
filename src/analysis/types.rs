@@ -7,6 +7,7 @@ use std::collections::HashMap;
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Type {
     BuiltIn(BuiltIn),
+    Pointer(Box<Type>),
     UserDefined(String),
     PartiallyKnown(PartialType),
 }
@@ -118,7 +119,7 @@ impl From<&TypeAST> for Type {
     fn from(type_ast: &TypeAST) -> Self {
         match type_ast {
             TypeAST::NamedType(name, ..) => name.clone().into(),
-            TypeAST::Pointer(_type_ast, ..) => todo!(),
+            TypeAST::Pointer(inner_type, ..) => Type::Pointer(Box::new((&**inner_type).into())),
         }
     }
 }

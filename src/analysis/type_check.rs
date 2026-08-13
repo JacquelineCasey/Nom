@@ -254,12 +254,23 @@ fn type_check_expr(
 
             member_type.clone()
         }
-        ExprAST::Free { .. } => {
-            todo!("Evaluate to unit, assert that we have a pointer.")
+        ExprAST::PointerAccess(expr, _) => {
+            let expr_type = type_check_expr(env, expr, function_name, None)?;
+
+            if let Type::Pointer(inner_type) = expr_type {
+                (*inner_type).clone()
+            } else {
+                return Err("Right side of pointer access expression is not a pointer type".into());
+            }
         }
-        ExprAST::AllocUninit(_, _) => {
-            todo!("Evaluate to a pointer of the held type.")
+        ExprAST::Free { subexpr, .. } => {
+            let Type::Pointer(_) = type_check_expr(env, subexpr, function_name, None)? else {
+                return Err("Right side of free expression is not a pointer type".into());
+            };
+
+            Type::BuiltIn(BuiltIn::Unit)
         }
+        ExprAST::AllocUninit(type_ast, _) => Type::Pointer(Box::new(Type::from(&*type_ast))),
         ExprAST::Moved => panic!("ExprAST moved"),
     };
 

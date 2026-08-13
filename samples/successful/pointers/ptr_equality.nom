@@ -17,7 +17,7 @@ fn main() -> i32 {
         successes += 1;
     };
 
-    var ptrC = ptrA;
+    var ptrC: *u8 = ptrA;
 
     if ptrA == ptrC {
         successes += 1;

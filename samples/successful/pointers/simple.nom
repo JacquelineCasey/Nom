@@ -14,7 +14,7 @@ fn main() -> i32 {
         iters += 1;
     };
 
-    val result = ptr.*;
+    val result: i32 = ptr.*;
     free!(ptr);
 
     if (iters == 12) {

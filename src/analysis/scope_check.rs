@@ -149,8 +149,10 @@ fn scope_check_expression(
             }
         }
         ExprAST::MemberAccess(expr, _, _) => {
-            /* We can't actually validate the member here since we don't know the
-             * type of the expression. */
+            // Note that checking if a member is valid requires type checking, so it is not really relevant here.
+            scope_check_expression(env, local_types, expr)?;
+        }
+        ExprAST::PointerAccess(expr, _) => {
             scope_check_expression(env, local_types, expr)?;
         }
         ExprAST::AllocUninit(type_ast_to_alloc, _) => {

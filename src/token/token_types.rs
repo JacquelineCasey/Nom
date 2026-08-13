@@ -388,7 +388,7 @@ impl Span {
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("{}:{}:{}", self.pseudo_path(), self.start_line, self.start_col))
+        f.write_str(&format!("{}:{}:{}", self.pseudo_path().replace('\\', "/"), self.start_line, self.start_col))
     }
 }
 

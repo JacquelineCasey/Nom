@@ -43,10 +43,11 @@ enum TempInstruction {
  * need to evaluate an expression to determine that offset. */
 #[derive(Clone, Debug)]
 enum Location<'a> {
-    EvaluatedExpression(&'a ExprAST), // We have to fully evaluate this expression.
-    Local(String),                    // A local (or argument).
+    EvaluatedExpression(&'a ExprAST),     // We have to fully evaluate this expression.
+    Local(String),                        // A local (or argument).
     OffsetFrom(Box<Location<'a>>, isize), // A particular offset from another location.
-                                      // Soon - LocalUnknownOffset... maybe (String, Expr). Supporting expressions like arr[i * 2]
+    ThroughPointer(&'a ExprAST),          // We evaluate this expression, and it is a pointer identifying the result.
+                                          // Soon - LocalUnknownOffset... maybe (String, Expr). Supporting expressions like arr[i * 2]
 }
 
 impl Location<'_> {
@@ -361,7 +362,9 @@ impl CodeGenerator {
             E::StructExpression { name, members, .. } => {
                 self.generate_struct_expr(env, function_info, depth, name, members, out)
             }
-            E::MemberAccess(..) | E::PointerAccess(..) => self.generate_member_or_pointer_access_expr(env, function_info, depth, subtree, out),
+            E::MemberAccess(..) | E::PointerAccess(..) => {
+                self.generate_location_read_expr(env, function_info, depth, subtree, out)
+            }
             E::Free { subexpr, .. } => self.generate_free_expr(env, function_info, depth, subexpr, out),
             E::AllocUninit(allocation_type, _) => self.generate_alloc_uninit_expr(env, allocation_type, out),
             E::Moved => panic!("ExprAST Moved"),
@@ -442,8 +445,10 @@ impl CodeGenerator {
             Location::Local(name) => (name, 0),
             Location::OffsetFrom(inner, offset) => match *inner {
                 Location::Local(name) => (name, offset),
+                Location::ThroughPointer(_) => todo!("Offset Pointer Assignment"),
                 _ => return Err("Cannot assign into an arbitrary expression".into()),
             },
+            Location::ThroughPointer(_) => todo!("Pointer Assignment"),
             _ => return Err("Cannot assign into an arbitrary expression".into()), // TODO make a compile time error somehow
         };
 
@@ -589,7 +594,9 @@ impl CodeGenerator {
             | ExprAST::If { .. }
             | ExprAST::While { .. }
             | ExprAST::Return(..)
-            | ExprAST::StructExpression { .. } => {
+            | ExprAST::StructExpression { .. }
+            | ExprAST::AllocUninit(_, _)
+            | ExprAST::Free { .. } => {
                 Ok(Location::EvaluatedExpression(expr)) // These are never lvalues, basically.
             }
             ExprAST::Variable(name, _) => Ok(Location::Local(name.clone())),
@@ -609,11 +616,7 @@ impl CodeGenerator {
                     isize::try_from(field_alignment).expect("Small enough"),
                 ))
             }
-            ExprAST::PointerAccess(_, _) => {
-                todo!("Pointer Access locate_expr...")
-            }
-            ExprAST::Free { .. } => todo!(),
-            ExprAST::AllocUninit(_, _) => todo!(),
+            ExprAST::PointerAccess(subexpr, _) => Ok(Location::ThroughPointer(subexpr)),
             ExprAST::Moved => panic!("Moved Expression"),
         }
     }

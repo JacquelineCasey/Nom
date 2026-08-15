@@ -216,6 +216,8 @@ impl CodeGenerator {
 
         // TODO: Shadowing...
 
+        // TODO: Does this get folded into generate_location_read_expr?
+
         let (offset, size, val_type) = function_info.variable_info_by_name(name).expect("known to exist");
         Self::generate_read_from_base(
             *offset,
@@ -442,7 +444,7 @@ impl CodeGenerator {
         Ok(())
     }
 
-    pub(super) fn generate_member_or_pointer_access_expr(
+    pub(super) fn generate_location_read_expr(
         &self,
         env: &CompilationEnvironment,
         function_info: &FunctionInfo,
@@ -455,32 +457,35 @@ impl CodeGenerator {
 
         let loc = self.locate_expr(subtree, env)?.collapse_offsets();
 
-        match loc {
-            Location::OffsetFrom(inner, offset) => match inner.as_ref() {
-                Location::Local(name) => {
-                    let (base_offset, _, _) = function_info.variable_info_by_name(name).expect("Variable Exists");
-                    Self::generate_read_from_base(base_offset + offset, *size, *alignment, out);
-                }
-                Location::EvaluatedExpression(expr) => {
-                    let struct_type = &env.type_index[&expr.get_node_data().id];
-                    let TypeInfo { size: struct_size, alignment: struct_alignment, .. } =
-                        &env.types.get_basic_info(struct_type).expect("struct_type known");
+        let (location_without_offset, offset) = match loc {
+            Location::OffsetFrom(inner, offset) => (*inner, offset),
+            other => (other, 0),
+        };
 
-                    let align_shift = get_align_shift(depth, *struct_alignment);
+        match location_without_offset {
+            Location::Local(name) => {
+                let (base_offset, _, _) = function_info.variable_info_by_name(&name).expect("Variable Exists");
+                Self::generate_read_from_base(base_offset + offset, *size, *alignment, out);
+            }
+            Location::EvaluatedExpression(expr) => {
+                let struct_type = &env.type_index[&expr.get_node_data().id];
+                let TypeInfo { size: struct_size, alignment: struct_alignment, .. } =
+                    &env.types.get_basic_info(struct_type).expect("struct_type known");
 
-                    out.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
+                let align_shift = get_align_shift(depth, *struct_alignment);
 
-                    self.generate_expression(env, expr, function_info, depth + align_shift, out)?;
+                out.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
 
-                    out.push(PI::Actual(I::RetractStackPtr(
-                        (*struct_size as isize - offset - *size as isize) as usize,
-                    )));
+                self.generate_expression(env, expr, function_info, depth + align_shift, out)?;
 
-                    Self::generate_stack_retraction(align_shift + offset as usize, *size, *alignment, out);
-                }
-                _ => return Err("Expected other location type".into()),
-            },
-            _ => return Err("Expected other location type".into()),
+                out.push(PI::Actual(I::RetractStackPtr((*struct_size as isize - offset - *size as isize) as usize)));
+
+                Self::generate_stack_retraction(align_shift + offset as usize, *size, *alignment, out);
+            }
+            Location::ThroughPointer(expr) => {
+                todo!("Access ThroughPointer")
+            }
+            Location::OffsetFrom(_, _) => panic!("Unreachable"),
         }
 
         Ok(())

@@ -283,7 +283,7 @@ impl Runtime {
                 //
                 // Perhaps in the future we guard this behind some sort of debug mode (or non-release).
                 for i in 0..size {
-                    unsafe { pointer.offset(i as isize).write(0xAA) };
+                    unsafe { pointer.add(i).write(0xAA) };
                 }
 
                 self.allocations.insert(pointer, layout);

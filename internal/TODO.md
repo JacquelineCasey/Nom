@@ -21,6 +21,9 @@ can go here:
 
 == Someday TODO ==
 
+- Pointers to things on the stack! We should have all the ingredients now, we should just use the location logic, and 
+  then take the location and evaluate an expression to make a pointer. I guess the only rough bit is needing to get a
+  value for the base? And at this point we'll also want some mechanism to discourage pointing to r-values.
 - Use https://doc.rust-lang.org/std/panic/struct.Location.html to write some alternatives to the various expect() or
   unwrap calls strewn about. They could provide both the benefit of not instantly panicking and still providing source
   location for me.

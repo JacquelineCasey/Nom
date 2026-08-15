@@ -98,8 +98,15 @@ pub enum Instruction {
     /// isize is a possibly negative offset, in bytes. Result placed on the stack.
     ReadBase(isize, IntSize),
 
-    /// As above, an offset and a arg size. Result is consumed from the stack.
+    /// Reads the specified address, which can refer either to the stack or the heap.
+    /// The address being valid is not checked. Result placed on the stack.
+    ReadAddress(usize, IntSize),
+
+    /// As above, an offset and an arg size. Result is consumed from the stack.
     WriteBase(isize, IntSize),
+
+    /// As above, an address and an arg size. Result is consumed from the stack.
+    WriteAddress(usize, IntSize),
 
     /// As somewhat of a last resort, we can write into the stack from another
     /// location in the stack. First arg is source, second is destination, both
@@ -120,6 +127,14 @@ pub enum Instruction {
     /// Components are the size and signedness of the input, and the size and signedness of the output.
     /// May emit an error.
     IntegerConversion(IntSize, bool, IntSize, bool),
+
+    /// Allocates a block of memory of specified size. The resulting pointer value (8 bytes) is pushed.
+    /// The allocated memory is zeroed.
+    Allocate(usize),
+
+    /// Pops a pointer value (8 bytes), and frees that pointer. The program terminates if no value
+    /// was found.
+    Free,
 
     /// Precondition: The base pointer has not moved since a previous call instruction.
     /// The function return value has been placed below the function arguments (which

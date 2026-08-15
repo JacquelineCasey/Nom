@@ -485,4 +485,37 @@ impl CodeGenerator {
 
         Ok(())
     }
+
+    pub(super) fn generate_pointer_access_expr(
+        &self,
+        env: &CompilationEnvironment,
+        function_info: &FunctionInfo,
+        depth: usize,
+        subtree: &ExprAST,
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
+        todo!("generate_pointer_access_expr")
+    }
+
+    pub(super) fn generate_alloc_uninit_expr(
+        &self,
+        env: &CompilationEnvironment,
+        function_info: &FunctionInfo,
+        depth: usize,
+        subtree: &ExprAST,
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
+        todo!("generate_alloc_uninit_access_expr")
+    }
+
+    pub(super) fn generate_free_expr(
+        &self,
+        env: &CompilationEnvironment,
+        function_info: &FunctionInfo,
+        depth: usize,
+        subtree: &ExprAST,
+        out: &mut OutStream<PseudoInstruction>,
+    ) -> Result<(), GenerateError> {
+        todo!("generate_free_expr")
+    }
 }

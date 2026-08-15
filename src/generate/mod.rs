@@ -9,7 +9,7 @@ use std::hash::Hash;
 use crate::analysis::types::{KindData, Type, TypeInfo};
 use crate::ast::{DeclarationAST, ExprAST, StatementAST};
 use crate::error::GenerateError;
-use crate::instructions::{Instruction, IntSize};
+use crate::instructions::{Constant, Instruction, IntSize, IntegerBinaryOperation};
 use crate::util::OutStream;
 use crate::CompilationEnvironment;
 
@@ -45,7 +45,7 @@ enum TempInstruction {
 enum Location<'a> {
     EvaluatedExpression(&'a ExprAST),     // We have to fully evaluate this expression.
     Local(String),                        // A local (or argument).
-    OffsetFrom(Box<Location<'a>>, isize), // A particular offset from another location.
+    OffsetFrom(Box<Location<'a>>, usize), // A particular offset from another location. Always a positive shift.
     ThroughPointer(&'a ExprAST),          // We evaluate this expression, and it is a pointer identifying the result.
                                           // Soon - LocalUnknownOffset... maybe (String, Expr). Supporting expressions like arr[i * 2]
 }
@@ -441,23 +441,87 @@ impl CodeGenerator {
         // We handle the most general case involving a field, but really if it
         // is just a variable then we say the field has offset 0.
 
-        let (local, field_offset) = match location.collapse_offsets() {
-            Location::Local(name) => (name, 0),
-            Location::OffsetFrom(inner, offset) => match *inner {
-                Location::Local(name) => (name, offset),
-                Location::ThroughPointer(_) => todo!("Offset Pointer Assignment"),
-                _ => return Err("Cannot assign into an arbitrary expression".into()),
-            },
-            Location::ThroughPointer(_) => todo!("Pointer Assignment"),
-            _ => return Err("Cannot assign into an arbitrary expression".into()), // TODO make a compile time error somehow
+        let (location_without_offset, field_offset) = match location.collapse_offsets() {
+            Location::OffsetFrom(inner, offset) => (*inner, offset),
+            other => (other, 0),
         };
 
-        let (var_offset, _, _) = function_info
-            .variable_info_by_name(&local)
-            .ok_or::<GenerateError>("Could not find local variable".into())?;
+        match location_without_offset {
+            Location::Local(local) => {
+                let (var_offset, _, _) = function_info
+                    .variable_info_by_name(&local)
+                    .ok_or::<GenerateError>("Could not find local variable".into())?;
 
-        // Store generated value
-        Self::generate_write_to_base(var_offset + field_offset, expr_type_info.size, expr_type_info.alignment, out);
+                // Store generated value
+                Self::generate_write_to_base(
+                    var_offset + field_offset as isize,
+                    expr_type_info.size,
+                    expr_type_info.alignment,
+                    out,
+                );
+            }
+            Location::ThroughPointer(pointer_expr) => {
+                // This mirrors generate_location_read_expr.
+
+                let pointer_align_shift = get_align_shift(depth + align_shift + expr_type_info.size, 8);
+                out.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(pointer_align_shift)));
+
+                self.generate_expression(
+                    env,
+                    pointer_expr,
+                    function_info,
+                    depth + expr_type_info.size + align_shift,
+                    out,
+                )?;
+
+                // The offset from the pointer expression.
+                if field_offset != 0 {
+                    out.push(PseudoInstruction::Actual(Instruction::PushConstant(Constant::EightByte(
+                        field_offset as u64,
+                    ))));
+                    out.push(PseudoInstruction::Actual(Instruction::IntegerBinaryOperation(
+                        IntegerBinaryOperation::UnsignedAddition,
+                        IntSize::EightByte,
+                    )));
+                }
+
+                let mut bytes_remaining = expr_type_info.size;
+
+                while bytes_remaining > 0 {
+                    for int_size in [8, 4, 2, 1] {
+                        if int_size > expr_type_info.alignment || int_size > bytes_remaining {
+                            continue;
+                        }
+
+                        // Note that this write does not consume the pointer.
+                        out.push(PseudoInstruction::Actual(Instruction::WriteAddress(
+                            int_size.try_into().expect("8, 4, 2, 1 are valid"),
+                            -isize::try_from(8 + pointer_align_shift + bytes_remaining).expect("small"),
+                        )));
+
+                        if bytes_remaining != int_size {
+                            out.push(PseudoInstruction::Actual(Instruction::PushConstant(Constant::EightByte(
+                                int_size as u64,
+                            ))));
+                            out.push(PseudoInstruction::Actual(Instruction::IntegerBinaryOperation(
+                                IntegerBinaryOperation::UnsignedAddition,
+                                IntSize::EightByte,
+                            )));
+                        }
+
+                        bytes_remaining -= int_size;
+
+                        break;
+                    }
+                }
+
+                // Jump back over pointer, alignment, and the object (but not the object's alignment, that's later)
+                out.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(
+                    8 + pointer_align_shift + expr_type_info.size,
+                )));
+            }
+            _ => return Err("Cannot assign into an arbitrary expression".into()), // TODO make a compile time error somehow
+        };
 
         // Remove alignment
         out.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(align_shift)));
@@ -556,10 +620,6 @@ impl CodeGenerator {
                     continue;
                 }
 
-                if !(size - bytes_remaining).is_multiple_of(int_size) {
-                    continue;
-                }
-
                 out.push(PseudoInstruction::Actual(Instruction::WriteStack(
                     -isize::try_from(bytes_remaining).expect("small"),
                     -isize::try_from(bytes_remaining + shift).expect("small"),
@@ -611,10 +671,7 @@ impl CodeGenerator {
                 let (_, field_alignment) = members[member_name];
 
                 let inner_location = self.locate_expr(struct_expr, env)?;
-                Ok(Location::OffsetFrom(
-                    Box::new(inner_location),
-                    isize::try_from(field_alignment).expect("Small enough"),
-                ))
+                Ok(Location::OffsetFrom(Box::new(inner_location), field_alignment))
             }
             ExprAST::PointerAccess(subexpr, _) => Ok(Location::ThroughPointer(subexpr)),
             ExprAST::Moved => panic!("Moved Expression"),

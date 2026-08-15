@@ -465,7 +465,7 @@ impl CodeGenerator {
         match location_without_offset {
             Location::Local(name) => {
                 let (base_offset, _, _) = function_info.variable_info_by_name(&name).expect("Variable Exists");
-                Self::generate_read_from_base(base_offset + offset, *size, *alignment, out);
+                Self::generate_read_from_base(base_offset + offset as isize, *size, *alignment, out);
             }
             Location::EvaluatedExpression(expr) => {
                 let struct_type = &env.type_index[&expr.get_node_data().id];
@@ -478,7 +478,9 @@ impl CodeGenerator {
 
                 self.generate_expression(env, expr, function_info, depth + align_shift, out)?;
 
-                out.push(PI::Actual(I::RetractStackPtr((*struct_size as isize - offset - *size as isize) as usize)));
+                out.push(PI::Actual(I::RetractStackPtr(
+                    (*struct_size as isize - offset as isize - *size as isize) as usize,
+                )));
 
                 Self::generate_stack_retraction(align_shift + offset as usize, *size, *alignment, out);
             }
@@ -490,12 +492,55 @@ impl CodeGenerator {
                 let TypeInfo { size: pointee_size, alignment: pointee_alignment, .. } =
                     &env.types.get_basic_info(pointee_type).expect("pointee_type known");
 
-                todo!("Finish Through Pointer")
-
                 // The basic procedure is to advance beyond the end of the destination w/ alignment for
                 // the pointer, evaluate the pointer expression, and read pointee-alignment sized blocks
                 // similar to generate_read_from_base() repeatedly, adding the pointee-alignment to
                 // the pointer as you go. At the end, retract back to the top of the destination.
+
+                let align_shift = get_align_shift(depth + pointee_size, 8);
+
+                out.push(PI::Actual(I::AdvanceStackPtr(pointee_size + align_shift)));
+
+                self.generate_expression(env, expr, function_info, depth + pointee_size + align_shift, out)?;
+
+                // The offset from the pointer expression.
+                if offset != 0 {
+                    out.push(PI::Actual(I::PushConstant(Constant::EightByte(offset as u64))));
+                    out.push(PI::Actual(I::IntegerBinaryOperation(
+                        IntegerBinaryOperation::UnsignedAddition,
+                        IntSize::EightByte,
+                    )));
+                }
+
+                let mut bytes_remaining = *size;
+
+                while bytes_remaining > 0 {
+                    for int_size in [8, 4, 2, 1] {
+                        if int_size > *alignment || int_size > bytes_remaining {
+                            continue;
+                        }
+
+                        // Note that this read does not consume the pointer.
+                        out.push(PI::Actual(I::ReadAddress(
+                            int_size.try_into().expect("8, 4, 2, 1 are valid"),
+                            -isize::try_from(8 + align_shift + bytes_remaining).expect("small"),
+                        )));
+
+                        if bytes_remaining != int_size {
+                            out.push(PI::Actual(I::PushConstant(Constant::EightByte(int_size as u64))));
+                            out.push(PI::Actual(I::IntegerBinaryOperation(
+                                IntegerBinaryOperation::UnsignedAddition,
+                                IntSize::EightByte,
+                            )));
+                        }
+
+                        bytes_remaining -= int_size;
+
+                        break;
+                    }
+                }
+
+                out.push(PI::Actual(I::RetractStackPtr(8 + align_shift)));
             }
             Location::OffsetFrom(_, _) => panic!("Unreachable"),
         }

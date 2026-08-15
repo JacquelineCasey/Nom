@@ -521,7 +521,7 @@ impl CodeGenerator {
                 )));
             }
             _ => return Err("Cannot assign into an arbitrary expression".into()), // TODO make a compile time error somehow
-        };
+        }
 
         // Remove alignment
         out.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(align_shift)));

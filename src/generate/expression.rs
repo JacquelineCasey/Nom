@@ -482,7 +482,7 @@ impl CodeGenerator {
                     (*struct_size as isize - offset as isize - *size as isize) as usize,
                 )));
 
-                Self::generate_stack_retraction(align_shift + offset as usize, *size, *alignment, out);
+                Self::generate_stack_retraction(align_shift + offset, *size, *alignment, out);
             }
             Location::ThroughPointer(expr) => {
                 let Type::Pointer(pointee_type) = &env.type_index[&expr.get_node_data().id] else {
@@ -548,6 +548,8 @@ impl CodeGenerator {
         Ok(())
     }
 
+    #[allow(clippy::unused_self)]
+    #[allow(clippy::unnecessary_wraps)]
     pub(super) fn generate_alloc_uninit_expr(
         &self,
         env: &CompilationEnvironment,

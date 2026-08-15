@@ -279,7 +279,7 @@ impl Runtime {
 
                 self.allocations.insert(pointer, layout);
 
-                u64::push(pointer as u64, self)
+                u64::push(pointer as u64, self);
             }
             Instruction::Free => {
                 let pointer = u64::pop(self) as *mut u8;

@@ -6,12 +6,7 @@ can go here:
 
 == Immediate TODO ==
 
-- Get run_successful_samples_successful_pointers_simple_nom passing.
-  - We need to wrap the types map in Compilation environment, filling it up with pointer types feels silly. Perhaps it matches,
-    and uses a list for the user defined types? Luckily all the type info for pointer itself does not require further info, so
-    no need to drill further into the types for circular / mutual pointers in structs (though some handling will be needed there
-    in the type checker to ensure the member pointer has a type somewhere - but that can be after all the declarations, again in
-    the type checker. I guess the type checker needs to run over declarations somewhere...).
+- Get run_successful_samples_successful_pointers_member_access passing. This should just require adding the ptr.member syntactic sugar.
 - Document the language in nom_docs.md
 - Document the project in the code itself.
   - Top level done. More to follow.

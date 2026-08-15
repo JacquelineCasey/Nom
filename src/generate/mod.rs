@@ -361,10 +361,9 @@ impl CodeGenerator {
             E::StructExpression { name, members, .. } => {
                 self.generate_struct_expr(env, function_info, depth, name, members, out)
             }
-            E::MemberAccess(..) => self.generate_member_access_expr(env, function_info, depth, subtree, out),
-            E::PointerAccess(..) => self.generate_pointer_access_expr(env, function_info, depth, subtree, out),
-            E::Free { .. } => self.generate_free_expr(env, function_info, depth, subtree, out),
-            E::AllocUninit(_, _) => self.generate_alloc_uninit_expr(env, function_info, depth, subtree, out),
+            E::MemberAccess(..) | E::PointerAccess(..) => self.generate_member_or_pointer_access_expr(env, function_info, depth, subtree, out),
+            E::Free { subexpr, .. } => self.generate_free_expr(env, function_info, depth, subexpr, out),
+            E::AllocUninit(allocation_type, _) => self.generate_alloc_uninit_expr(env, allocation_type, out),
             E::Moved => panic!("ExprAST Moved"),
         }
     }

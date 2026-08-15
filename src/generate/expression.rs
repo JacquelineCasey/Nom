@@ -8,7 +8,7 @@
 use super::{get_align_shift, CodeGenerator, FunctionInfo, Location, PseudoInstruction, TempInstruction, Variable};
 
 use crate::analysis::types::{KindData, Type, TypeInfo};
-use crate::ast::{ASTNodeData, ExprAST, MathOperation, StatementAST};
+use crate::ast::{ASTNodeData, ExprAST, MathOperation, StatementAST, TypeAST};
 use crate::error::GenerateError;
 use crate::instructions::{Comparison, IntegerBinaryOperation};
 use crate::instructions::{Constant, Instruction, IntSize};
@@ -442,7 +442,7 @@ impl CodeGenerator {
         Ok(())
     }
 
-    pub(super) fn generate_member_access_expr(
+    pub(super) fn generate_member_or_pointer_access_expr(
         &self,
         env: &CompilationEnvironment,
         function_info: &FunctionInfo,
@@ -486,26 +486,17 @@ impl CodeGenerator {
         Ok(())
     }
 
-    pub(super) fn generate_pointer_access_expr(
-        &self,
-        env: &CompilationEnvironment,
-        function_info: &FunctionInfo,
-        depth: usize,
-        subtree: &ExprAST,
-        out: &mut OutStream<PseudoInstruction>,
-    ) -> Result<(), GenerateError> {
-        todo!("generate_pointer_access_expr")
-    }
-
     pub(super) fn generate_alloc_uninit_expr(
         &self,
         env: &CompilationEnvironment,
-        function_info: &FunctionInfo,
-        depth: usize,
-        subtree: &ExprAST,
+        allocation_type: &TypeAST,
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
-        todo!("generate_alloc_uninit_access_expr")
+        out.push(PI::Actual(Instruction::Allocate(
+            env.types.get_basic_info(&allocation_type.into()).expect("allocation_type known").size,
+        )));
+
+        Ok(())
     }
 
     pub(super) fn generate_free_expr(
@@ -513,9 +504,18 @@ impl CodeGenerator {
         env: &CompilationEnvironment,
         function_info: &FunctionInfo,
         depth: usize,
-        subtree: &ExprAST,
+        pointer_expression: &ExprAST,
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
-        todo!("generate_free_expr")
+        let align_shift = get_align_shift(depth, 8);
+
+        out.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
+
+        self.generate_expression(env, pointer_expression, function_info, depth + align_shift, out)?;
+
+        out.push(PI::Actual(I::Free));
+        out.push(PI::Actual(I::RetractStackPtr(align_shift)));
+
+        Ok(())
     }
 }

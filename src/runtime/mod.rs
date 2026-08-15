@@ -2,6 +2,7 @@
 mod tests;
 
 use std::alloc::{alloc, dealloc, Layout};
+use std::collections::HashMap;
 
 use crate::instructions::{Comparison, Constant, Instruction, IntSize, IntegerBinaryOperation, IntegerUnaryOperation};
 use crate::util::reinterpret;
@@ -15,6 +16,7 @@ pub struct Runtime {
     base_pointer: *mut u8, // Current location of bottom of the frame. Locals are available, as well as return value and previous frame pointer.
     stack_bottom: *const u8,
     stack_layout: Layout,
+    allocations: HashMap<*mut u8, Layout>,
     running: bool,
 }
 
@@ -32,6 +34,7 @@ impl Runtime {
             stack_bottom: stack,
             base_pointer: stack,
             stack_layout,
+            allocations: HashMap::new(),
             running: false,
         }
     }
@@ -163,7 +166,31 @@ impl Runtime {
                     u64::push(val, self);
                 }
             },
-            Instruction::ReadAddress(int_size, destination_stack_offset) => todo!("ReadAddress instruction"),
+            Instruction::ReadAddress(int_size, destination_stack_offset) => {
+                // Leave top of stack alone, but use its pointer value.
+                // TODO: This could probably just be a peek operation.
+                let pointer = u64::pop(self) as *mut u8;
+                u64::push(pointer as u64, self);
+
+                match int_size {
+                    IntSize::OneByte => unsafe {
+                        let val = pointer.read();
+                        self.stack_pointer.offset(destination_stack_offset).write(val);
+                    },
+                    IntSize::TwoByte => unsafe {
+                        let val = pointer.cast::<u16>().read();
+                        self.stack_pointer.offset(destination_stack_offset).cast::<u16>().write(val);
+                    },
+                    IntSize::FourByte => unsafe {
+                        let val = pointer.cast::<u32>().read();
+                        self.stack_pointer.offset(destination_stack_offset).cast::<u32>().write(val);
+                    },
+                    IntSize::EightByte => unsafe {
+                        let val = pointer.cast::<u64>().read();
+                        self.stack_pointer.offset(destination_stack_offset).cast::<u64>().write(val);
+                    },
+                }
+            }
             Instruction::WriteBase(offset, size) => match size {
                 IntSize::OneByte => {
                     let val = u8::pop(self);
@@ -182,7 +209,31 @@ impl Runtime {
                     self.write_base::<u64>(offset, val);
                 }
             },
-            Instruction::WriteAddress(int_size, source_stack_offset) => todo!("WriteAddress instruction"),
+            Instruction::WriteAddress(int_size, source_stack_offset) => {
+                // Leave top of stack alone, but use its pointer value.
+                // TODO: This could probably just be a peek operation.
+                let pointer = u64::pop(self) as *mut u8;
+                u64::push(pointer as u64, self);
+
+                match int_size {
+                    IntSize::OneByte => unsafe {
+                        let val = self.stack_pointer.offset(source_stack_offset).read();
+                        pointer.write(val);
+                    },
+                    IntSize::TwoByte => unsafe {
+                        let val = self.stack_pointer.offset(source_stack_offset).cast::<u16>().read();
+                        pointer.cast::<u16>().write(val);
+                    },
+                    IntSize::FourByte => unsafe {
+                        let val = self.stack_pointer.offset(source_stack_offset).cast::<u32>().read();
+                        pointer.cast::<u32>().write(val);
+                    },
+                    IntSize::EightByte => unsafe {
+                        let val = self.stack_pointer.offset(source_stack_offset).cast::<u64>().read();
+                        pointer.cast::<u64>().write(val);
+                    },
+                }
+            }
             // I'd like to clean this up someday...
             Instruction::WriteStack(src, dest, int_size) => match int_size {
                 IntSize::OneByte => unsafe {
@@ -222,8 +273,20 @@ impl Runtime {
             Instruction::IntegerConversion(start_size, start_sign, end_size, end_sign) => {
                 self.convert_integer(start_size, start_sign, end_size, end_sign);
             }
-            Instruction::Allocate(size) => todo!("Allocate instruction"),
-            Instruction::Free => todo!("Free instruction"),
+            Instruction::Allocate(size) => {
+                let layout = Layout::array::<u8>(size).expect("Memory should be allocated");
+                let pointer = unsafe { alloc(layout) };
+
+                self.allocations.insert(pointer, layout);
+
+                u64::push(pointer as u64, self)
+            }
+            Instruction::Free => {
+                let pointer = u64::pop(self) as *mut u8;
+                let layout = self.allocations.remove(&pointer).expect("Freeing a previously allocated pointer.");
+
+                unsafe { dealloc(pointer, layout) };
+            }
             Instruction::RelativeJump(i) => {
                 self.instruction_index -= 1; // Ignore normal instruction pointer movement
                 self.instruction_index = (self.instruction_index as i32 + i) as usize;
@@ -417,6 +480,10 @@ impl Runtime {
 impl Drop for Runtime {
     fn drop(&mut self) {
         unsafe { dealloc(self.stack_bottom.cast_mut(), self.stack_layout) }
+
+        for (pointer, layout) in &self.allocations {
+            unsafe { dealloc(*pointer, *layout) };
+        }
     }
 }
 

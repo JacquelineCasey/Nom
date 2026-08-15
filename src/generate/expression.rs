@@ -516,7 +516,7 @@ impl CodeGenerator {
 
                 while bytes_remaining > 0 {
                     for int_size in [8, 4, 2, 1] {
-                        if int_size > *alignment || int_size > bytes_remaining {
+                        if int_size > *pointee_alignment || int_size > bytes_remaining {
                             continue;
                         }
 

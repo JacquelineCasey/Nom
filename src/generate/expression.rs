@@ -89,7 +89,8 @@ impl CodeGenerator {
             return Err("Left and Right part of comparison have different types".into());
         }
 
-        let align_shift = get_align_shift(depth, env.types[left_type].alignment);
+        let align_shift =
+            get_align_shift(depth, env.types.get_basic_info(left_type).expect("left_type defined").alignment);
 
         let Type::BuiltIn(builtin_type) = left_type else {
             return Err("Tried to compare non builtin types".into());
@@ -102,7 +103,13 @@ impl CodeGenerator {
         out.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
 
         self.generate_expression(env, left, function_info, depth + align_shift, out)?;
-        self.generate_expression(env, right, function_info, depth + align_shift + env.types[left_type].size, out)?;
+        self.generate_expression(
+            env,
+            right,
+            function_info,
+            depth + align_shift + env.types.get_basic_info(left_type).expect("left_type known").size,
+            out,
+        )?;
 
         out.push(PI::Actual(I::IntegerComparisonOperation {
             comparison,
@@ -210,7 +217,12 @@ impl CodeGenerator {
         // TODO: Shadowing...
 
         let (offset, size, val_type) = function_info.variable_info_by_name(name).expect("known to exist");
-        Self::generate_read_from_base(*offset, *size, env.types[val_type].alignment, out);
+        Self::generate_read_from_base(
+            *offset,
+            *size,
+            env.types.get_basic_info(val_type).expect("val_type known").alignment,
+            out,
+        );
     }
 
     pub(super) fn generate_block_expr(
@@ -296,7 +308,12 @@ impl CodeGenerator {
         // Retract moving to original expression location
         match return_size {
             0 => out.push(PI::Actual(I::RetractStackPtr(align_shift))),
-            _ => Self::generate_stack_retraction(align_shift, *return_size, env.types[return_type].alignment, out),
+            _ => Self::generate_stack_retraction(
+                align_shift,
+                *return_size,
+                env.types.get_basic_info(return_type).expect("return_type known").alignment,
+                out,
+            ),
         }
 
         Ok(())
@@ -372,7 +389,8 @@ impl CodeGenerator {
     ) -> Result<(), GenerateError> {
         if let Some(expr) = expr {
             let expr_type = &env.type_index[&expr.get_node_data().id];
-            let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+            let expr_type_info =
+                env.types.get_basic_info(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
             let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
@@ -396,7 +414,7 @@ impl CodeGenerator {
         members: &[(String, ExprAST)],
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
-        let TypeInfo { kind, .. } = env.types.get(&name.to_string().into()).expect("Known exists");
+        let TypeInfo { kind, .. } = env.types.get_basic_info(&name.to_string().into()).expect("Known exists");
 
         let KindData::Struct { members: type_members } = kind else { panic!("Expected struct type") };
 
@@ -418,7 +436,7 @@ impl CodeGenerator {
 
             self.generate_expression(env, expr, function_info, depth + offset, out)?;
 
-            offset_into_struct = offset + env.types[member_type].size;
+            offset_into_struct = offset + env.types.get_basic_info(member_type).expect("member_type known").size;
         }
 
         Ok(())
@@ -433,7 +451,7 @@ impl CodeGenerator {
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
         let expr_type = &env.type_index[&subtree.get_node_data().id];
-        let TypeInfo { size, alignment, .. } = &env.types[expr_type];
+        let TypeInfo { size, alignment, .. } = &env.types.get_basic_info(expr_type).expect("expr_type known");
 
         let loc = self.locate_expr(subtree, env)?.collapse_offsets();
 
@@ -445,7 +463,8 @@ impl CodeGenerator {
                 }
                 Location::EvaluatedExpression(expr) => {
                     let struct_type = &env.type_index[&expr.get_node_data().id];
-                    let TypeInfo { size: struct_size, alignment: struct_alignment, .. } = &env.types[struct_type];
+                    let TypeInfo { size: struct_size, alignment: struct_alignment, .. } =
+                        &env.types.get_basic_info(struct_type).expect("struct_type known");
 
                     let align_shift = get_align_shift(depth, *struct_alignment);
 

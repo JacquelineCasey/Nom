@@ -1,5 +1,8 @@
 pub mod types;
 
+pub mod type_store;
+pub use type_store::TypeStore;
+
 mod desugar;
 pub use desugar::desugar; // Desugaring should happen right after the AST is created.
 

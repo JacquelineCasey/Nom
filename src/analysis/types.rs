@@ -133,27 +133,6 @@ pub enum KindData {
     Struct { members: HashMap<String, (Type, usize)> }, // members maps name to (offset, type)
 }
 
-pub fn get_default_types() -> HashMap<Type, TypeInfo> {
-    let mut map = HashMap::new();
-
-    map.insert(Type::BuiltIn(BuiltIn::U8), TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
-    map.insert(Type::BuiltIn(BuiltIn::U16), TypeInfo { size: 2, alignment: 2, kind: KindData::BuiltIn });
-    map.insert(Type::BuiltIn(BuiltIn::U32), TypeInfo { size: 4, alignment: 4, kind: KindData::BuiltIn });
-    map.insert(Type::BuiltIn(BuiltIn::U64), TypeInfo { size: 8, alignment: 8, kind: KindData::BuiltIn });
-    map.insert(Type::BuiltIn(BuiltIn::I8), TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
-    map.insert(Type::BuiltIn(BuiltIn::I16), TypeInfo { size: 2, alignment: 2, kind: KindData::BuiltIn });
-    map.insert(Type::BuiltIn(BuiltIn::I32), TypeInfo { size: 4, alignment: 4, kind: KindData::BuiltIn });
-    map.insert(Type::BuiltIn(BuiltIn::I64), TypeInfo { size: 8, alignment: 8, kind: KindData::BuiltIn });
-
-    map.insert(Type::BuiltIn(BuiltIn::Boolean), TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn });
-
-    map.insert(Type::BuiltIn(BuiltIn::Unit), TypeInfo { size: 0, alignment: 1, kind: KindData::BuiltIn }); // Not sure if this should have an alignment
-
-    map.insert(Type::BuiltIn(BuiltIn::Bottom), TypeInfo { size: 0, alignment: 1, kind: KindData::BuiltIn });
-
-    map
-}
-
 pub fn add_struct_type(
     env: &mut CompilationEnvironment,
     name: &str,
@@ -170,7 +149,7 @@ pub fn add_struct_type(
     for (_, member_type_name) in &members {
         let member_type = member_type_name.into();
 
-        let Some(TypeInfo { alignment: member_alignment, .. }) = env.types.get(&member_type) else {
+        let Some(TypeInfo { alignment: member_alignment, .. }) = env.types.get_basic_info(&member_type) else {
             return Err("Bad Member Type. (Make sure to declare structs in right order.)".into());
         };
 
@@ -184,7 +163,7 @@ pub fn add_struct_type(
     for (member_name, ref member_type_name) in members {
         let member_type = member_type_name.into();
         let TypeInfo { alignment: member_alignment, size: member_size, .. } =
-            env.types.get(&member_type).expect("Known to Exist");
+            env.types.get_basic_info(&member_type).expect("Known to Exist");
 
         if curr_offset % member_alignment != 0 {
             curr_offset += member_alignment - (curr_offset % member_alignment);
@@ -194,8 +173,8 @@ pub fn add_struct_type(
         curr_offset += member_size;
     }
 
-    env.types.insert(
-        Type::UserDefined(name.to_string()),
+    env.types.define(
+        name.to_string(),
         TypeInfo { size: curr_offset, alignment, kind: KindData::Struct { members: processed_members } },
     );
 

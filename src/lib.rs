@@ -42,6 +42,8 @@ use util::FileOrString;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
+use crate::analysis::TypeStore;
+
 /// Nom's grammar, represented in parsley's definition language (similar to Backus-Naur form).
 ///
 /// See `src/grammar.parsley` for this grammar.
@@ -54,13 +56,17 @@ static PARSER_DEFINITION: &str = include_str!("grammar.parsley"); // Drops the s
 struct CompilationEnvironment {
     /// The parser object constructed out of the grammar in `grammar.parsley`
     parser: parsley::Parser<token::Token>,
+
     /// Tracks which compilation goals need to be completed, and in what order.
     queue: CompilationQueue,
+
     /// Associates function names to information about the function (return type,
     /// arguments, etc.)
     functions: HashMap<String, analysis::Function>,
+
     /// Associates a type to all the information associated with it.
-    types: HashMap<analysis::types::Type, analysis::types::TypeInfo>,
+    types: TypeStore,
+
     /// Associates expressions (by id) to their type. This is filled out during
     /// the `type_check` goal.
     type_index: HashMap<u32, analysis::types::Type>,
@@ -74,7 +80,7 @@ impl CompilationEnvironment {
                 .expect("Parser definition should be valid"),
             queue: CompilationQueue::new(),
             functions: HashMap::new(),
-            types: analysis::types::get_default_types(),
+            types: TypeStore::new(),
             type_index: HashMap::new(),
         }
     }

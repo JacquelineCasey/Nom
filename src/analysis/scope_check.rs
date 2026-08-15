@@ -120,7 +120,7 @@ fn scope_check_expression(
             }
         }
         ExprAST::StructExpression { name, members: expr_members, .. } => {
-            let Some(type_info) = env.types.get(&name.clone().into()) else {
+            let Some(type_info) = env.types.get_basic_info(&name.clone().into()) else {
                 return Err(format!("Could not find a type called {name}").into());
             };
 
@@ -156,7 +156,7 @@ fn scope_check_expression(
             scope_check_expression(env, local_types, expr)?;
         }
         ExprAST::AllocUninit(type_ast_to_alloc, _) => {
-            if !env.types.contains_key(&type_ast_to_alloc.into()) {
+            if env.types.get_basic_info(&type_ast_to_alloc.into()).is_none() {
                 return Err("Type in AllocUninit not found.".into());
             }
         }

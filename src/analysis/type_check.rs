@@ -219,7 +219,7 @@ fn type_check_expr(
         ExprAST::StructExpression { name, members, .. } => {
             let struct_type: Type = name.clone().into();
 
-            let Some(type_info) = env.types.get(&struct_type) else {
+            let Some(type_info) = env.types.get_basic_info(&struct_type) else {
                 return Err(format!("Unknown type {name}").into());
             };
 
@@ -240,7 +240,7 @@ fn type_check_expr(
         ExprAST::MemberAccess(expr, member_name, _) => {
             let expr_type = type_check_expr(env, expr, function_name, None)?;
 
-            let Some(type_info) = env.types.get(&expr_type) else {
+            let Some(type_info) = env.types.get_basic_info(&expr_type) else {
                 return Err("Type not found".into());
             };
 

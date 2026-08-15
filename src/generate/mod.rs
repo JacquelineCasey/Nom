@@ -223,7 +223,7 @@ impl CodeGenerator {
 
         // TODO: Better alignment functions.
         let expr_type = &env.type_index[&subtree.get_node_data().id];
-        let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+        let expr_type_info = env.types.get_basic_info(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
         let mut depth = function_info.top - 16; // Skipping the saved registers is done by Call
         let alignment = get_align_shift(depth, expr_type_info.alignment);
@@ -257,9 +257,9 @@ impl CodeGenerator {
             .get(&Variable::Return)
             .ok_or(GenerateError("Return type not analyzed".to_string()))?;
 
-        let TypeInfo { alignment, .. } = env.types[return_type];
+        let TypeInfo { alignment, .. } = env.types.get_basic_info(return_type).expect("return_type known");
 
-        Self::generate_write_to_base(*return_location, *size, alignment, out);
+        Self::generate_write_to_base(*return_location, *size, *alignment, out);
 
         out.push(PseudoInstruction::Actual(Instruction::Return));
 
@@ -380,7 +380,8 @@ impl CodeGenerator {
         match statement {
             StatementAST::ExpressionStatement(expr, _) => {
                 let expr_type = &env.type_index[&expr.get_node_data().id];
-                let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+                let expr_type_info =
+                    env.types.get_basic_info(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
                 let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
@@ -426,7 +427,7 @@ impl CodeGenerator {
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
         let expr_type = &env.type_index[&right_expr.get_node_data().id];
-        let expr_type_info = env.types.get(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+        let expr_type_info = env.types.get_basic_info(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
         let align_shift = get_align_shift(depth, expr_type_info.alignment);
 
@@ -595,7 +596,7 @@ impl CodeGenerator {
             ExprAST::Variable(name, _) => Ok(Location::Local(name.clone())),
             ExprAST::MemberAccess(struct_expr, member_name, _) => {
                 let struct_type = &env.type_index[&struct_expr.get_node_data().id];
-                let struct_info = &env.types[struct_type];
+                let struct_info = &env.types.get_basic_info(struct_type).expect("struct_type known");
 
                 let KindData::Struct { members } = &struct_info.kind else {
                     return Err("Expected struct type".into());
@@ -655,7 +656,7 @@ impl FunctionInfo {
 
         let return_type_info = env
             .types
-            .get(&analysis_info.return_type)
+            .get_basic_info(&analysis_info.return_type)
             .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
         info.add_variable(
@@ -666,8 +667,10 @@ impl FunctionInfo {
         );
 
         for (name, param_type) in &analysis_info.parameter_types {
-            let param_type_info =
-                env.types.get(param_type).ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
+            let param_type_info = env
+                .types
+                .get_basic_info(param_type)
+                .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(
                 Variable::Parameter(name.clone()),
@@ -694,8 +697,10 @@ impl FunctionInfo {
 
             let local_type = local_type.clone().ok_or(GenerateError("Type not specified".into()))?;
 
-            let local_type_info =
-                env.types.get(&local_type).ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
+            let local_type_info = env
+                .types
+                .get_basic_info(&local_type)
+                .ok_or(GenerateError("Could not find analyzed type data".to_string()))?;
 
             info.add_variable(
                 Variable::Local(name.clone()),

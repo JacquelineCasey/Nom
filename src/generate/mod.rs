@@ -27,8 +27,7 @@ enum PseudoInstruction {
 
 #[derive(Clone, Debug)]
 enum TempInstruction {
-    Call(String), // Call a function by name (we don't yet know its index).
-    #[allow(unused)]
+    Call(String),    // Call a function by name (we don't yet know its index).
     JumpIfTrue(u32), // This is a unique id. This corresponds to a jump instruction later.
     Jump(u32),
     JumpIfFalse(u32),
@@ -36,11 +35,11 @@ enum TempInstruction {
                    // but allows reasoning about jumps without counting instructions early on (before optimization).
 }
 
-/* For supporting lvalues vs rvalue semantics. For every expression we can determine
- * a location, which is enough information to describe to the generator how to (efficiently) *
- * get the value. For some cases, it requires evaluating the expression in whole. In others,
- * we can simply copy from somewhere, possibly with some offset. For others still, we may
- * need to evaluate an expression to determine that offset. */
+/// For supporting lvalues vs rvalue semantics. For every expression we can determine
+/// a location, which is enough information to describe to the generator how to (efficiently)
+/// get the value. For some cases, it requires evaluating the expression in whole. In others,
+/// we can simply copy from somewhere, possibly with some offset. For others still, we may
+/// need to evaluate an expression to determine that offset.
 #[derive(Clone, Debug)]
 enum Location<'a> {
     EvaluatedExpression(&'a ExprAST),     // We have to fully evaluate this expression.

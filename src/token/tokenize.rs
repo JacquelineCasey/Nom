@@ -51,9 +51,8 @@ pub fn tokenize(input: &str, source: FileOrString) -> Result<Vec<Token>, TokenEr
 
 /// Attaches span information to an input string.
 ///
-/// Given a input string (and a source), produces an iterator which yields the
-/// characters of the string, along with the span representing those characters.
-/// During the tokenization process, these spans are combined to produce the spans
+/// Given a input string (and a source), produces an iterator which yields the characters of the string, along with the
+/// span representing those characters. During the tokenization process, these spans are combined to produce the spans
 /// for the tokens.
 fn add_span_info(input: &str, source: FileOrString) -> impl std::iter::Iterator<Item = (char, Span)> + '_ {
     let mut line_num = 1;
@@ -84,11 +83,10 @@ fn add_span_info(input: &str, source: FileOrString) -> impl std::iter::Iterator<
 
 /// Given an iterator from `tokenize()`, extracts a string literal token.
 ///
-/// Note that the string literal is escaped here, so the token contains the true
-/// data that should appear in the program.
+/// Note that the string literal is escaped here, so the token contains the true data that should appear in the program.
 ///
-/// Caller should be sure that a string literal appears at the front of the iterator,
-/// for instance by peeking for a double quote.
+/// Caller should be sure that a string literal appears at the front of the iterator, for instance by peeking for a
+/// double quote.
 fn take_string_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
@@ -119,11 +117,11 @@ fn take_string_literal(
 
 /// Given an iterator from `tokenize()`, extracts a character literal token.
 ///
-/// Note that the character literal is escaped here, so the token contains the true
-/// data the should appear in the program.
+/// Note that the character literal is escaped here, so the token contains the true data the should appear in the
+/// program.
 ///
-/// Caller should be sure that a character literal appears at the front of the iterator,
-/// for instance by peeking for a single quote.
+/// Caller should be sure that a character literal appears at the front of the iterator, for instance by peeking for a
+/// single quote.
 fn take_char_literal(
     iter: &mut impl std::iter::Iterator<Item = (char, Span)>,
 ) -> Result<(TokenBody, Span), TokenError> {
@@ -154,11 +152,11 @@ fn take_char_literal(
 
 /// Given an iterator from `tokenize()`, extracts a numeric literal token.
 ///
-/// Note that, at time of writing, the data extracted for the literal remains in
-/// string form, until it is processed later around type checking time.
+/// Note that, at time of writing, the data extracted for the literal remains in string form, until it is processed
+/// later around type checking time.
 ///
-/// Caller should be sure that a numeric literal appears at the front of the iterator,
-/// for example by peeking the iterator.
+/// Caller should be sure that a numeric literal appears at the front of the iterator, for example by peeking the
+/// iterator.
 fn take_numeric_literal(
     iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
 ) -> Result<(TokenBody, Span), TokenError> {
@@ -185,11 +183,11 @@ fn take_numeric_literal(
 
 /// Given an iterator from `tokenize()`, extracts an identifier or keyword token.
 ///
-/// Keywords may not be used as identifiers. This function extracts a word, and
-/// converts it into the appropriate type based on contents.
+/// Keywords may not be used as identifiers. This function extracts a word, and converts it into the appropriate type
+/// based on contents.
 ///
-/// Caller should be sure that a identifier or keyword appears at the front of the
-/// iterator, for example by peeking the iterator.
+/// Caller should be sure that a identifier or keyword appears at the front of the iterator, for example by peeking the
+/// iterator.
 fn take_identifier_or_keyword(
     iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
 ) -> Result<(TokenBody, Span), TokenError> {
@@ -218,7 +216,8 @@ fn take_identifier_or_keyword(
         Ok(keyword) => Ok((TokenBody::Keyword(keyword), span)),
         Err(KeywordFromStrError::NotKeyword) => Ok((TokenBody::Identifier(string), span)),
         Err(KeywordFromStrError::NeedsExclamation(keyword)) => {
-            // Special handling of the case where we see an exclamation from a string that could use one to be a keyword.
+            // Special handling of the case where we see an exclamation from a string that could use one to be a
+            // keyword.
             if let Some(('!', _)) = iter.peek() {
                 let (_, exclamation_span) = iter.next().expect("Known to exist");
                 Ok((TokenBody::Keyword(keyword), Span::combine(&span, &exclamation_span)))
@@ -231,12 +230,12 @@ fn take_identifier_or_keyword(
 
 /// Given an iterator from `tokenize()`, extracts a sequence of operator tokens.
 ///
-/// Important: a single forward slash looks like an operator, but could be a comment.
-/// Still, the iterator can be passed to this function, and in the event it is a comment,
-/// the full line is consumed and discarded, and an empty vector is returned.
+/// Important: a single forward slash looks like an operator, but could be a comment. Still, the iterator can be passed
+/// to this function, and in the event it is a comment, the full line is consumed and discarded, and an empty vector is
+/// returned.
 ///
-/// Caller should be sure that either a comment or a sequence of operators appears
-/// at the front of the iterator, for example by peeking the iterator.
+/// Caller should be sure that either a comment or a sequence of operators appears at the front of the iterator, for
+/// example by peeking the iterator.
 fn take_operators(
     iter: &mut std::iter::Peekable<impl std::iter::Iterator<Item = (char, Span)>>,
 ) -> Result<Vec<(Operator, Span)>, TokenError> {
@@ -256,8 +255,8 @@ fn take_operators(
         }
     }
 
-    // Now we continually remove the largest operator that works. Yes, this is greedy,
-    // could improve later or just use sane operators with little overlap.
+    // Now we continually remove the largest operator that works. Yes, this is greedy, could improve later or just use
+    // sane operators with little overlap.
 
     let mut operators = vec![];
 
@@ -338,10 +337,9 @@ fn is_operator_char(ch: char) -> bool {
 
 /// Helper function that determines if a character might begin a numeric literal.
 ///
-/// Note: At time of writing, we do not consider negative literals. Instead, we
-/// may parse `- 2` as the negation of a literal positive `2`. At time of writing,
-/// this actually doesn't work at all, and instead we can get around this by writing
-/// `0 - 2`.
+/// Note: At time of writing, we do not consider negative literals. Instead, we may parse `- 2` as the negation of a
+/// literal positive `2`. At time of writing, this actually doesn't work at all, and instead we can get around this by
+/// writing `0 - 2`.
 fn is_numeric_literal_char(ch: char) -> bool {
     // TODO: Support for floats and numbers of different bases.
 
@@ -351,8 +349,8 @@ fn is_numeric_literal_char(ch: char) -> bool {
 
 /// Helper function that determines if a character might be part of an identifier.
 ///
-/// Note: While digits are permitted in identifiers, they cannot begin them, because
-/// this triggers the numeric literal parsing instead.
+/// Note: While digits are permitted in identifiers, they cannot begin them, because this triggers the numeric literal
+/// parsing instead.
 fn is_identifier_char(ch: char) -> bool {
     // Note that digits won't work at start due to algorithm design.
     ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
@@ -362,8 +360,7 @@ fn is_identifier_char(ch: char) -> bool {
 
 /// Helper function that processes literals in strings.
 ///
-/// At time of writing, nothing is actually done, although escaping a quote does
-/// work.
+/// At time of writing, nothing is actually done, although escaping a quote does work.
 #[allow(clippy::unnecessary_wraps)] // When we implement this fully this goes away.
 fn deliteralize(string: String) -> Result<String, TokenError> {
     // TODO: Actually turn literal into represented string
@@ -372,11 +369,9 @@ fn deliteralize(string: String) -> Result<String, TokenError> {
 
 /// Helper function that converts a character literal into a single character.
 ///
-/// At time of writing, almost nothing is done, other than a check that the literal
-/// is a single character.
+/// At time of writing, almost nothing is done, other than a check that the literal is a single character.
 fn literal_to_char(string: &str) -> Result<char, TokenError> {
-    // TODO: Add supports for escaped characters. Preferably shared with deliteralize?
-    // Be aware of [\']
+    // TODO: Add supports for escaped characters. Preferably shared with deliteralize? Be aware of [\']
     if string.len() == 1 {
         Ok(string.chars().next().expect("Known to exist"))
     } else {

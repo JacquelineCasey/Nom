@@ -9,8 +9,7 @@ use std::str::FromStr;
 /// Represents a single token in a Nom program.
 #[derive(Debug, Clone)]
 pub struct Token {
-    /// Represents the primary information of the token - its type, and any info
-    /// related to that type.
+    /// Represents the primary information of the token - its type, and any info related to that type.
     pub body: TokenBody,
 
     /// Represents the span of the token, i.e. where in the source file it came from.
@@ -19,42 +18,36 @@ pub struct Token {
 
 /// Describes the information of the token, without any metadata (spans, etc.)
 ///
-/// Each variant is a type of token, and comes with information specific to that
-/// type.
+/// Each variant is a type of token, and comes with information specific to that type.
 #[derive(Debug, Clone)]
 pub enum TokenBody {
-    /// An identifier, or name, in the program. Used for variables, functions,
-    /// struct members, and so on. The string is naturally the name. Not allowed
-    /// to be any keyword.
+    /// An identifier, or name, in the program. Used for variables, functions, struct members, and so on. The string is
+    /// naturally the name. Not allowed to be any keyword.
     Identifier(String),
 
-    /// A string literal in the program. The String is of course the data
-    /// of the literal. Escapes are carefully processed during tokenization, so the
-    /// string here is the processed version. The quotes that mark the literal are
+    /// A string literal in the program. The String is of course the data of the literal. Escapes are carefully
+    /// processed during tokenization, so the string here is the processed version. The quotes that mark the literal are
     /// not included in the data.
     #[allow(unused)]
     StringLiteral(String),
 
-    /// A character literal in the program. The char is of course the character
-    /// in the literal. Escapes are processed. The quotes that mark the literal
-    /// are not included in the data.
+    /// A character literal in the program. The char is of course the character in the literal. Escapes are processed.
+    /// The quotes that mark the literal are not included in the data.
     #[allow(unused)]
     CharLiteral(char),
 
-    /// A numeric literal in the program. The string is the literal, and will be
-    /// converted to an actual number later once type information is available.
+    /// A numeric literal in the program. The string is the literal, and will be converted to an actual number later
+    /// once type information is available.
     NumericLiteral(String),
 
     /// A keyword in the program. Used in various control flow and other constructs.
     Keyword(Keyword),
 
-    /// An operator in the program. We may someday allow users to define operators,
-    /// so we handle them separately from punctuation, although they are somewhat
-    /// similar.
+    /// An operator in the program. We may someday allow users to define operators, so we handle them separately from
+    /// punctuation, although they are somewhat similar.
     Operator(Operator),
 
-    /// A piece of punctuation in the program. Differs from operators by being much
-    /// less complicated.
+    /// A piece of punctuation in the program. Differs from operators by being much less complicated.
     Punctuation(Punctuation),
 }
 
@@ -82,9 +75,8 @@ pub enum Keyword {
 
 /// Represents an operator in the Nom Programming language.
 ///
-/// Note that there is some overlap in which characters each operator uses (e.g. `+` for `Plus`, but `+=`
-/// for `PlusEquals`), so a greedy "longest match" algorithm is used to determine which
-/// operators are actually present.
+/// Note that there is some overlap in which characters each operator uses (e.g. `+` for `Plus`, but `+=` for
+/// `PlusEquals`), so a greedy "longest match" algorithm is used to determine which operators are actually present.
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum Operator {
     Plus,
@@ -124,9 +116,8 @@ pub enum Punctuation {
 
 // Make Token compatible with parsley.
 impl parsley::Token for Token {
+    // This allows the parsley grammar to refer to types of tokens.
     fn matches(token_type: &str, token: &Self) -> Result<bool, parsley::ParseError> {
-        /* This allows the parsley grammar to refer to types of tokens. */
-
         use Keyword as K;
         use Operator as O;
         use Punctuation as P;
@@ -190,7 +181,7 @@ impl parsley::Token for Token {
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        /* TODO: Actually fill this out. Or is this actually needed? */
+        // TODO: Actually fill this out. Or is this actually needed?
 
         f.write_str("{token}")
     }
@@ -325,21 +316,23 @@ impl Display for Operator {
 
 /* Spans */
 
-/// A `Span` describes a contiguous group of characters, in a specific source file (or
-/// pseudo source file).
+/// A `Span` describes a contiguous group of characters, in a specific source file (or pseudo source file).
 ///
-/// The span is given as a half open interval, though it may be represented differently
-/// in error messages.
+/// The span is given as a half open interval, though it may be represented differently in error messages.
 #[derive(Debug, Clone)]
 pub struct Span {
     /// Program input.
     pub source: FileOrString,
+
     /// The line the span starts on (1 based).
     pub start_line: usize,
+
     /// The line the span ends on (1 based).
     pub end_line: usize,
+
     /// The column the span starts on (1 based).
     pub start_col: usize,
+
     /// The column the span ends on (1 based).
     pub end_col: usize,
 }
@@ -347,8 +340,7 @@ pub struct Span {
 impl Span {
     /// Given two spans, returns a new span that includes both.
     ///
-    /// This is used heavily in `ast`, where we determine a span for every `ASTNode`
-    /// in the program.
+    /// This is used heavily in `ast`, where we determine a span for every `ASTNode` in the program.
     pub fn combine(a: &Span, b: &Span) -> Span {
         assert_eq!(*a.pseudo_path(), *b.pseudo_path());
 
@@ -363,8 +355,7 @@ impl Span {
 
     /// Given a nonempty slice of Spans, returns a new Span that includes them all.
     ///
-    /// This is used heavily in `ast`, where we determine a span for every `ASTNode`
-    /// in the program.
+    /// This is used heavily in `ast`, where we determine a span for every `ASTNode` in the program.
     pub fn combine_all(spans: &[Span]) -> Span {
         assert!(!spans.is_empty());
 
@@ -394,9 +385,9 @@ impl std::fmt::Display for Span {
 
 /* Terminals */
 
-/// Represents a supported terminal identification. Useful for processing token related errors from
-/// parsley. If we fail to convert a string representing a terminal into this type, that is an error
-/// on our part (likely an issue in grammar.parsley).
+/// Represents a supported terminal identification. Useful for processing token related errors from parsley. If we fail
+/// to convert a string representing a terminal into this type, that is an error on our part (likely an issue in
+/// grammar.parsley).
 ///
 /// The order controls the order in which the elements are displayed in some error messages.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
@@ -449,8 +440,8 @@ pub enum Terminal {
 }
 
 impl Terminal {
-    /// Displays the terminal in a user friendly way. If it represents a single token, then provides that token in single
-    /// quotes e.g. "'->'". If it represents a category, then an unquoted description, e.g. "an identifier".
+    /// Displays the terminal in a user friendly way. If it represents a single token, then provides that token in
+    /// single quotes e.g. "'->'". If it represents a category, then an unquoted description, e.g. "an identifier".
     pub fn pretty_string(self) -> &'static str {
         #[allow(clippy::enum_glob_use)]
         use Terminal::*;

@@ -10,13 +10,27 @@ use crate::util::reinterpret;
 const STACK_SIZE: usize = 1_048_576; // In terms of u8 units. This is exactly a megabyte.
 
 pub struct Runtime {
+    /// All instructions in the program, which can be accessed by Call via index or Jump via relative offset.
     instructions: Vec<Instruction>,
-    instruction_index: usize, // Really just an index
-    stack_pointer: *mut u8,   // Current location of the top of the stack, i.e. no value lives here.
-    base_pointer: *mut u8, // Current location of bottom of the frame. Locals are available, as well as return value and previous frame pointer.
+
+    /// Really just an index
+    instruction_index: usize,
+
+    /// Current location of the top of the stack, i.e. no value lives here.
+    stack_pointer: *mut u8,
+
+    /// Current location of bottom of the frame. Locals are available, as well as return value and previous frame
+    /// pointer.
+    base_pointer: *mut u8,
+
+    /// Indicate the location and layout of the entire stack allocation.
     stack_bottom: *const u8,
     stack_layout: Layout,
+
+    /// Heap allocations, keyed by pointer.
     allocations: HashMap<*mut u8, Layout>,
+
+    /// Indicates whether the runtime is currently running. Used by Exit to escape the instruction loop.
     running: bool,
 }
 

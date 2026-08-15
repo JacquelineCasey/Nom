@@ -10,8 +10,7 @@ use super::{get_align_shift, CodeGenerator, FunctionInfo, Location, PseudoInstru
 use crate::analysis::types::{KindData, Type, TypeInfo};
 use crate::ast::{ASTNodeData, ExprAST, MathOperation, StatementAST, TypeAST};
 use crate::error::GenerateError;
-use crate::instructions::{Comparison, IntegerBinaryOperation};
-use crate::instructions::{Constant, Instruction, IntSize};
+use crate::instructions::{Comparison, Constant, Instruction, IntSize, IntegerBinaryOperation};
 use crate::util;
 use crate::util::OutStream;
 use crate::CompilationEnvironment;
@@ -271,7 +270,7 @@ impl CodeGenerator {
 
         // So relative position is how far below the function we currently are.
 
-        // Skip past the
+        // Skip past the space for the return value.
         out.push(PI::Actual(I::AdvanceStackPtr(*return_size)));
         let mut relative_position = relative_return_loc + *return_size as isize;
 

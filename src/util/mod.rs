@@ -1,7 +1,6 @@
 static mut ID: u32 = 0;
 
-/// Allows assigning a unique id to various entities. Not safe for multithreaded
-/// code, literally a race condition.
+/// Allows assigning a unique id to various entities. Not safe for multithreaded code, literally a race condition.
 pub fn next_id() -> u32 {
     unsafe {
         assert!(ID != u32::MAX, "Ran out of unique ids!");
@@ -40,7 +39,7 @@ impl<T> OutStream<'_, T> {
 pub enum FileOrString {
     /// Represents input via a file, given by a string.
     File(String),
-    /// Represents direct string input. The first string is a "Fake Path" for use
-    /// in diagnostics, such as "\<input\>". The second string is the full program.
+    /// Represents direct string input. The first string is a "Fake Path" for use in diagnostics, such as "\<input\>".
+    /// The second string is the full program.
     String(String, std::rc::Rc<String>),
 }

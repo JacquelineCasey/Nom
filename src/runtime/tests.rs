@@ -132,8 +132,7 @@ fn function_call() {
 
     assert_eq!(lines, ["20"]);
 
-    // A more advanced example. Indentation shows what instructions might be emitted
-    // At each node of the AST.
+    // A more advanced example. Indentation shows what instructions might be emitted at each node of the AST.
 
     // square(square(-3)), all in i32
     let lines = run_collecting_output(vec![

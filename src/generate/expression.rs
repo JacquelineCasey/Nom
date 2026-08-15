@@ -483,7 +483,19 @@ impl CodeGenerator {
                 Self::generate_stack_retraction(align_shift + offset as usize, *size, *alignment, out);
             }
             Location::ThroughPointer(expr) => {
-                todo!("Access ThroughPointer")
+                let Type::Pointer(pointee_type) = &env.type_index[&expr.get_node_data().id] else {
+                    panic!("Attempting to dereference non-pointer");
+                };
+
+                let TypeInfo { size: pointee_size, alignment: pointee_alignment, .. } =
+                    &env.types.get_basic_info(pointee_type).expect("pointee_type known");
+
+                todo!("Finish Through Pointer")
+
+                // The basic procedure is to advance beyond the end of the destination w/ alignment for
+                // the pointer, evaluate the pointer expression, and read pointee-alignment sized blocks
+                // similar to generate_read_from_base() repeatedly, adding the pointee-alignment to
+                // the pointer as you go. At the end, retract back to the top of the destination.
             }
             Location::OffsetFrom(_, _) => panic!("Unreachable"),
         }

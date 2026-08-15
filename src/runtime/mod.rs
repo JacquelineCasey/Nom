@@ -163,7 +163,7 @@ impl Runtime {
                     u64::push(val, self);
                 }
             },
-            Instruction::ReadAddress(_, int_size) => todo!("ReadAddress instruction"),
+            Instruction::ReadAddress(int_size, destination_stack_offset) => todo!("ReadAddress instruction"),
             Instruction::WriteBase(offset, size) => match size {
                 IntSize::OneByte => {
                     let val = u8::pop(self);
@@ -182,7 +182,7 @@ impl Runtime {
                     self.write_base::<u64>(offset, val);
                 }
             },
-            Instruction::WriteAddress(_, int_size) => todo!("WriteAddress instruction"),
+            Instruction::WriteAddress(int_size, source_stack_offset) => todo!("WriteAddress instruction"),
             // I'd like to clean this up someday...
             Instruction::WriteStack(src, dest, int_size) => match int_size {
                 IntSize::OneByte => unsafe {

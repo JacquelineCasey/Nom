@@ -98,15 +98,19 @@ pub enum Instruction {
     /// isize is a possibly negative offset, in bytes. Result placed on the stack.
     ReadBase(isize, IntSize),
 
-    /// Reads the specified address, which can refer either to the stack or the heap.
-    /// The address being valid is not checked. Result placed on the stack.
-    ReadAddress(usize, IntSize),
+    /// The item at the top of the stack is interpreted as an address, and that
+    /// address is read, with the result placed on the stack with an offset from
+    /// the isize. The stack pointer does not move, so that the address can be
+    /// re-used.
+    ReadAddress(IntSize, isize),
 
     /// As above, an offset and an arg size. Result is consumed from the stack.
     WriteBase(isize, IntSize),
 
-    /// As above, an address and an arg size. Result is consumed from the stack.
-    WriteAddress(usize, IntSize),
+    /// As above, the top of the stack is an address, and that address is written to
+    /// using the value on the stack with an offset from the isize. The stack pointer
+    /// does not move.
+    WriteAddress(IntSize, isize),
 
     /// As somewhat of a last resort, we can write into the stack from another
     /// location in the stack. First arg is source, second is destination, both

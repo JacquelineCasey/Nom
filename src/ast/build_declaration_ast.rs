@@ -126,7 +126,7 @@ fn build_variable_declaration(tree: &SyntaxTree) -> Result<DeclarationAST, ASTEr
 
     Ok(DeclarationAST::Variable {
         mutability,
-        name: name.to_string(),
+        name: name.clone(),
         expr,
         node_data: ASTNodeData::new(span),
         type_ascription,

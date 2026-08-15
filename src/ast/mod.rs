@@ -1,4 +1,4 @@
-//! Defines the [`AST`] type, and handles specializing [`SyntaxTrees`](SyntaxTree)
+//! Defines the [`AST`] type, and handles specializing [`SyntaxTrees`](parsley::SyntaxTree)
 //! into [`ASTs`](AST)
 //!
 //! The [`AST`] (abstract syntax tree) type is a highly heterogenous tree that represents
@@ -29,7 +29,7 @@
 //! rest (good for desugaring, and certain types of optimization).
 //!
 //! Finally, the module implements the conversion of [`parsley's`](parsley) syntax trees (which
-//! come from sequences of [`Tokens`][Token] from [`tokenize()`](super::token::tokenize))
+//! come from sequences of [`Tokens`][super::token::Token] from [`tokenize()`](super::token::tokenize))
 //! into abstract syntax trees. [`parsley`] determines the structure of the code,
 //! but this module ensures the structure follows more rules, and gathers information
 //! into a more manipulatable and type-safe format. While types of nodes are expressed

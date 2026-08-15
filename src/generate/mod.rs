@@ -83,7 +83,7 @@ impl CodeGenerator {
 
         // Preprocess step: Determine the local variable storage locations
         for (fn_name, _) in &function_list {
-            self.functions.insert((*fn_name).to_string(), FunctionInfo::new(env, fn_name)?);
+            self.functions.insert((*fn_name).clone(), FunctionInfo::new(env, fn_name)?);
         }
 
         // Process functions and generate code
@@ -113,7 +113,7 @@ impl CodeGenerator {
 
         for (fn_name, _) in function_list {
             if fn_name != "main" {
-                function_locations.insert(fn_name.to_string(), instructions.len());
+                function_locations.insert(fn_name.clone(), instructions.len());
                 self.layout_function(fn_name, &mut instructions)?;
             }
         }
@@ -480,7 +480,7 @@ impl CodeGenerator {
                     continue;
                 }
 
-                if (bytes_remaining - int_size) % int_size != 0 {
+                if !(bytes_remaining - int_size).is_multiple_of(int_size) {
                     continue;
                 }
 
@@ -551,7 +551,7 @@ impl CodeGenerator {
                     continue;
                 }
 
-                if (size - bytes_remaining) % int_size != 0 {
+                if !(size - bytes_remaining).is_multiple_of(int_size) {
                     continue;
                 }
 
@@ -570,7 +570,7 @@ impl CodeGenerator {
         out.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(shift)));
     }
 
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::self_only_used_in_recursion)]
     fn locate_expr<'a>(&self, expr: &'a ExprAST, env: &CompilationEnvironment) -> Result<Location<'a>, GenerateError> {
         match expr {
             ExprAST::Add(..)
@@ -620,7 +620,7 @@ impl CodeGenerator {
 }
 
 fn get_align_shift(depth: usize, alignment: usize) -> usize {
-    if depth % alignment != 0 {
+    if !depth.is_multiple_of(alignment) {
         alignment - depth % alignment
     } else {
         0

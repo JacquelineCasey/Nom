@@ -58,12 +58,8 @@ fn type_fits(source: &BuiltIn, target: &BuiltIn) -> bool {
         source if source.is_signed() => {
             target.is_signed() && source.get_int_size().expect("known") <= target.get_int_size().expect("known")
         }
-        source if source.is_unsigned() => {
-            if target.is_unsigned() || target.is_unsigned() {
-                source.get_int_size().expect("known") <= target.get_int_size().expect("known")
-            } else {
-                false
-            }
+        source if source.is_unsigned() && target.is_unsigned() || target.is_unsigned() => {
+            source.get_int_size().expect("known") <= target.get_int_size().expect("known")
         }
         _ => false,
     }

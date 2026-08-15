@@ -170,7 +170,7 @@ fn annotate(span: &Span) -> String {
             let mut padded_line_number = line_number.to_string();
             padded_line_number += &" ".repeat(line_number_size - padded_line_number.len());
 
-            format!("{} | {}\n{} | {}", padded_line_number, line, &" ".repeat(line_number_size), annotation_line)
+            format!("{} | {}\n{} | {}", padded_line_number, line, " ".repeat(line_number_size), annotation_line)
         })
         .collect();
 

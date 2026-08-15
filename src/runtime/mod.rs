@@ -193,7 +193,7 @@ impl Runtime {
             }
             Instruction::Return => {
                 // The stack_pointer should maybe already be at this position.
-                self.stack_pointer = unsafe { self.base_pointer.offset(16) };
+                self.stack_pointer = unsafe { self.base_pointer.add(16) };
 
                 self.base_pointer = u64::pop(self) as *mut u8;
                 self.instruction_index = u64::pop(self) as usize;
@@ -469,7 +469,7 @@ impl Stackable for u16 {
         );
 
         assert!(
-            runtime.stack_pointer as usize % 2 == 0,
+            (runtime.stack_pointer as usize).is_multiple_of(2),
             "[Instruction {}] Stack pointer misaligned",
             runtime.instruction_index - 1
         );
@@ -485,7 +485,7 @@ impl Stackable for u16 {
         assert!(runtime.stack_pointer as usize - 2 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
         assert!(
-            runtime.stack_pointer as usize % 2 == 0,
+            (runtime.stack_pointer as usize).is_multiple_of(2),
             "[Instruction {}] Stack pointer misaligned",
             runtime.instruction_index - 1
         );
@@ -506,7 +506,7 @@ impl Stackable for u32 {
         );
 
         assert!(
-            runtime.stack_pointer as usize % 4 == 0,
+            (runtime.stack_pointer as usize).is_multiple_of(4),
             "[Instruction {}] Stack pointer misaligned",
             runtime.instruction_index - 1
         );
@@ -522,7 +522,7 @@ impl Stackable for u32 {
         assert!(runtime.stack_pointer as usize - 4 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
         assert!(
-            runtime.stack_pointer as usize % 4 == 0,
+            (runtime.stack_pointer as usize).is_multiple_of(4),
             "[Instruction {}] Stack pointer misaligned",
             runtime.instruction_index - 1
         );
@@ -543,7 +543,7 @@ impl Stackable for u64 {
         );
 
         assert!(
-            runtime.stack_pointer as usize % 8 == 0,
+            (runtime.stack_pointer as usize).is_multiple_of(8),
             "[Instruction {}] Stack pointer misaligned",
             runtime.instruction_index - 1
         );
@@ -559,7 +559,7 @@ impl Stackable for u64 {
         assert!(runtime.stack_pointer as usize - 8 >= runtime.stack_bottom as usize, "Consumed whole stack!");
 
         assert!(
-            runtime.stack_pointer as usize % 8 == 0,
+            (runtime.stack_pointer as usize).is_multiple_of(8),
             "[Instruction {}] Stack pointer misaligned",
             runtime.instruction_index - 1
         );

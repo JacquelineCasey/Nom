@@ -12,6 +12,6 @@ trap handle_error ERR
 
 cargo fmt 
 cargo build
+cargo doc --document-private-items
 cargo clippy -- -D clippy::pedantic
 cargo test --no-fail-fast
-cargo doc --document-private-items

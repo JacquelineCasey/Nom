@@ -350,7 +350,7 @@ impl Span {
     /// This is used heavily in `ast`, where we determine a span for every `ASTNode`
     /// in the program.
     pub fn combine(a: &Span, b: &Span) -> Span {
-        assert!(*a.pseudo_path() == *b.pseudo_path());
+        assert_eq!(*a.pseudo_path(), *b.pseudo_path());
 
         Span {
             source: a.source.clone(),

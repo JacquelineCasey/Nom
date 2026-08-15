@@ -277,6 +277,15 @@ impl Runtime {
                 let layout = Layout::array::<u8>(size).expect("Memory should be allocated");
                 let pointer = unsafe { alloc(layout) };
 
+                // Zig style "AAAAAA" for uninitialized values. This discourages users from using an
+                // uninitialized T* as a "basically null" value, since T* is not nullable.
+                // (It can be uninitialized, and it can point to freed memory, but that is different.)
+                //
+                // Perhaps in the future we guard this behind some sort of debug mode (or non-release).
+                for i in 0..size {
+                    unsafe { pointer.offset(i as isize).write(0xAA) };
+                }
+
                 self.allocations.insert(pointer, layout);
 
                 u64::push(pointer as u64, self);

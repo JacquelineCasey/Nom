@@ -91,12 +91,19 @@ impl CodeGenerator {
         let align_shift =
             get_align_shift(depth, env.types.get_basic_info(left_type).expect("left_type defined").alignment);
 
-        let Type::BuiltIn(builtin_type) = left_type else {
-            return Err("Tried to compare non builtin types".into());
-        };
-
-        let Some(int_size) = builtin_type.get_int_size() else {
-            return Err("Tried to compare builtin type without int_size".into());
+        let (int_size, is_signed) = match left_type {
+            Type::BuiltIn(built_in_type) => (
+                built_in_type.get_int_size().ok_or("trying to compare built in without known size")?,
+                built_in_type.is_signed(),
+            ),
+            Type::Pointer(_) => {
+                if comparison == Comparison::Equals || comparison == Comparison::NotEquals {
+                    (IntSize::EightByte, false)
+                } else {
+                    return Err("Pointer comparison currently only supports == or !=".into());
+                }
+            }
+            _ => return Err("Unsupported arguments to comparison".into()),
         };
 
         out.push(PI::Actual(I::AdvanceStackPtr(align_shift)));
@@ -110,11 +117,7 @@ impl CodeGenerator {
             out,
         )?;
 
-        out.push(PI::Actual(I::IntegerComparisonOperation {
-            comparison,
-            size: int_size,
-            signed: builtin_type.is_signed(),
-        }));
+        out.push(PI::Actual(I::IntegerComparisonOperation { comparison, size: int_size, signed: is_signed }));
 
         out.push(PI::Actual(I::RetractMoving(align_shift, IntSize::OneByte)));
 

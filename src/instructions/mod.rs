@@ -151,7 +151,7 @@ pub enum Instruction {
     Exit,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Comparison {
     Equals,
     NotEquals,

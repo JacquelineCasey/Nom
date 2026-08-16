@@ -291,6 +291,10 @@ impl CodeGenerator {
         depth: usize,
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
+        use ExprAST as E;
+
+        // Sanity check - this is a key invariant to prevent misaligned stack pointers at runtime.
+        // Note that this catches errors both in alignment logic and in tracking the depth.
         let expr_type = &env.type_index[&subtree.get_node_data().id];
         let alignment = env.types.get_basic_info(expr_type).expect("expr_type known").alignment;
         if !depth.is_multiple_of(alignment) {
@@ -300,8 +304,6 @@ impl CodeGenerator {
             )
             .into());
         }
-
-        use ExprAST as E;
 
         match subtree {
             E::Add(left, right, node_data) => self.generate_math_expr(

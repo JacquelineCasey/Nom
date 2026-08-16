@@ -1,10 +1,11 @@
 //! Desugaring is the process of removing syntactic sugar. This process happens early so that later analysis steps can
 //! take place with a somewhat normalized format.
 
-use crate::{
-    ast::{ASTNodeData, AnyAST, ExprAST, StatementAST, AST},
-    token::Span,
-};
+use super::Type;
+use crate::ast::{ASTNodeData, AnyAST, ExprAST, StatementAST, AST};
+use crate::error::AnalysisError;
+use crate::token::Span;
+use crate::CompilationEnvironment;
 
 // Desugaring occurs at several places, so the functions here are divided into separate stages.
 
@@ -20,10 +21,15 @@ pub fn desugar_after_ast_build(ast: &mut AST) {
 /// system has to work with the pre-transformed code even in cases where that otherwise wouldn't be necessary. So the
 /// benefit is lower and the cost is higher, but these transformations are still a good idea because custom code-gen
 /// is tricky, and having near-duplicate structures there is brittle.
-#[allow(unused)]
-pub fn desugar_after_type_check(_ast: &mut AST /* TODO add something for type info */) {
-    // desugar_after_type_check_recursive();
-    todo!() // Add a typed_desugar step to turn ptr.x into ptr.*.x;
+pub fn desugar_after_type_check(env: &mut CompilationEnvironment, function_name: &str) -> Result<(), AnalysisError> {
+    let function = env.functions.get_mut(function_name).ok_or(AnalysisError("Could not find function".into()))?;
+    let mut block = std::mem::take(&mut function.ast);
+
+    desugar_after_ast_type_check_recursive(env, &mut AnyAST::Expression(&mut block));
+
+    // Look up function again so that previous `function` variable lifetime doesn't coincide the env borrow above.
+    env.functions.get_mut(function_name).expect("known to exist").ast = block;
+    Ok(())
 }
 
 fn desugar_after_ast_build_recursive<'a>(ast: &'a mut AnyAST<'a>) {
@@ -59,7 +65,7 @@ fn desugar_after_ast_build_recursive<'a>(ast: &'a mut AnyAST<'a>) {
                 }
             };
 
-            _ = std::mem::replace(*statement, StatementAST::Assignment(left, operation, ASTNodeData::new(span)));
+            **statement = StatementAST::Assignment(left, operation, ASTNodeData::new(span));
 
             desugar_after_ast_build_recursive(&mut AnyAST::Statement(statement));
         }
@@ -71,5 +77,28 @@ fn desugar_after_ast_build_recursive<'a>(ast: &'a mut AnyAST<'a>) {
     }
 }
 
-// TODO: Desugar final while
-// TODO: Figure out what I meant by this ^. Did I possibly mean desugar final return into normal final expression?
+fn desugar_after_ast_type_check_recursive<'a>(env: &mut CompilationEnvironment, ast: &'a mut AnyAST<'a>) {
+    match ast {
+        AnyAST::Expression(ExprAST::MemberAccess(left, _, _)) => {
+            if let Type::Pointer(pointee_type) = env.type_index.get(&left.get_node_data().id).expect("Types known") {
+                // "Member access" to a pointer is syntactic sugar for pointer access followed by member access.
+
+                let new_node_data = left.get_node_data().relabel();
+                let pointer_access = ExprAST::PointerAccess(std::mem::take(left), new_node_data);
+                env.type_index.insert(pointer_access.get_node_data().id, *pointee_type.clone());
+
+                **left = pointer_access;
+
+                // Run again on full tree in case left is still a pointer.
+                desugar_after_ast_type_check_recursive(env, ast);
+            } else {
+                desugar_after_ast_type_check_recursive(env, &mut AnyAST::Expression(left));
+            }
+        }
+        _ => {
+            for mut child in ast.children() {
+                desugar_after_ast_type_check_recursive(env, &mut child);
+            }
+        }
+    }
+}

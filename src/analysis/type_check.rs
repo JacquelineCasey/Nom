@@ -239,13 +239,17 @@ fn type_check_expr(
             struct_type
         }
         ExprAST::MemberAccess(expr, member_name, _) => {
-            let expr_type = type_check_expr(env, expr, function_name, None)?;
+            let mut accessed_type = type_check_expr(env, expr, function_name, None)?;
 
-            let Some(type_info) = env.types.get_basic_info(&expr_type) else {
+            // Remove pointers in the type. Desugaring later will explicitly restructure the ast accordingly.
+            while let Type::Pointer(pointee_type) = accessed_type {
+                accessed_type = *pointee_type;
+            }
+
+            let Some(type_info) = env.types.get_basic_info(&accessed_type) else {
                 return Err("Type not found".into());
             };
 
-            // TODO! Handle pointer access here, it has not yet been desugared.
             let KindData::Struct { members } = &type_info.kind else {
                 return Err("Left side of member access expression is not a struct type".into());
             };
@@ -262,7 +266,7 @@ fn type_check_expr(
             if let Type::Pointer(inner_type) = expr_type {
                 (*inner_type).clone()
             } else {
-                return Err("Right side of pointer access expression is not a pointer type".into());
+                return Err("Left side of pointer access expression is not a pointer type".into());
             }
         }
         ExprAST::Free { subexpr, .. } => {
@@ -279,7 +283,8 @@ fn type_check_expr(
     if expr_type != Type::BuiltIn(BuiltIn::Bottom) {
         if let Some(inner) = expected {
             if *inner != expr_type {
-                return Err("Type did not matched expected".into());
+                // TODO! Make this user facing.
+                return Err(std::format!("Type did not matched expected at {:?}", expr.get_node_data().span).into());
             }
         }
     }

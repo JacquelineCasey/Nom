@@ -7,7 +7,7 @@ struct Foo {
     b: i32,
 }
 
-fn main() -> unit {
+fn main() -> i32 {
     var test_sum: i32 = 0;
 
     var foo: *Foo = alloc_uninit!(Foo);
@@ -27,9 +27,9 @@ fn main() -> unit {
     test_sum += foo.a + foo.*.b;
 
     // Let's read the whole thing.
-    val stack_foo = foo.*;
+    val stack_foo: Foo = foo.*;
 
-    test_sum += stack_foo.a + stack_foo.*.b;
+    test_sum += stack_foo.a + stack_foo.b;
 
     free!(foo);
 

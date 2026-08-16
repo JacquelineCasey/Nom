@@ -181,6 +181,8 @@ impl CompilationEnvironment {
         // TODO: permit additions of type conversion to AST.
         analysis::type_check(self, function_name)?;
 
+        analysis::desugar_after_type_check(self, function_name)?;
+
         Ok(())
     }
 }

@@ -482,23 +482,20 @@ impl CodeGenerator {
                 Self::generate_stack_retraction(align_shift + offset, *size, *alignment, out);
             }
             Location::ThroughPointer(expr) => {
-                let Type::Pointer(pointee_type) = &env.type_index[&expr.get_node_data().id] else {
+                let Type::Pointer(..) = &env.type_index[&expr.get_node_data().id] else {
                     panic!("Attempting to dereference non-pointer");
                 };
-
-                let TypeInfo { size: pointee_size, alignment: pointee_alignment, .. } =
-                    &env.types.get_basic_info(pointee_type).expect("pointee_type known");
 
                 // The basic procedure is to advance beyond the end of the destination w/ alignment for the pointer,
                 // evaluate the pointer expression, and read pointee-alignment sized blocks similar to
                 // generate_read_from_base() repeatedly, adding the pointee-alignment to the pointer as you go. At the
                 // end, retract back to the top of the destination.
 
-                let align_shift = get_align_shift(depth + pointee_size, 8);
+                let align_shift = get_align_shift(depth + size, 8);
 
-                out.push(PI::Actual(I::AdvanceStackPtr(pointee_size + align_shift)));
+                out.push(PI::Actual(I::AdvanceStackPtr(size + align_shift)));
 
-                self.generate_expression(env, expr, function_info, depth + pointee_size + align_shift, out)?;
+                self.generate_expression(env, expr, function_info, depth + size + align_shift, out)?;
 
                 // The offset from the pointer expression.
                 if offset != 0 {
@@ -513,7 +510,7 @@ impl CodeGenerator {
 
                 while bytes_remaining > 0 {
                     for int_size in [8, 4, 2, 1] {
-                        if int_size > *pointee_alignment || int_size > bytes_remaining {
+                        if int_size > *alignment || int_size > bytes_remaining {
                             continue;
                         }
 

@@ -5,6 +5,7 @@ pub use type_store::TypeStore;
 
 mod desugar;
 pub use desugar::desugar_after_ast_build;
+pub use desugar::desugar_after_type_check;
 
 mod scope_check;
 pub use scope_check::scope_check;

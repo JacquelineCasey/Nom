@@ -291,6 +291,16 @@ impl CodeGenerator {
         depth: usize,
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
+        let expr_type = &env.type_index[&subtree.get_node_data().id];
+        let alignment = env.types.get_basic_info(expr_type).expect("expr_type known").alignment;
+        if !depth.is_multiple_of(alignment) {
+            return Err(format!(
+                "Misalignment detected while generating expression {}; depth: {depth}, alignment: {alignment}.",
+                subtree.get_node_data().span
+            )
+            .into());
+        }
+
         use ExprAST as E;
 
         match subtree {
@@ -439,10 +449,11 @@ impl CodeGenerator {
         depth: usize,
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
-        let expr_type = &env.type_index[&right_expr.get_node_data().id];
-        let expr_type_info = env.types.get_basic_info(expr_type).ok_or(GenerateError("Type not found".to_string()))?;
+        let right_expr_type = &env.type_index[&right_expr.get_node_data().id];
+        let right_expr_type_info =
+            env.types.get_basic_info(right_expr_type).ok_or(GenerateError("Type not found".to_string()))?;
 
-        let align_shift = get_align_shift(depth, expr_type_info.alignment);
+        let align_shift = get_align_shift(depth, right_expr_type_info.alignment);
 
         // Align
         out.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(align_shift)));
@@ -466,22 +477,22 @@ impl CodeGenerator {
                 // Store generated value
                 Self::generate_write_to_base(
                     var_offset + field_offset as isize,
-                    expr_type_info.size,
-                    expr_type_info.alignment,
+                    right_expr_type_info.size,
+                    right_expr_type_info.alignment,
                     out,
                 );
             }
             Location::ThroughPointer(pointer_expr) => {
                 // This mirrors generate_location_read_expr.
 
-                let pointer_align_shift = get_align_shift(depth + align_shift + expr_type_info.size, 8);
+                let pointer_align_shift = get_align_shift(depth + align_shift + right_expr_type_info.size, 8);
                 out.push(PseudoInstruction::Actual(Instruction::AdvanceStackPtr(pointer_align_shift)));
 
                 self.generate_expression(
                     env,
                     pointer_expr,
                     function_info,
-                    depth + expr_type_info.size + align_shift,
+                    depth + align_shift + right_expr_type_info.size + pointer_align_shift,
                     out,
                 )?;
 
@@ -496,11 +507,11 @@ impl CodeGenerator {
                     )));
                 }
 
-                let mut bytes_remaining = expr_type_info.size;
+                let mut bytes_remaining = right_expr_type_info.size;
 
                 while bytes_remaining > 0 {
                     for int_size in [8, 4, 2, 1] {
-                        if int_size > expr_type_info.alignment || int_size > bytes_remaining {
+                        if int_size > right_expr_type_info.alignment || int_size > bytes_remaining {
                             continue;
                         }
 
@@ -528,7 +539,7 @@ impl CodeGenerator {
 
                 // Jump back over pointer, alignment, and the object (but not the object's alignment, that's later)
                 out.push(PseudoInstruction::Actual(Instruction::RetractStackPtr(
-                    8 + pointer_align_shift + expr_type_info.size,
+                    8 + pointer_align_shift + right_expr_type_info.size,
                 )));
             }
             // TODO make a compile time error somehow

@@ -49,7 +49,7 @@ fn type_check_expr(
                 } else if right_type == Type::PartiallyKnown(PartialType::IntLiteral) {
                     type_check_expr(env, right, function_name, Some(&left_type.clone()))?;
                 } else {
-                    return Err("Types don't match".into());
+                    return Err(format!("Types don't match at {}", expr.get_node_data().span).into());
                 }
             }
 
@@ -66,7 +66,7 @@ fn type_check_expr(
                     type_check_expr(env, right, function_name, Some(&left_type))?;
                 } else {
                     let Some(bound) = upper_bound_type(&left_type, &right_type) else {
-                        return Err("Types don't match".into());
+                        return Err(format!("Types don't match at {}", expr.get_node_data().span).into());
                     };
 
                     // TODO: This repeat definitely could cause some efficiency issues.
@@ -103,11 +103,14 @@ fn type_check_expr(
                     StatementAST::ExpressionStatement(expr, _) => {
                         type_check_expr(env, expr, function_name, None)?;
                     }
-                    StatementAST::Declaration(DeclarationAST::Variable { expr, name, type_ascription, .. }, _) => {
+                    StatementAST::Declaration(
+                        DeclarationAST::Variable { expr, name, type_ascription, node_data, .. },
+                        _,
+                    ) => {
                         let var_type: Type = type_ascription
                             .as_ref()
                             .ok_or(AnalysisError::from(format!(
-                                "Type inference not yet supported - give {name} (in {function_name}) an explicit type."
+                                "Type inference not yet supported - give {name} (in {function_name}) an explicit type. ({})", node_data.span
                             )))?
                             .into();
 
@@ -193,7 +196,7 @@ fn type_check_expr(
                     type_check_expr(env, else_branch, function_name, Some(&if_type))?
                 } else {
                     let Some(bound) = upper_bound_type(&if_type, &else_type) else {
-                        return Err("Types don't match".into());
+                        return Err(format!("Types don't match at {}", expr.get_node_data().span).into());
                     };
 
                     // TODO: This repeat definitely could cause some efficiency issues.
@@ -289,7 +292,7 @@ fn type_check_expr(
         if let Some(inner) = expected {
             if *inner != expr_type {
                 // TODO! Make this user facing.
-                return Err(std::format!("Type did not matched expected at {:?}", expr.get_node_data().span).into());
+                return Err(std::format!("Type did not matched expected at {}", expr.get_node_data().span).into());
             }
         }
     }

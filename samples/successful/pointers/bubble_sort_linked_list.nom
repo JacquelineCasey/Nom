@@ -11,7 +11,7 @@ struct List {
 // as a pointer in List. (No forward declaration needed either, nor is one possible at the moment.)
 struct ListNode {
     value: i32,
-    next: *ListNode
+    next: *ListNode,     
 }
 
 // Returns a pointer so that we can pass this to functions and witness changes to head.
@@ -50,23 +50,25 @@ fn sum_list(list: *List) -> i32 {
 }
 
 // Descend down the list, and on the way back up, swap the minimum element to the front. 
-fn swap_for_min_rec(node: *ListNode, list_nil: *nil) -> unit {
+fn swap_for_min_rec(node: *ListNode, list_nil: *ListNode) -> unit {
     // The comparison is in fact lazy, though here it technically doesn't need to be.
     if (node == list_nil or node.next == list_nil ) {
         return {}
     };
+
+    swap_for_min_rec(node.next, list_nil);
 
     if (node.value > node.next.value ) {
         // Swap.
         val tmp: i32 = node.value;
         node.value = node.next.value;
         node.next.value = tmp;
-    }
+    };
 }
 
 // Harder: Sort the list.
 fn sort(list: *List) -> unit {
-    // We'll demonstrate a non-recursive algorithm for this part.
+    // We'll demonstrate a non-recursive algorithm for this part. The inner loop is recursive.
     var curr: *ListNode = list.head;
     while (curr != list.nil) {
         swap_for_min_rec(curr, list.nil);
@@ -85,8 +87,8 @@ fn list_equals(l1: *List, l2: *List) -> bool {
             return false;
         };
 
-        curr1 = curr1.head;
-        curr2 = curr2.head;
+        curr1 = curr1.next;
+        curr2 = curr2.next;
     };
 
     // One of the lists are out. They are equal if they are both out.
@@ -97,7 +99,7 @@ fn list_equals(l1: *List, l2: *List) -> bool {
 fn free_list(list: *List) -> unit {
     var curr: *ListNode = list.head;
     while (curr != list.nil) {
-        val next = curr.next;
+        val next: *ListNode = curr.next;
         free!(curr);
         curr = next;
     };
@@ -106,7 +108,7 @@ fn free_list(list: *List) -> unit {
     free!(list) // No semicolon checks that this is unit typed.
 }
 
-fn main() -> unit {
+fn main() -> i32 {
     // Unsorted list to start.
     val l1: *List = new_list();
     push_front(l1, 7);

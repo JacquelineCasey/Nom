@@ -123,7 +123,7 @@ impl CompilationEnvironment {
         let syntax_tree =
             self.parser.parse_tokens(&tokens, "Program").map_err(|err| CompileError::ParseError(err, tokens))?;
         let mut ast = ast::build_ast(&syntax_tree)?;
-        analysis::desugar(&mut ast);
+        analysis::desugar_after_ast_build(&mut ast);
 
         for decl in ast.declarations {
             match decl {

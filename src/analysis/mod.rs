@@ -4,7 +4,7 @@ pub mod type_store;
 pub use type_store::TypeStore;
 
 mod desugar;
-pub use desugar::desugar; // Desugaring should happen right after the AST is created.
+pub use desugar::desugar_after_ast_build; // Desugaring should happen right after the AST is created.
 
 mod scope_check;
 pub use scope_check::scope_check; // Scope check happens next. This task enters the compilation queue.

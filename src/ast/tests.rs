@@ -43,7 +43,7 @@ fn ast_has_spans(resource: &str) {
 
     validate_spans(&mut AnyAST::File(&mut ast));
 
-    crate::analysis::desugar(&mut ast);
+    crate::analysis::desugar_after_ast_build(&mut ast);
 
     validate_spans(&mut AnyAST::File(&mut ast));
 

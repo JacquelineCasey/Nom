@@ -7,11 +7,26 @@ use crate::{
     token::Span,
 };
 
-pub fn desugar(ast: &mut AST) {
-    desugar_ast(&mut AnyAST::File(ast));
+// Desugaring occurs at several places, so the functions here are divided into separate stages.
+
+/// Desugaring that occurs on the AST immediately after it has been built. Type / scope information has not been built,
+/// so these are naive program transformations, essentially turning fancy syntax into simpler syntax.
+pub fn desugar_after_ast_build(ast: &mut AST) {
+    desugar_after_ast_build_recursive(&mut AnyAST::File(ast));
 }
 
-fn desugar_ast<'a>(ast: &'a mut AnyAST<'a>) {
+/// Desugaring that occurs on the AST after type checking. Since type information is known, these transformations can
+/// do things like "only change this if we know X is a pointer", and so on. One downside to putting a transformation
+/// here is that it must inform the rest of the compilation process of the type of the new expression, and the type
+/// system has to work with the pre-transformed code even in cases where that otherwise wouldn't be necessary. So the
+/// benefit is lower and the cost is higher, but these transformations are still a good idea because custom code-gen
+/// is tricky, and having near-duplicate structures there is brittle.
+pub fn desugar_after_type_check(ast: &mut AST /* TODO add something for type info */) {
+    // desugar_after_type_check_recursive();
+    todo!() // Add a typed_desugar step to turn ptr.x into ptr.*.x;
+}
+
+fn desugar_after_ast_build_recursive<'a>(ast: &'a mut AnyAST<'a>) {
     match ast {
         /* Compound assignment simply becomes normal assignment after performing the
          * operation. */
@@ -46,11 +61,11 @@ fn desugar_ast<'a>(ast: &'a mut AnyAST<'a>) {
 
             _ = std::mem::replace(*statement, StatementAST::Assignment(left, operation, ASTNodeData::new(span)));
 
-            desugar_ast(&mut AnyAST::Statement(statement));
+            desugar_after_ast_build_recursive(&mut AnyAST::Statement(statement));
         }
         _ => {
             for mut child in ast.children() {
-                desugar_ast(&mut child);
+                desugar_after_ast_build_recursive(&mut child);
             }
         }
     }

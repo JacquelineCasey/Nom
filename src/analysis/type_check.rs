@@ -244,12 +244,13 @@ fn type_check_expr(
                 return Err("Type not found".into());
             };
 
+            // TODO! Handle pointer access here, it has not yet been desugared.
             let KindData::Struct { members } = &type_info.kind else {
-                return Err("Right side of member access expression is not a struct type".into());
+                return Err("Left side of member access expression is not a struct type".into());
             };
 
             let Some((member_type, _)) = members.get(member_name) else {
-                return Err("Right side of member access expression is not a struct type".into());
+                return Err("Right side of member access expression does not name a member of the struct".into());
             };
 
             member_type.clone()

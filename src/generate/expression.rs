@@ -210,8 +210,7 @@ impl CodeGenerator {
         name: &str,
         out: &mut OutStream<PseudoInstruction>,
     ) {
-        // This is placing a variable's value on the stack. See statement for storing
-        // a variable.
+        // This is placing a variable's value on the stack. See statement for storing a variable.
 
         // TODO: Shadowing...
 
@@ -255,9 +254,8 @@ impl CodeGenerator {
         subexprs: &[ExprAST],
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
-        // We assume that the depth is already such that a value from the function
-        // Can be aligned. If the alignment is not 8 though, we shift, run the function,
-        // and then pull the value back.
+        // We assume that the depth is already such that a value from the function can be aligned. If the alignment is
+        // not 8 though, we shift, run the function, and then pull the value back.
 
         let info = self.functions.get(name).ok_or(GenerateError("Function not found".to_string()))?;
 
@@ -491,10 +489,10 @@ impl CodeGenerator {
                 let TypeInfo { size: pointee_size, alignment: pointee_alignment, .. } =
                     &env.types.get_basic_info(pointee_type).expect("pointee_type known");
 
-                // The basic procedure is to advance beyond the end of the destination w/ alignment for
-                // the pointer, evaluate the pointer expression, and read pointee-alignment sized blocks
-                // similar to generate_read_from_base() repeatedly, adding the pointee-alignment to
-                // the pointer as you go. At the end, retract back to the top of the destination.
+                // The basic procedure is to advance beyond the end of the destination w/ alignment for the pointer,
+                // evaluate the pointer expression, and read pointee-alignment sized blocks similar to
+                // generate_read_from_base() repeatedly, adding the pointee-alignment to the pointer as you go. At the
+                // end, retract back to the top of the destination.
 
                 let align_shift = get_align_shift(depth + pointee_size, 8);
 

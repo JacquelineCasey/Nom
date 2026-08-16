@@ -1,13 +1,12 @@
-//! Defines the types of errors that may occur at any stage during compilation.
-//! Also defines simple conversions between strings and errors, and the module errors and the overall [`CompileError`]
+//! Defines the types of errors that may occur at any stage during compilation. Also defines simple conversions between
+//! strings and errors, and the module errors and the overall [`CompileError`]
 
 use crate::token::Token;
 
 /* Module Level Errors */
 
-// We do approximately one error type per module.
-// For now, errors are really just strings, but I want to have user facing errors
-// at some point.
+// We do approximately one error type per module. For now, errors are really just strings, but I want to have user
+// facing errors at some point.
 
 use crate::token::Span;
 
@@ -15,6 +14,7 @@ use crate::token::Span;
 pub enum TokenError {
     /// A problem described by a string.
     Problem(String),
+
     /// A problem (described as the string) localized at a particular span.
     ProblemAtSpan(String, Span),
 }
@@ -82,18 +82,22 @@ impl From<&str> for GenerateError {
 
 /* Project Level Error */
 
+// Note that errors in the generate module should always be our fault and not the user's. They are not currently
+// included, in the enum below, but we change that.
+
 #[derive(Debug)]
 pub enum CompileError {
     /// An error associated with the compilation process itself, not any one step.
     Direct(String),
+
     TokenError(TokenError),
+
     // We pack the tokens for context. TODO: We should probably provide that as context instead. Then we can treat this
     // error more normally.
     ParseError(parsley::ParseError, Vec<Token>),
+
     ASTError(ASTError),
     AnalysisError(AnalysisError),
-    // Note that GenerateErrors should always be our fault and not the user's. Not currently included, though we could
-    // change that.
 }
 
 impl From<&str> for CompileError {

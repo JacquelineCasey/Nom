@@ -7,7 +7,7 @@ use crate::{
     CompilationEnvironment,
 };
 
-// Checks the scope (as well as const-ness) rules, and builds a table of local variables.
+/// Checks the scope (as well as const-ness) rules, and builds a table of local variables.
 pub fn scope_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), AnalysisError> {
     let function = env.functions.get_mut(name).ok_or(AnalysisError("Could not find function".into()))?;
     let block = std::mem::take(&mut function.ast);

@@ -7,8 +7,8 @@ use nom::compile_file;
 use nom::runtime::Runtime;
 use nom::Instruction;
 
-// Retrieves expected output or panic messages etc
-// Returns a string with all lines that begin with //!, ignoring the prefix "//! " (note the space)
+/// Retrieves expected output or panic messages etc. Returns a string with all lines that begin with //!, ignoring the
+/// prefix "//! " (note the space)
 fn get_marked_comments(input: &str) -> String {
     let mut marked_lines = input
         .lines()
@@ -37,7 +37,7 @@ fn read_file(resource: &str) -> String {
     input
 }
 
-// Convenience - dump an array of instructions
+/// Convenience - dump an array of instructions
 pub fn dump_instructions(instrs: &[Instruction]) -> String {
     instrs.iter().enumerate().map(|(i, instr)| format!("{i:<6}  {instr:?}")).collect::<Vec<_>>().join("\n")
 }
@@ -47,8 +47,8 @@ fn run_successful(resource: &str) {
     let input = read_file(resource);
     let expected_output = get_marked_comments(&input);
 
-    // For whatever reason, println!() and writeln!(stdout) behave differently under tests. We'll collect the buffer
-    // and display it ourselves.
+    // For whatever reason, println!() and writeln!(stdout) behave differently under tests. We'll collect the buffer and
+    // display it ourselves.
     let mut buf = std::io::BufWriter::new(vec![]);
     let code: Vec<Instruction> = compile_file(resource.to_string(), Some(&mut buf));
 

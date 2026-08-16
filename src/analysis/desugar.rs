@@ -1,6 +1,5 @@
-// Desugaring is the process of removing syntactic sugar. This process happens
-// early so that later analysis steps can take place with a somewhat normalized
-// format.
+//! Desugaring is the process of removing syntactic sugar. This process happens early so that later analysis steps can
+//! take place with a somewhat normalized format.
 
 use crate::{
     ast::{ASTNodeData, AnyAST, ExprAST, StatementAST, AST},
@@ -21,16 +20,17 @@ pub fn desugar_after_ast_build(ast: &mut AST) {
 /// system has to work with the pre-transformed code even in cases where that otherwise wouldn't be necessary. So the
 /// benefit is lower and the cost is higher, but these transformations are still a good idea because custom code-gen
 /// is tricky, and having near-duplicate structures there is brittle.
-pub fn desugar_after_type_check(ast: &mut AST /* TODO add something for type info */) {
+#[allow(unused)]
+pub fn desugar_after_type_check(_ast: &mut AST /* TODO add something for type info */) {
     // desugar_after_type_check_recursive();
     todo!() // Add a typed_desugar step to turn ptr.x into ptr.*.x;
 }
 
 fn desugar_after_ast_build_recursive<'a>(ast: &'a mut AnyAST<'a>) {
     match ast {
-        /* Compound assignment simply becomes normal assignment after performing the
-         * operation. */
         AnyAST::Statement(statement @ StatementAST::CompoundAssignment(..)) => {
+            // Compound assignment simply becomes normal assignment after performing the operation.
+
             // We unpack here to appease the borrow checker.
             let StatementAST::CompoundAssignment(left, right, op, ..) = statement else {
                 panic!("Known to be variant")
@@ -72,5 +72,4 @@ fn desugar_after_ast_build_recursive<'a>(ast: &'a mut AnyAST<'a>) {
 }
 
 // TODO: Desugar final while
-// TODO: Figure out what I meant by this ^. Did I possibly mean desugar final return
-// into normal final expression?
+// TODO: Figure out what I meant by this ^. Did I possibly mean desugar final return into normal final expression?

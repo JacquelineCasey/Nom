@@ -1,10 +1,10 @@
-/* Generated instructions can be obviously inefficient. In fact, there are even
- * no-ops, such as AdvanceStackPtr(0) */
+//! Generated instructions can be obviously inefficient. In fact, there are even no-ops, such as AdvanceStackPtr(0).
+//! This module performs simple operations, like joining adjacent instructions where possible, and removing no-ops.
 
 use super::PseudoInstruction;
 use crate::instructions::Instruction;
 
-/* Optimizes the code of a single function */
+/// Optimizes the code of a single function.
 pub fn optimize(instructions: Vec<PseudoInstruction>) -> Vec<PseudoInstruction> {
     use Instruction as I;
     use PseudoInstruction as PI;

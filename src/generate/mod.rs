@@ -27,31 +27,40 @@ enum PseudoInstruction {
 
 #[derive(Clone, Debug)]
 enum TempInstruction {
-    Call(String),    // Call a function by name (we don't yet know its index).
-    JumpIfTrue(u32), // This is a unique id. This corresponds to a jump instruction later.
+    /// Call a function by name (we don't yet know its index).
+    Call(String),
+
+    /// This is a unique id. This corresponds to a jump instruction later.
+    JumpIfTrue(u32),
     Jump(u32),
     JumpIfFalse(u32),
-    JumpFrom(u32), // This will be removed (will not be an actual instruction),
-                   // but allows reasoning about jumps without counting instructions early on (before optimization).
+
+    /// This will be removed (will not be an actual instruction),
+    /// but allows reasoning about jumps without counting instructions early on (before optimization).
+    JumpFrom(u32),
 }
 
-/// For supporting lvalues vs rvalue semantics. For every expression we can determine
-/// a location, which is enough information to describe to the generator how to (efficiently)
-/// get the value. For some cases, it requires evaluating the expression in whole. In others,
-/// we can simply copy from somewhere, possibly with some offset. For others still, we may
-/// need to evaluate an expression to determine that offset.
+/// For supporting lvalues vs rvalue semantics. For every expression we can determine a location, which is enough
+/// information to describe to the generator how to (efficiently) get the value. For some cases, it requires evaluating
+/// the expression in whole. In others, we can simply copy from somewhere, possibly with some offset. For others still,
+/// we may need to evaluate an expression to determine that offset.
 #[derive(Clone, Debug)]
 enum Location<'a> {
-    EvaluatedExpression(&'a ExprAST),     // We have to fully evaluate this expression.
-    Local(String),                        // A local (or argument).
-    OffsetFrom(Box<Location<'a>>, usize), // A particular offset from another location. Always a positive shift.
-    ThroughPointer(&'a ExprAST),          // We evaluate this expression, and it is a pointer identifying the result.
-                                          // Soon - LocalUnknownOffset... maybe (String, Expr). Supporting expressions like arr[i * 2]
-}
+    /// We have to fully evaluate this expression.
+    EvaluatedExpression(&'a ExprAST),
+
+    /// A local (or argument).
+    Local(String),
+
+    /// A particular offset from another location. Always a positive shift.
+    OffsetFrom(Box<Location<'a>>, usize),
+
+    /// We evaluate this expression, and it is a pointer identifying the result.
+    ThroughPointer(&'a ExprAST),
+} // Soon - LocalUnknownOffset... maybe (String, Expr). Supporting expressions like arr[i * 2]
 
 impl Location<'_> {
-    // Returns a new location struct where the offsets are collapsed to a single
-    // level.
+    /// Returns a new location struct where the offsets are collapsed to a single level.
     fn collapse_offsets(self) -> Self {
         match self {
             Location::OffsetFrom(inner, offset_a) => {
@@ -242,6 +251,7 @@ impl CodeGenerator {
 
     // Precondition: stack pointer is byte above return value.
     // Postcondition: return value moved to final destination. Function returns.
+    //
     // So called because it hands off control to the previous function. Not to be
     // confused with generate_return_expr, which handles the return keyword.
     fn generate_return_handoff(
@@ -249,8 +259,8 @@ impl CodeGenerator {
         function_info: &FunctionInfo,
         out: &mut OutStream<PseudoInstruction>,
     ) -> Result<(), GenerateError> {
-        // If we ever add special move semantics beyond shallow copy...
-        // We might need to invoke them here. Hard to say...
+        // If we ever add special move semantics beyond shallow copy... We might need to invoke them here. Hard to
+        // say...
 
         let (return_location, size, return_type) = function_info
             .variables
@@ -267,9 +277,11 @@ impl CodeGenerator {
     }
 
     // Precondition: The stack is aligned so as to hold a value of the expressions type, at the desired position.
-    // Postcondition: The stack has the expression value at that desired position. The pointer points one byte above the value.
-    // Expressions are being evaluated as rvalues, not as lvalues. In particular, pass a variable here is you want to put its
-    // value on the stack, but see generate_statement if you want to store something into that variable.
+    // Postcondition: The stack has the expression value at that desired position. The pointer points one byte above the
+    // value.
+    //
+    // Expressions are being evaluated as rvalues, not as lvalues. In particular, pass a variable here is you want to
+    // put its value on the stack, but see generate_statement if you want to store something into that variable.
     #[allow(clippy::too_many_lines)]
     fn generate_expression(
         &self,
@@ -437,8 +449,8 @@ impl CodeGenerator {
 
         self.generate_expression(env, right_expr, function_info, depth + align_shift, out)?;
 
-        // We handle the most general case involving a field, but really if it
-        // is just a variable then we say the field has offset 0.
+        // We handle the most general case involving a field, but really if it is just a variable then we say the field
+        // has offset 0.
 
         let (location_without_offset, field_offset) = match location.collapse_offsets() {
             Location::OffsetFrom(inner, offset) => (*inner, offset),
@@ -519,7 +531,8 @@ impl CodeGenerator {
                     8 + pointer_align_shift + expr_type_info.size,
                 )));
             }
-            _ => return Err("Cannot assign into an arbitrary expression".into()), // TODO make a compile time error somehow
+            // TODO make a compile time error somehow
+            _ => return Err("Cannot assign into an arbitrary expression".into()),
         }
 
         // Remove alignment
@@ -528,12 +541,11 @@ impl CodeGenerator {
         Ok(())
     }
 
-    /// Generates code to move a value (with given size and alignment) to some
-    /// location given as an offset from the base pointer (e.g. a local, a return value, a
-    /// mutable argument).
+    /// Generates code to move a value (with given size and alignment) to some location given as an offset from the base
+    /// pointer (e.g. a local, a return value, a mutable argument).
     ///
-    /// `base_offset` is the location of the target. `val_size` is the size of the value
-    /// (and implicitly, the target). `alignment` is the alignment of the type.
+    /// `base_offset` is the location of the target. `val_size` is the size of the value (and implicitly, the target).
+    /// `alignment` is the alignment of the type.
     fn generate_write_to_base(
         base_offset: isize,
         val_size: usize,
@@ -563,13 +575,11 @@ impl CodeGenerator {
         }
     }
 
-    /// Generates code to move a value (with given size and alignment) from some
-    /// location given as an offset from the base pointer (e.g. a local, or a
-    /// mutable argument) to the stack.
+    /// Generates code to move a value (with given size and alignment) from some location given as an offset from the
+    /// base pointer (e.g. a local, or a mutable argument) to the stack.
     ///
-    /// `base_offset` is the location of the target. `val_size` is the size of the value
-    /// (and implicitly, the target). `alignment` is the alignment of the type.
-    /// We assume we are already aligned for that type (as is typical).
+    /// `base_offset` is the location of the target. `val_size` is the size of the value (and implicitly, the target).
+    /// `alignment` is the alignment of the type. We assume we are already aligned for that type (as is typical).
     fn generate_read_from_base(
         base_offset: isize,
         val_size: usize,
@@ -596,8 +606,7 @@ impl CodeGenerator {
         }
     }
 
-    /// Generates code to move a value that currently exists on the stack down
-    /// some number of bytes (the shift).
+    /// Generates code to move a value that currently exists on the stack down some number of bytes (the shift).
     fn generate_stack_retraction(shift: usize, size: usize, alignment: usize, out: &mut OutStream<PseudoInstruction>) {
         if shift == 0 {
             return;
@@ -686,13 +695,18 @@ fn get_align_shift(depth: usize, alignment: usize) -> usize {
     }
 }
 
-// Information associated with each function. This is a working copy, so many of
-// the fields are optional.
+/// Information associated with each function. This is a working copy, so many of the fields are optional.
 #[derive(Debug)]
 struct FunctionInfo {
-    variables: HashMap<Variable, (isize, usize, Type)>, // maps parameters, locals, and the return value to their position and sizes in memory.
-    top: usize,                                         // Points to byte one past the topmost local variable
-    initial_code: Vec<PseudoInstruction>,               // Not optimized, and not linked
+    /// Maps parameters, locals, and the return value to their position and sizes in memory.
+    variables: HashMap<Variable, (isize, usize, Type)>,
+
+    /// Points to byte one past the topmost local variable
+    top: usize,
+
+    /// Not optimized, and not linked
+    initial_code: Vec<PseudoInstruction>,
+
     parameters: Vec<Variable>,
 }
 
@@ -708,9 +722,8 @@ impl FunctionInfo {
         let analysis_info =
             env.functions.get(name).ok_or(GenerateError("Could not find analyzed function data".to_string()))?;
 
-        // We first allocate return value and arguments, then we push them behind
-        // the base pointer and ensure they have 8 alignment. Then we allocate
-        // local variables.
+        // We first allocate return value and arguments, then we push them behind the base pointer and ensure they have
+        // 8 alignment. Then we allocate local variables.
 
         let return_type_info = env
             .types

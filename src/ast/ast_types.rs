@@ -7,9 +7,9 @@ use crate::token::Span;
 
 /// Represents an abstract syntax tree for a single file.
 ///
-/// The AST owns all of the data of all of the nodes underneath it. This top level
-/// node is really just a list of [`DeclarationASTs`](DeclarationAST), which are
-/// the declarations in that file (at time of writing, should be all functions).
+/// The AST owns all of the data of all of the nodes underneath it. This top level node is really just a list of
+/// [`DeclarationASTs`](DeclarationAST), which are the declarations in that file (at time of writing, should be all
+/// functions).
 ///
 /// As with the other AST types, this node has an [`ASTNodeData`] field.
 #[derive(Debug)]
@@ -22,41 +22,38 @@ pub struct AST {
 
 /// Metadata associated with each and every AST node (all AST node types).
 ///
-/// Instead of repeating ourselves across every enum variant, we place a single
-/// [`ASTNodeData`] in each and allow that to hold common information. With a constructor,
-/// it is easy to initialize this struct without getting too distracted from the
-/// main logic.
+/// Instead of repeating ourselves across every enum variant, we place a single [`ASTNodeData`] in each and allow that
+/// to hold common information. With a constructor, it is easy to initialize this struct without getting too distracted
+/// from the main logic.
 ///
-/// Actually, much of the data associated with a node is only associated with the
-/// `id` field.
+/// Actually, much of the data associated with a node is only associated with the `id` field.
 #[derive(Debug)]
 pub struct ASTNodeData {
-    /// A unique id. The only guarantee is that these are unique, there is no promise
-    /// that a given number is somewhere in the tree. Useful for associating additional
-    /// information (like type info) outside of the tree, which is slightly better
-    /// for borrowing / const correctness purposes.
+    /// A unique id. The only guarantee is that these are unique, there is no promise that a given number is somewhere
+    /// in the tree. Useful for associating additional information (like type info) outside of the tree, which is
+    /// slightly better for borrowing / const correctness purposes.
     pub id: u32,
-    /// A [`Span`] representing the part of the file that corresponds to this language
-    /// construct. Used in error messages.
+
+    /// A [`Span`] representing the part of the file that corresponds to this language construct. Used in error
+    /// messages.
     pub span: Span,
 }
 
 impl ASTNodeData {
     /// Initializes an [`ASTNodeData`].
     ///
-    /// The span is provided as an argument. The id is generated such that it will
-    /// never be used again (unless perhaps we overflow, which is extremely unlikely).
+    /// The span is provided as an argument. The id is generated such that it will never be used again (unless perhaps
+    /// we overflow, which is extremely unlikely).
     pub fn new(span: Span) -> ASTNodeData {
         ASTNodeData { id: crate::util::next_id(), span }
     }
 
     /// Clones the [`ASTNodeData`], but gives it a new id.
     ///
-    /// Notice that [`ASTNodeData`] lacks a Clone implementation. This is the analog.
-    /// While clone would imply that the type is fully copied (more or less), this
-    /// function is not a true copy. All fields are cloned, except for `id`, which
-    /// receives a new id. This way, the cloned subtree can be added to the AST
-    /// without causing issues involving, say, the type index.
+    /// Notice that [`ASTNodeData`] lacks a Clone implementation. This is the analog. While clone would imply that the
+    /// type is fully copied (more or less), this function is not a true copy. All fields are cloned, except for `id`,
+    /// which receives a new id. This way, the cloned subtree can be added to the AST without causing issues involving,
+    /// say, the type index.
     pub fn relabel(&self) -> ASTNodeData {
         ASTNodeData { id: crate::util::next_id(), span: self.span.clone() }
     }
@@ -64,50 +61,57 @@ impl ASTNodeData {
 
 /// Represents a declaration in the Nom program.
 ///
-/// This AST type handles declarations, which include functions, variables, and
-/// types.
+/// This AST type handles declarations, which include functions, variables, and types.
 ///
-/// Note that this type is explicitly not [`Clone`]. Instead, you should use
-/// [`duplicate()`](DeclarationAST::duplicate), which acts like clone except the
-/// [`ASTNodeData`] is provided a new id.
+/// Note that this type is explicitly not [`Clone`]. Instead, you should use [`duplicate()`](DeclarationAST::duplicate),
+/// which acts like clone except the [`ASTNodeData`] is provided a new id.
 #[derive(Debug)]
 pub enum DeclarationAST {
-    /// A function declaration in the Nom program. Note that function calls are
-    /// different.
+    /// A function declaration in the Nom program. Note that function calls are different.
     Function {
         /// The name of the function.
         name: String,
+
         /// A list of parameters, each represented by a (name, type) pair.
         params: Vec<(String, TypeAST)>,
+
         /// The code of the function. This [`ExprAST`] should always be a block.
         block: ExprAST,
+
         /// The type the function returns
         return_type: TypeAST,
+
         /// Metadata.
         node_data: ASTNodeData,
     },
-    /// A variable declaration within a function. Global variables are not yet
-    /// supported.
+
+    /// A variable declaration within a function. Global variables are not yet supported.
     Variable {
         /// Represents whether or not the variable is mutable or not.
         mutability: Mutability,
+
         /// The name of the variables.
         name: String,
-        /// The expression that defines the variable. It is not permitted to have
-        /// a variable without an initial value.
+
+        /// The expression that defines the variable. It is not permitted to have a variable without an initial value.
         expr: ExprAST,
-        /// The type associated with the variable. This is optional, so that someday
-        /// we might allow type inference to determine the type (not yet implemented).
+
+        /// The type associated with the variable. This is optional, so that someday we might allow type inference to
+        /// determine the type (not yet implemented).
         type_ascription: Option<TypeAST>,
+
         /// Metadata.
         node_data: ASTNodeData,
     },
+
     /// A type declaration for a struct.
     Struct {
         /// The name of the struct.
         name: String,
+
         /// Members of the struct. The string is the name and the type is the member's type.
         members: Vec<(String, TypeAST)>,
+
         /// Metadata.
         node_data: ASTNodeData,
     },
@@ -155,27 +159,26 @@ impl DeclarationAST {
 
 /// Represents a statements in the Nom program.
 ///
-/// Assignments, including compound assignments, are the main form of statements.
-/// Declarations (which do require assignment), are another one. Finally, it is
-/// permitted for the statement to simply evaluate an expression.
+/// Assignments, including compound assignments, are the main form of statements. Declarations (which do require
+/// assignment), are another one. Finally, it is permitted for the statement to simply evaluate an expression.
 ///
-/// Almost all constructs in Nom are expressions, so there are few enum variants
-/// here.
+/// Almost all constructs in Nom are expressions, so there are few enum variants here.
 #[derive(Debug)]
 pub enum StatementAST {
     /// A expression executed for its side effects.
     ExpressionStatement(ExprAST, ASTNodeData),
-    /// Represents an assignment of the left [`ExprAST`] from the value generated
-    /// from the right [`ExprAST`]. The left expression has some restrictions to
-    /// ensure it is actually assignable (a so called lvalue).
+
+    /// Represents an assignment of the left [`ExprAST`] from the value generated from the right [`ExprAST`]. The left
+    /// expression has some restrictions to ensure it is actually assignable (a so called lvalue).
     Assignment(ExprAST, ExprAST, ASTNodeData),
-    /// Represents a compound assignment. The left [`ExprAST`] is the assignee, and
-    /// the right one is the value. Eventually desugared, so that `a += b` becomes
-    /// `a = a + b`.
+
+    /// Represents a compound assignment. The left [`ExprAST`] is the assignee, and the right one is the value.
+    /// Eventually desugared, so that `a += b` becomes `a = a + b`.
     CompoundAssignment(ExprAST, ExprAST, MathOperation, ASTNodeData),
-    /// A declaration. Currently, only variable declarations are permitted within
-    /// functions.
-    Declaration(DeclarationAST, ASTNodeData), // Any declaration will be allowed, but for now only variable declarations work.
+
+    /// A declaration. Currently, only variable declarations are permitted within functions.
+    /// Any declaration will be allowed in the future, but for now only variable declarations work.
+    Declaration(DeclarationAST, ASTNodeData),
 }
 
 impl StatementAST {
@@ -231,19 +234,27 @@ pub enum ExprAST {
     Multiply(Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Divide(Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Modulus(Box<ExprAST>, Box<ExprAST>, ASTNodeData),
+
     Comparison(Box<ExprAST>, Box<ExprAST>, Comparison, ASTNodeData),
+
     Or(Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     And(Box<ExprAST>, Box<ExprAST>, ASTNodeData),
     Not(Box<ExprAST>, ASTNodeData),
+
     MemberAccess(Box<ExprAST>, String, ASTNodeData),
-    // A pointer, followed by .*, to dereference it to an lvalue.
+
+    /// A pointer, followed by .*, to dereference it to an lvalue.
     PointerAccess(Box<ExprAST>, ASTNodeData),
-    // i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
+
+    /// i128 can fit all of our literals, up to u64 and i64. Whether a literal fits in a specific type is decided later.
     IntegerLiteral(i128, ASTNodeData),
+
     BooleanLiteral(bool, ASTNodeData),
     Variable(String, ASTNodeData),
-    // The vec contains the arguments.
+
+    /// The vec contains the arguments.
     FunctionCall(String, Vec<ExprAST>, ASTNodeData),
+
     Block(Vec<StatementAST>, Option<Box<ExprAST>>, ASTNodeData),
     If {
         condition: Box<ExprAST>,
@@ -256,19 +267,23 @@ pub enum ExprAST {
         block: Box<ExprAST>,
         data: ASTNodeData,
     },
+
     Return(Option<Box<ExprAST>>, ASTNodeData),
+
     StructExpression {
         name: String,
         members: Vec<(String, ExprAST)>,
         data: ASTNodeData,
     },
+
     AllocUninit(TypeAST, ASTNodeData),
     Free {
         subexpr: Box<ExprAST>,
         data: ASTNodeData,
     },
-    // This is a hack that allows us to remove an AST, operate on it, and put it back. (Blame the borrow checker for this.)
-    // (See std::mem::take usage for why we need this...)
+
+    /// This is a hack that allows us to remove an AST, operate on it, and put it back. (Blame the borrow checker for
+    /// this; See `std::mem::take` usage for why we need this...)
     #[default]
     Moved,
 }
@@ -302,7 +317,7 @@ impl ExprAST {
         }
     }
 
-    // Creates an identical copy, except for the node_data which is intended to be unique.
+    /// Creates an identical copy, except for the `node_data` which is intended to be unique.
     pub fn duplicate(&self) -> ExprAST {
         match self {
             ExprAST::Add(left, right, node_data) => {
@@ -395,10 +410,9 @@ pub enum AnyAST<'a> {
 }
 
 impl<'a> AnyAST<'a> {
-    /// This function permits recursion over the tree without inspecting the structure.
-    /// Most methods that want to crawl the whole tree will use this, check to see if
-    /// it is at a specific type of node, then recurse in both cases. I anticipate this
-    /// being useful for applying optimizations / desugaring stages.
+    /// This function permits recursion over the tree without inspecting the structure. Most methods that want to crawl
+    /// the whole tree will use this, check to see if it is at a specific type of node, then recurse in both cases. I
+    /// anticipate this being useful for applying optimizations / desugaring stages.
     #[allow(clippy::match_same_arms)] // I prefer my ordering
     pub fn children(&'a mut self) -> Vec<AnyAST<'a>> {
         use AnyAST as A;

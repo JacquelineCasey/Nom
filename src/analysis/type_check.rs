@@ -18,14 +18,13 @@ pub fn type_check(env: &mut CompilationEnvironment, name: &str) -> Result<(), An
     Ok(())
 }
 
-// Resolves the types of all expressions in the function. May decide the types of some
-// expressions if they are ambiguous. May add conversion nodes to the AST.
-//
-// An expected type can be passed if the expression has known type. If this is done,
-// then the function will error if the resolved type does not match the expected.
-// The expected type may be used to decide certain ambiguous expressions, such as
-// literals. If the type is not provided, it will be decided (i.e. literals will be
-// assumed to be i32, etc.)
+/// Resolves the types of all expressions in the function. May decide the types of some expressions if they are
+/// ambiguous. May add conversion nodes to the AST.
+///
+/// An expected type can be passed if the expression has known type. If this is done, then the function will error if
+/// the resolved type does not match the expected. The expected type may be used to decide certain ambiguous
+/// expressions, such as literals. If the type is not provided, it will be decided (i.e. literals will be assumed to be
+/// i32, etc.).
 #[allow(clippy::too_many_lines)]
 fn type_check_expr(
     env: &mut CompilationEnvironment,
@@ -157,7 +156,9 @@ fn type_check_expr(
                 inner_type.clone()
             } else {
                 if !integer_literal_fits(*literal, &Type::BuiltIn(BuiltIn::I32)) {
-                    return Err("Literal does not fit in i32. i32 was chosen because type of literal was unknown. Type inference needs some help".into());
+                    let message = "Literal does not fit in i32. i32 was chosen because type of literal was unknown. \
+                    Type inference needs some help";
+                    return Err(message.into());
                 }
 
                 Type::PartiallyKnown(PartialType::IntLiteral)
@@ -287,7 +288,7 @@ fn type_check_expr(
     Ok(expr_type)
 }
 
-// Converts partial types to final types
+/// Converts partial types to final types.
 #[allow(clippy::only_used_in_recursion)]
 fn finalize_partial_types_expr<'a>(
     env: &mut CompilationEnvironment,

@@ -6,7 +6,6 @@ can go here:
 
 == Immediate TODO ==
 
-- Clean up comment format in analysis/ ast/ error/ generate/ test/, lib.rs and main.r. (Others already done.)
 - Get run_successful_samples_successful_pointers_member_access passing. This should just require adding the ptr.member syntactic sugar.
 - Document the language in nom_docs.md
 - Document the project in the code itself.

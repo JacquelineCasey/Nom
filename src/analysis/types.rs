@@ -32,9 +32,8 @@ pub enum PartialType {
     IntLiteral, // The type of int literals. Will decay into i32 if nothing comes along to override it.
 }
 
-// Sometimes, with int types in particular, we need to decide what type is the smallest
-// upper bound of two types. For instance, if we add an i8 and an i16, then the result
-// is an i16.
+/// Sometimes, with int types in particular, we need to decide what type is the smallest upper bound of two types. For
+/// instance, if we add an i8 and an i16, then the result is an i16.
 pub fn upper_bound_type(left: &Type, right: &Type) -> Option<Type> {
     let (Type::BuiltIn(left), Type::BuiltIn(right)) = (left, right) else {
         return None;
@@ -144,7 +143,7 @@ pub fn add_struct_type(
 
     let mut alignment: usize = 1;
 
-    /* Check type validity, determine overall struct alignment. */
+    // Check type validity, determine overall struct alignment.
 
     for (_, member_type_name) in &members {
         let member_type = member_type_name.into();
@@ -156,7 +155,7 @@ pub fn add_struct_type(
         alignment = std::cmp::max(alignment, *member_alignment);
     }
 
-    /* Compute offsets, ensure fields respect alignment. */
+    // Compute offsets, ensure fields respect alignment.
     let mut processed_members: HashMap<String, (Type, usize)> = HashMap::new(); // usize is offset.
     let mut curr_offset = 0;
 

@@ -4,9 +4,8 @@ use crate::analysis::types::{BuiltIn, KindData};
 
 use super::types::{Type, TypeInfo};
 
-/// Represents analyzed types, and can answer queries about program types.
-/// We use this instead of just a `HashMap` because queries can ask about types
-/// that have not yet been seen, such as T* (for known T).
+/// Represents analyzed types, and can answer queries about program types. We use this instead of just a `HashMap`
+/// because queries can ask about types that have not yet been seen, such as T* (for known T).
 pub struct TypeStore {
     types: HashMap<Type, TypeInfo>,
 }
@@ -16,11 +15,11 @@ impl TypeStore {
         TypeStore { types: HashMap::new() }
     }
 
-    /// "Basic Info" comprises info about the object itself, not anything it contains or allows access to.
-    /// Succeeds even when parts of the type are unknown, like when T* is incomplete.
+    /// "Basic Info" comprises info about the object itself, not anything it contains or allows access to. Succeeds even
+    /// when parts of the type are unknown, like when T* is incomplete.
     pub fn get_basic_info(&self, a_type: &Type) -> Option<&TypeInfo> {
-        // We are leaning on constant promotion here to make a &'static from TypeInfo, which relies on TypeInfo
-        // being a pretty simple (constant + some other restrictions) type.
+        // We are leaning on constant promotion here to make a &'static from TypeInfo, which relies on TypeInfo being a
+        // pretty simple (constant + some other restrictions) type.
         Some(match a_type {
             Type::BuiltIn(BuiltIn::U8 | BuiltIn::I8 | BuiltIn::Boolean) => {
                 &TypeInfo { size: 1, alignment: 1, kind: KindData::BuiltIn }

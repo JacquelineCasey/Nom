@@ -47,6 +47,5 @@ fn ast_has_spans(resource: &str) {
 
     validate_spans(&mut AnyAST::File(&mut ast));
 
-    /* TODO: Could do further tests to ensure no spans overlap (except between parents
-     * and children), etc. */
+    // TODO: Could do further tests to ensure no spans overlap (except between parents and children), etc.
 }

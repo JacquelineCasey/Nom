@@ -1,5 +1,4 @@
-/* Eventually, this binary will be a tool for compiling (?) or running possibly many
- * Nom files. */
+//! Eventually, this binary will be a tool for compiling (?) or running possibly many Nom files.
 
 use nom::compile_string;
 use nom::runtime::Runtime;

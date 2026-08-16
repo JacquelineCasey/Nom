@@ -12,9 +12,8 @@ use std::collections::{BTreeSet, HashSet};
 pub fn pretty_error_message(env: &CompilationEnvironment, err: &CompileError) -> String {
     // TODO: Do we really need the environment here?
 
-    // Much more work to be done here, but I'll do it piecemeal for now.
-    // I'd like to replace all of the string error messages throughout the code with
-    // enums.
+    // Much more work to be done here, but I'll do it piecemeal for now. I'd like to replace all of the string error
+    // messages throughout the code with enums.
     match err {
         CompileError::Direct(msg) => format!("Error occurred during compilation:\n    {msg}"),
         CompileError::TokenError(token_error) => pretty_token_error_message(env, token_error),
@@ -64,9 +63,9 @@ fn pretty_parse_error_message(_env: &CompilationEnvironment, err: &parsley::Pars
     }
 }
 
-/// Returns a pretty description of a set of terminals, for use in the case where the user should pick one of them.
-/// e.g. "one of ',', '.', an identifier, or an operator". Cases with many operators are identified, and "an
-/// operator" is inserted instead.
+/// Returns a pretty description of a set of terminals, for use in the case where the user should pick one of them. e.g.
+/// "one of ',', '.', an identifier, or an operator". Cases with many operators are identified, and "an operator" is
+/// inserted instead.
 fn terminal_choice_description(terminal_names: &HashSet<String>) -> String {
     let terminals = terminal_names
         .iter()

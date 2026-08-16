@@ -1,6 +1,6 @@
 // Demonstrates syntactic sugar for accessing members of a pointed at struct.
 
-//! 16
+//! 20
 
 struct Foo {
     a: i32,
@@ -29,7 +29,7 @@ fn main() -> i32 {
     // Let's read the whole thing.
     val stack_foo: Foo = foo.*;
 
-    test_sum += stack_foo.a + stack_foo.b;
+    test_sum += stack_foo.b + stack_foo.a * 5;
 
     free!(foo);
 

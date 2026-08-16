@@ -255,7 +255,12 @@ fn type_check_expr(
             };
 
             let Some((member_type, _)) = members.get(member_name) else {
-                return Err("Right side of member access expression does not name a member of the struct".into());
+                // TODO Make more user facing.
+                return Err(format!(
+                    "Right side of member access expression does not name a member of the struct, at {:?})",
+                    expr.get_node_data().span
+                )
+                .into());
             };
 
             member_type.clone()
